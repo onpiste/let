@@ -1,0 +1,365 @@
+@import "tailwindcss";
+@source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+
+:root {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --text: #1f1d1a;
+  --muted: #7a756c;
+  --line: #e7e2d8;
+  --user-bubble: #ece7dd;
+  --accent: #d9774b;
+  --accent-text: #ffffff;
+  --shadow: 0 8px 30px rgba(60, 45, 20, 0.08);
+}
+
+[data-mode="dark"] {
+  --bg: #1a1917;
+  --surface: #252320;
+  --text: #ece8e1;
+  --muted: #9b958a;
+  --line: #34312c;
+  --user-bubble: #2f2c28;
+  --accent: #e08a5f;
+  --accent-text: #1a1917;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    "Inter",
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-family: "Fraunces", Georgia, serif;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.status {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+}
+.status.on {
+  background: #4caf7a;
+}
+.status.off {
+  background: #d6a14a;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--muted);
+  transition: background 0.15s;
+}
+.icon-btn:hover {
+  background: var(--user-bubble);
+  color: var(--text);
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.column {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.hero {
+  padding-top: 18vh;
+  text-align: center;
+  animation: rise 0.5s ease-out;
+}
+.hero-title {
+  font-family: "Fraunces", Georgia, "Songti SC", serif;
+  font-size: clamp(2rem, 6vw, 2.75rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.hero-sub {
+  margin-top: 8px;
+  color: var(--muted);
+}
+.suggestions {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+  text-align: left;
+}
+.suggestion {
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.suggestion:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.messages {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 16px;
+}
+
+.bubble-user {
+  max-width: 80%;
+  padding: 10px 16px;
+  border-radius: 20px 20px 6px 20px;
+  background: var(--user-bubble);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  animation: rise 0.25s ease-out;
+}
+
+.assistant {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  line-height: 1.75;
+  font-size: 15.5px;
+  animation: rise 0.25s ease-out;
+}
+
+.prose-cot p {
+  margin: 0.5em 0;
+}
+.prose-cot ul,
+.prose-cot ol {
+  padding-left: 1.4em;
+  margin: 0.5em 0;
+}
+.prose-cot ul {
+  list-style: disc;
+}
+.prose-cot ol {
+  list-style: decimal;
+}
+.prose-cot a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.prose-cot code:not(pre code) {
+  background: var(--user-bubble);
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  font-size: 0.9em;
+}
+
+.tool-chip {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+.tool-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.tool-chip .dot.done {
+  background: #4caf7a;
+}
+.tool-chip .dot.pending {
+  background: var(--accent);
+  animation: pulse 1s infinite;
+}
+
+.thinking {
+  font-size: 13px;
+  color: var(--muted);
+  border-left: 2px solid var(--line);
+  padding-left: 12px;
+}
+.thinking summary {
+  cursor: pointer;
+  user-select: none;
+}
+.thinking div {
+  margin-top: 6px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.typing {
+  display: flex;
+  gap: 5px;
+  padding: 8px 0;
+}
+.typing span {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+  animation: bounce 1.2s infinite;
+}
+.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.composer-wrap {
+  padding: 8px 16px 12px;
+}
+.composer {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 10px 10px 18px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.composer textarea {
+  flex: 1;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15.5px;
+  line-height: 1.5;
+  padding: 7px 0;
+  max-height: 200px;
+}
+.composer textarea::placeholder {
+  color: var(--muted);
+}
+.send-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  transition: opacity 0.15s;
+}
+.send-btn:disabled {
+  opacity: 0.35;
+}
+.hint {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 18px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  animation: rise 0.3s ease-out;
+  max-width: calc(100vw - 32px);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.toast {
+  animation-name: none;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@keyframes bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
