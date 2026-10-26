@@ -9,12 +9,12 @@ type ReminderAgent = Agent<Env> & {
  * Reminder logic shared by the Think and Pi assistants. Each harness wraps
  * these in its own tool format; the scheduling itself is plain Agents SDK.
  */
-export function setReminder(
+export async function setReminder(
   agent: ReminderAgent,
   when: Date | number | string,
   description: string
 ) {
-  agent.schedule(when, "executeTask", description, { idempotent: true });
+  await agent.schedule(when, "executeTask", description, { idempotent: true });
   return `Reminder set: "${description}" (${when instanceof Date ? when.toISOString() : when})`;
 }
 
@@ -23,8 +23,8 @@ export function listReminders(agent: ReminderAgent) {
   return tasks.length > 0 ? tasks : "No reminders scheduled.";
 }
 
-export function cancelReminder(agent: ReminderAgent, taskId: string) {
-  agent.cancelSchedule(taskId);
+export async function cancelReminder(agent: ReminderAgent, taskId: string) {
+  await agent.cancelSchedule(taskId);
   return `Reminder ${taskId} cancelled.`;
 }
 

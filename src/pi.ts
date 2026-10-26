@@ -12,7 +12,7 @@ import {
   createUIMessageStreamResponse,
   type UIMessage
 } from "ai";
-import { PERSONA } from "./prompt";
+import { formatMemories, PERSONA } from "./prompt";
 import type { Assistant } from "./server";
 import {
   broadcastReminder,
@@ -41,7 +41,9 @@ export class PiAssistant extends AIChatAgent<Env> {
     const memory = await getAgentByName(this.env.Assistant, this.name);
     const agent = new PiAgent({
       initialState: {
-        systemPrompt: this.systemPrompt(await memory.readMemory()),
+        systemPrompt: this.systemPrompt(
+          formatMemories(await memory.getMemories())
+        ),
         model: this.model(),
         thinkingLevel: "off",
         tools: this.tools(memory),
@@ -156,7 +158,7 @@ export class PiAssistant extends AIChatAgent<Env> {
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
 
 What you remember about the user:
-${memory.trim() || "(nothing yet)"}
+${memory}
 
 When the user asks to be reminded of something, use the scheduleTask tool.`;
   }
@@ -183,18 +185,13 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
       tool({
         name: "forget",
         label: "Forget",
-        description:
-          "Delete memories that are wrong or outdated. Every memory line containing the given text is removed.",
+        description: "Delete a memory by its id when it is wrong or outdated.",
         parameters: Type.Object({
-          text: Type.String({
-            description:
-              "Text copied from the memory line to delete, specific enough to match only that line"
-          })
+          id: Type.Number({ description: "The memory id shown in brackets" })
         }),
-        execute: async (_id, { text: match }) => {
-          const removed = await memory.removeMemory(match);
-          if (removed === 0) throw new Error(`No memory contains "${match}"`);
-          return text(`Forgot ${removed} memory line(s).`);
+        execute: async (_id, { id }) => {
+          await memory.removeMemory(id);
+          return text(`Forgot memory ${id}.`);
         }
       }),
       tool({
@@ -220,7 +217,7 @@ ${getSchedulePrompt({ date: new Date() })}`,
           if (when === undefined) {
             throw new Error("Give one of date, delayInSeconds or cron");
           }
-          return text(setReminder(this, when, description));
+          return text(await setReminder(this, when, description));
         }
       }),
       tool({
@@ -237,7 +234,8 @@ ${getSchedulePrompt({ date: new Date() })}`,
         parameters: Type.Object({
           taskId: Type.String({ description: "The ID of the task to cancel" })
         }),
-        execute: async (_id, { taskId }) => text(cancelReminder(this, taskId))
+        execute: async (_id, { taskId }) =>
+          text(await cancelReminder(this, taskId))
       })
     ];
   }

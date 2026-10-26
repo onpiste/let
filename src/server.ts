@@ -1,10 +1,16 @@
 import { Think } from "@cloudflare/think";
-import { routeAgentRequest } from "agents";
-import type { ContextConfig } from "agents/context";
+import { getAgentByName } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
-import { tool } from "ai";
+import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { PERSONA } from "./prompt";
+import {
+  getUserFromRequest,
+  handleCallback,
+  handleLogin,
+  handleLogout,
+  jsonResponse
+} from "./auth";
+import { formatMemories, PERSONA, type Memory } from "./prompt";
 import {
   broadcastReminder,
   cancelReminder,
@@ -14,43 +20,89 @@ import {
 
 export { PiAssistant } from "./pi";
 
-const SOUL = `${PERSONA}
-
-You have a long-term memory about the user (the "memory" block). When they share something worth remembering, append it to memory with set_context without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, rewrite the memory block without it.
-
-When the user asks to be reminded of something, use the scheduleTask tool.`;
-
 /**
- * A personal assistant on Think. Each browser gets its own Durable Object
- * instance (keyed by a random id on the client); Think keeps the chat
- * history and the memory block, and the agent keeps scheduled reminders.
+ * A personal assistant. Each signed-in Google account gets its own Durable
+ * Object instance, which keeps the chat history, long-term memories and
+ * scheduled reminders for that person. Its memories are also the memory of
+ * the same person's Pi assistant, which reads and writes them over RPC.
+ *
+ * Think runs the agentic loop, persists the conversation and resumes
+ * interrupted turns; this class only supplies the model, prompt and tools.
  */
 export class Assistant extends Think<Env> {
+  onStart() {
+    this.sql`CREATE TABLE IF NOT EXISTS memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`;
+  }
+
+  // Memory API, shared with the Pi assistant over RPC.
+
+  async getMemories() {
+    return this.sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
+  }
+
+  async addMemory(content: string) {
+    this.sql`INSERT INTO memories (content) VALUES (${content})`;
+  }
+
+  async removeMemory(id: number) {
+    this.sql`DELETE FROM memories WHERE id = ${id}`;
+  }
+
   getModel() {
     return "@cf/moonshotai/kimi-k2.7-code";
   }
 
-  configureContext(): ContextConfig[] {
-    return [
-      { label: "soul", provider: { get: async () => SOUL } },
-      {
-        label: "memory",
-        description:
-          "Durable facts about the user: name, preferences, people in their life, goals, ongoing projects, important dates. One fact per line.",
-        maxTokens: 2_000,
-        // Show newly saved facts on the next turn without rebuilding the
-        // cached system prompt.
-        whenChanged: "remind"
-      }
-    ];
+  // Called every turn (no context blocks are configured), so the memory list
+  // and the current date are always fresh.
+  getSystemPrompt() {
+    const memories = this
+      .sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
+    return `${PERSONA}
+
+You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
+
+What you remember about the user:
+${formatMemories(memories)}
+
+${getSchedulePrompt({ date: new Date() })}
+
+When the user asks to be reminded of something, use the scheduleTask tool.`;
   }
 
-  getTools() {
+  getTools(): ToolSet {
     return {
-      scheduleTask: tool({
-        description: `Schedule a reminder. Use this when the user asks to be reminded or wants something done later.
+      remember: tool({
+        description:
+          "Save a durable fact about the user to long-term memory (preferences, people, goals, dates, etc).",
+        inputSchema: z.object({
+          content: z
+            .string()
+            .describe("One short, self-contained fact about the user")
+        }),
+        execute: async ({ content }) => {
+          await this.addMemory(content);
+          return `Remembered: ${content}`;
+        }
+      }),
 
-${getSchedulePrompt({ date: new Date() })}`,
+      forget: tool({
+        description: "Delete a memory by its id when it is wrong or outdated.",
+        inputSchema: z.object({
+          id: z.number().describe("The memory id shown in brackets")
+        }),
+        execute: async ({ id }) => {
+          await this.removeMemory(id);
+          return `Forgot memory ${id}.`;
+        }
+      }),
+
+      scheduleTask: tool({
+        description:
+          "Schedule a reminder. Use this when the user asks to be reminded or wants something done later.",
         inputSchema: scheduleSchema,
         execute: async ({ when, description }) => {
           if (when.type === "no-schedule") {
@@ -66,7 +118,7 @@ ${getSchedulePrompt({ date: new Date() })}`,
                   : null;
           if (!input) return "Invalid schedule type";
           try {
-            return setReminder(this, input, description);
+            return await setReminder(this, input, description);
           } catch (error) {
             return `Error scheduling task: ${error}`;
           }
@@ -86,35 +138,13 @@ ${getSchedulePrompt({ date: new Date() })}`,
         }),
         execute: async ({ taskId }) => {
           try {
-            return cancelReminder(this, taskId);
+            return await cancelReminder(this, taskId);
           } catch (error) {
             return `Error cancelling reminder: ${error}`;
           }
         }
       })
     };
-  }
-
-  // The memory block is the user's one memory: the Pi assistant reads and
-  // writes it over RPC through these methods.
-
-  async readMemory() {
-    if (!this.context.getBlock("memory")) await this.context.load();
-    return this.context.getBlock("memory")?.content ?? "";
-  }
-
-  async addMemory(fact: string) {
-    await this.context.appendToBlock("memory", fact);
-  }
-
-  /** Remove every memory line containing `text`; returns how many went. */
-  async removeMemory(text: string) {
-    const lines = (await this.readMemory()).split("\n");
-    const kept = lines.filter((line) => !line.includes(text));
-    if (kept.length !== lines.length) {
-      await this.context.setBlock("memory", kept.join("\n"));
-    }
-    return lines.length - kept.length;
   }
 
   async executeTask(description: string) {
@@ -124,9 +154,47 @@ ${getSchedulePrompt({ date: new Date() })}`,
 
 export default {
   async fetch(request: Request, env: Env) {
-    return (
-      (await routeAgentRequest(request, env)) ||
-      new Response("Not found", { status: 404 })
-    );
+    const url = new URL(request.url);
+
+    try {
+      if (url.pathname === "/auth/login") return handleLogin(request, env);
+      if (url.pathname === "/auth/callback") {
+        return await handleCallback(request, env);
+      }
+      if (url.pathname === "/auth/logout") {
+        if (request.method !== "POST") {
+          return new Response("Method not allowed", { status: 405 });
+        }
+        return handleLogout(request);
+      }
+      if (url.pathname === "/auth/me") {
+        const user = await getUserFromRequest(request, env);
+        return user
+          ? jsonResponse(user)
+          : jsonResponse({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      // The Worker, not the browser, decides which assistant instance a
+      // request reaches. There is deliberately no generic /agents/* route.
+      // /chat is the Think assistant, /pi the Pi one; both are keyed by the
+      // same account, so they share its memory.
+      const harness = url.pathname.split("/")[1];
+      if (harness === "chat" || harness === "pi") {
+        const user = await getUserFromRequest(request, env);
+        if (!user) return new Response("Unauthorized", { status: 401 });
+        const name = `google:${user.id}`;
+        const agent =
+          harness === "chat"
+            ? await getAgentByName(env.Assistant, name)
+            : await getAgentByName(env.PiAssistant, name);
+        return agent.fetch(request);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected error";
+      return jsonResponse({ error: message }, { status: 500 });
+    }
+
+    return new Response("Not found", { status: 404 });
   }
 } satisfies ExportedHandler<Env>;
