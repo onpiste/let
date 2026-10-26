@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
-import { useAgentChat } from "@cloudflare/ai-chat/react";
+import { useAgentChat } from "@cloudflare/think/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";

@@ -1,6 +1,6 @@
 # Cot — personal AI assistant
 
-An OpenClaw-style personal assistant built on the [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/), based on the official [`cloudflare/agents-starter`](https://github.com/cloudflare/agents-starter) template.
+An OpenClaw-style personal assistant built on the [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/) and [Think](https://github.com/cloudflare/agents/tree/main/docs/think) (`@cloudflare/think`), which runs the agentic loop, stores the conversation and resumes interrupted turns.
 
 MVP features:
 
@@ -27,7 +27,7 @@ npm run deploy            # → https://cot-assistant.<your-subdomain>.workers.d
 ## Structure
 
 ```
-src/server.ts   # Assistant agent: system prompt, memory, reminders
+src/server.ts   # Assistant (a Think agent): model, system prompt, memory and reminder tools
 src/app.tsx     # Chat UI
 src/styles.css  # Theme
 ```
