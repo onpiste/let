@@ -5,6 +5,10 @@
   "compatibility_date": "2026-06-11",
   "compatibility_flags": ["nodejs_compat"],
   "ai": { "binding": "AI", "remote": true },
+  // The Pi assistant calls Workers AI over REST, so it needs the account id
+  // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
+  "vars": { "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e" },
+  "secrets": { "required": ["CLOUDFLARE_API_KEY"] },
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application",
@@ -15,6 +19,10 @@
       {
         "class_name": "Assistant",
         "name": "Assistant"
+      },
+      {
+        "class_name": "PiAssistant",
+        "name": "PiAssistant"
       }
     ]
   },
@@ -22,6 +30,10 @@
     {
       "new_sqlite_classes": ["Assistant"],
       "tag": "v1"
+    },
+    {
+      "new_sqlite_classes": ["PiAssistant"],
+      "tag": "v2"
     }
   ]
 }

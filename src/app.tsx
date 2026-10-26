@@ -4,7 +4,7 @@ import { useAgentChat } from "@cloudflare/think/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
-import type { Assistant } from "./server";
+import type { Assistant, PiAssistant } from "./server";
 
 // ── Identity ──────────────────────────────────────────────────────────
 // Each browser gets its own assistant instance (its own memory + history).
@@ -21,6 +21,51 @@ function getUserId() {
   } catch {
     return "guest";
   }
+}
+
+// ── Harness ───────────────────────────────────────────────────────────
+// The same assistant runs on two agent harnesses; each keeps its own
+// history and memory.
+
+const HARNESSES = {
+  think: { agent: "Assistant", label: "Think" },
+  pi: { agent: "PiAssistant", label: "Pi" }
+} as const;
+
+type Harness = keyof typeof HARNESSES;
+
+function getHarness(): Harness {
+  try {
+    const saved = localStorage.getItem("cot:harness");
+    if (saved && saved in HARNESSES) return saved as Harness;
+  } catch {
+    // Storage unavailable — fall through to the default.
+  }
+  return "think";
+}
+
+function HarnessSwitch({
+  value,
+  onChange
+}: {
+  value: Harness;
+  onChange: (h: Harness) => void;
+}) {
+  return (
+    <fieldset className="harness" aria-label="Agent harness">
+      {(Object.keys(HARNESSES) as Harness[]).map((h) => (
+        <button
+          key={h}
+          type="button"
+          aria-pressed={value === h}
+          className={value === h ? "on" : ""}
+          onClick={() => onChange(h)}
+        >
+          {HARNESSES[h].label}
+        </button>
+      ))}
+    </fieldset>
+  );
 }
 
 function greeting() {
@@ -125,6 +170,8 @@ function ThemeToggle() {
 
 const TOOL_LABELS: Record<string, string> = {
   set_context: "Saved to memory",
+  remember: "Saved to memory",
+  forget: "Removed from memory",
   scheduleTask: "Reminder set",
   getScheduledTasks: "Checked reminders",
   cancelScheduledTask: "Reminder cancelled"
@@ -169,6 +216,26 @@ function TypingDots() {
 // ── App ───────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [harness, setHarness] = useState(getHarness);
+  const change = (h: Harness) => {
+    setHarness(h);
+    try {
+      localStorage.setItem("cot:harness", h);
+    } catch {
+      // Not persisted — fine for this session.
+    }
+  };
+  // Remount on switch so the chat connects to the other agent cleanly.
+  return <Chat key={harness} harness={harness} onHarnessChange={change} />;
+}
+
+function Chat({
+  harness,
+  onHarnessChange
+}: {
+  harness: Harness;
+  onHarnessChange: (h: Harness) => void;
+}) {
   const [userId] = useState(getUserId);
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
@@ -176,8 +243,8 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const agent = useAgent<Assistant>({
-    agent: "Assistant",
+  const agent = useAgent<Assistant | PiAssistant>({
+    agent: HARNESSES[harness].agent,
     name: userId,
     onOpen: useCallback(() => setConnected(true), []),
     onClose: useCallback(() => setConnected(false), []),
@@ -253,6 +320,7 @@ export default function App() {
           />
         </div>
         <div className="flex items-center gap-1">
+          <HarnessSwitch value={harness} onChange={onHarnessChange} />
           {!empty && (
             <button
               className="icon-btn"
@@ -389,7 +457,8 @@ export default function App() {
           )}
         </form>
         <p className="hint">
-          Cot remembers what you tell it. Built on Cloudflare Agents.
+          Cot remembers what you tell it. Running on {HARNESSES[harness].label},
+          built on Cloudflare Agents.
         </p>
       </footer>
 

@@ -1,11 +1,20 @@
 import { Think } from "@cloudflare/think";
-import { routeAgentRequest, type Schedule } from "agents";
+import { routeAgentRequest } from "agents";
 import type { ContextConfig } from "agents/context";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
 import { tool } from "ai";
 import { z } from "zod";
+import { PERSONA } from "./prompt";
+import {
+  broadcastReminder,
+  cancelReminder,
+  listReminders,
+  setReminder
+} from "./reminders";
 
-const SOUL = `You are Cot, a warm, thoughtful personal assistant. You talk like a trusted friend who happens to be very capable: concise, clear, never robotic. Reply in the same language the user writes in. Use Markdown only when it genuinely helps (lists, code, tables).
+export { PiAssistant } from "./pi";
+
+const SOUL = `${PERSONA}
 
 You have a long-term memory about the user (the "memory" block). When they share something worth remembering, append it to memory with set_context without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, rewrite the memory block without it.
 
@@ -57,10 +66,7 @@ ${getSchedulePrompt({ date: new Date() })}`,
                   : null;
           if (!input) return "Invalid schedule type";
           try {
-            this.schedule(input, "executeTask", description, {
-              idempotent: true
-            });
-            return `Reminder set: "${description}" (${when.type}: ${input})`;
+            return setReminder(this, input, description);
           } catch (error) {
             return `Error scheduling task: ${error}`;
           }
@@ -70,10 +76,7 @@ ${getSchedulePrompt({ date: new Date() })}`,
       getScheduledTasks: tool({
         description: "List all scheduled reminders",
         inputSchema: z.object({}),
-        execute: async () => {
-          const tasks = this.getSchedules();
-          return tasks.length > 0 ? tasks : "No reminders scheduled.";
-        }
+        execute: async () => listReminders(this)
       }),
 
       cancelScheduledTask: tool({
@@ -83,8 +86,7 @@ ${getSchedulePrompt({ date: new Date() })}`,
         }),
         execute: async ({ taskId }) => {
           try {
-            this.cancelSchedule(taskId);
-            return `Reminder ${taskId} cancelled.`;
+            return cancelReminder(this, taskId);
           } catch (error) {
             return `Error cancelling reminder: ${error}`;
           }
@@ -93,16 +95,8 @@ ${getSchedulePrompt({ date: new Date() })}`,
     };
   }
 
-  async executeTask(description: string, _task: Schedule<string>) {
-    // Broadcast instead of saveMessages() so the reminder doesn't enter the
-    // chat history and trigger another model turn.
-    this.broadcast(
-      JSON.stringify({
-        type: "reminder",
-        description,
-        timestamp: new Date().toISOString()
-      })
-    );
+  async executeTask(description: string) {
+    broadcastReminder(this, description);
   }
 }
 
