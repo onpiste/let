@@ -161,7 +161,7 @@ function getRedirectUri(request: Request) {
   return `${new URL(request.url).origin}/auth/callback`;
 }
 
-function isAllowed(email: string, env: Env) {
+export function isAllowed(email: string, env: Env) {
   const allowed = (env.ALLOWED_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
