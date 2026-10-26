@@ -126,6 +126,19 @@ body {
   margin-top: 8px;
   color: var(--muted);
 }
+.signin-btn {
+  display: inline-block;
+  margin-top: 28px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 500;
+  transition: transform 0.15s;
+}
+.signin-btn:hover {
+  transform: translateY(-1px);
+}
 .suggestions {
   margin-top: 32px;
   display: grid;

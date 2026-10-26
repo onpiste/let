@@ -1,15 +1,22 @@
 import { Think } from "@cloudflare/think";
-import { routeAgentRequest, type Schedule } from "agents";
+import { getAgentByName, type Schedule } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import {
+  getUserFromRequest,
+  handleCallback,
+  handleLogin,
+  handleLogout,
+  jsonResponse
+} from "./auth";
 
 type Memory = { id: number; content: string; created_at: string };
 
 /**
- * A personal assistant. Each browser gets its own Durable Object instance
- * (keyed by a random id on the client), which keeps the chat history,
- * long-term memories and scheduled reminders for that person.
+ * A personal assistant. Each signed-in Google account gets its own Durable
+ * Object instance, which keeps the chat history, long-term memories and
+ * scheduled reminders for that person.
  *
  * Think runs the agentic loop, persists the conversation and resumes
  * interrupted turns; this class only supplies the model, prompt and tools.
@@ -148,9 +155,40 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
 
 export default {
   async fetch(request: Request, env: Env) {
-    return (
-      (await routeAgentRequest(request, env)) ||
-      new Response("Not found", { status: 404 })
-    );
+    const url = new URL(request.url);
+
+    try {
+      if (url.pathname === "/auth/login") return handleLogin(request, env);
+      if (url.pathname === "/auth/callback") {
+        return await handleCallback(request, env);
+      }
+      if (url.pathname === "/auth/logout") {
+        if (request.method !== "POST") {
+          return new Response("Method not allowed", { status: 405 });
+        }
+        return handleLogout(request);
+      }
+      if (url.pathname === "/auth/me") {
+        const user = await getUserFromRequest(request, env);
+        return user
+          ? jsonResponse(user)
+          : jsonResponse({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      // The Worker, not the browser, decides which assistant instance a
+      // request reaches. There is deliberately no generic /agents/* route.
+      if (url.pathname === "/chat" || url.pathname.startsWith("/chat/")) {
+        const user = await getUserFromRequest(request, env);
+        if (!user) return new Response("Unauthorized", { status: 401 });
+        const agent = await getAgentByName(env.Assistant, `google:${user.id}`);
+        return agent.fetch(request);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unexpected error";
+      return jsonResponse({ error: message }, { status: 500 });
+    }
+
+    return new Response("Not found", { status: 404 });
   }
 } satisfies ExportedHandler<Env>;

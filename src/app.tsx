@@ -4,23 +4,20 @@ import { useAgentChat } from "@cloudflare/think/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
+import type { User } from "./auth";
 import type { Assistant } from "./server";
 
 // ── Identity ──────────────────────────────────────────────────────────
-// Each browser gets its own assistant instance (its own memory + history).
+// The Worker routes /chat to the signed-in user's own assistant instance.
 
-function getUserId() {
-  const key = "cot:user-id";
-  try {
-    let id = localStorage.getItem(key);
-    if (!id) {
-      id = crypto.randomUUID();
-      localStorage.setItem(key, id);
-    }
-    return id;
-  } catch {
-    return "guest";
-  }
+async function fetchCurrentUser(): Promise<User | null> {
+  const res = await fetch("/auth/me", {
+    headers: { Accept: "application/json" }
+  });
+  if (res.status === 401) return null;
+  if (!res.ok)
+    throw new Error(`Failed to load the current user (${res.status})`);
+  return (await res.json()) as User;
 }
 
 function greeting() {
@@ -84,6 +81,20 @@ const Moon = () => (
     strokeLinejoin="round"
   >
     <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+  </svg>
+);
+const LogOut = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
   </svg>
 );
 const Sun = () => (
@@ -170,7 +181,69 @@ function TypingDots() {
 // ── App ───────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [userId] = useState(getUserId);
+  // undefined = still checking, null = signed out
+  const [user, setUser] = useState<User | null | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    fetchCurrentUser()
+      .then((u) => {
+        setUser(u);
+        setError(null);
+      })
+      .catch((e: unknown) => setError(String(e)));
+  }, []);
+
+  useEffect(refresh, [refresh]);
+
+  const signOut = async () => {
+    await fetch("/auth/logout", { method: "POST" }).catch(() => {});
+    setUser(null);
+  };
+
+  if (error) return <SignIn message={error} />;
+  if (user === undefined) return <div className="app" />;
+  if (user === null) return <SignIn />;
+  return <Chat user={user} onSignOut={signOut} onAuthCheck={refresh} />;
+}
+
+function SignIn({ message }: { message?: string }) {
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="flex items-center gap-2">
+          <div className="logo">C</div>
+          <span className="font-semibold tracking-tight">Cot</span>
+        </div>
+        <ThemeToggle />
+      </header>
+      <main className="scroll">
+        <div className="column">
+          <div className="hero">
+            <h1 className="hero-title">{greeting()}</h1>
+            <p className="hero-sub">
+              I'm Cot, your personal assistant. Sign in to continue.
+            </p>
+            {message && <p className="hero-sub">{message}</p>}
+            <a className="signin-btn" href="/auth/login">
+              Sign in with Google
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function Chat({
+  user,
+  onSignOut,
+  onAuthCheck
+}: {
+  user: User;
+  onSignOut: () => void;
+  onAuthCheck: () => void;
+}) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [toast, setToast] = useState<string | null>(null);
@@ -179,9 +252,13 @@ export default function App() {
 
   const agent = useAgent<Assistant>({
     agent: "Assistant",
-    name: userId,
+    basePath: "chat",
     onOpen: useCallback(() => setConnected(true), []),
-    onClose: useCallback(() => setConnected(false), []),
+    onClose: useCallback(() => {
+      setConnected(false);
+      // A closed socket may mean the session expired.
+      onAuthCheck();
+    }, [onAuthCheck]),
     onMessage: useCallback((message: MessageEvent) => {
       try {
         const data = JSON.parse(String(message.data));
@@ -265,6 +342,14 @@ export default function App() {
             </button>
           )}
           <ThemeToggle />
+          <button
+            className="icon-btn"
+            onClick={onSignOut}
+            aria-label="Sign out"
+            title={`Sign out ${user.email}`}
+          >
+            <LogOut />
+          </button>
         </div>
       </header>
 
@@ -272,7 +357,9 @@ export default function App() {
         <div className="column">
           {empty ? (
             <div className="hero">
-              <h1 className="hero-title">{greeting()}</h1>
+              <h1 className="hero-title">
+                {greeting()}, {user.name.split(" ")[0]}
+              </h1>
               <p className="hero-sub">
                 I'm Cot, your personal assistant. What's on your mind?
               </p>
