@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
-import { useAgentChat } from "@cloudflare/ai-chat/react";
+import { useAgentChat } from "@cloudflare/think/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
@@ -124,8 +124,7 @@ function ThemeToggle() {
 }
 
 const TOOL_LABELS: Record<string, string> = {
-  remember: "Saved to memory",
-  forget: "Removed from memory",
+  set_context: "Saved to memory",
   scheduleTask: "Reminder set",
   getScheduledTasks: "Checked reminders",
   cancelScheduledTask: "Reminder cancelled"

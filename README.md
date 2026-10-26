@@ -1,12 +1,12 @@
 # Cot — personal AI assistant
 
-An OpenClaw-style personal assistant built on the [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/), based on the official [`cloudflare/agents-starter`](https://github.com/cloudflare/agents-starter) template.
+An OpenClaw-style personal assistant built on [Think](https://www.npmjs.com/package/@cloudflare/think), the agent harness from the [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/), based on the official [`cloudflare/agents-starter`](https://github.com/cloudflare/agents-starter) template.
 
 MVP features:
 
 - **Chat** with streaming replies (Workers AI, no third-party API key)
 - **Your own assistant**: each browser gets its own Durable Object, which keeps your chat history across reloads
-- **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats
+- **Long-term memory**: the assistant keeps facts about you in a Think `memory` context block (written with the built-in `set_context` tool) and uses them in later chats
 - **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast and a browser notification
 - A calm, minimal chat UI with light and dark mode that works on mobile
 

@@ -1,150 +1,96 @@
-import { createWorkersAI } from "workers-ai-provider";
+import { Think } from "@cloudflare/think";
 import { routeAgentRequest, type Schedule } from "agents";
+import type { ContextConfig } from "agents/context";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
-import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
-import {
-  convertToModelMessages,
-  pruneMessages,
-  stepCountIs,
-  streamText,
-  tool
-} from "ai";
+import { tool } from "ai";
 import { z } from "zod";
 
-type Memory = { id: number; content: string; created_at: string };
+const SOUL = `You are Cot, a warm, thoughtful personal assistant. You talk like a trusted friend who happens to be very capable: concise, clear, never robotic. Reply in the same language the user writes in. Use Markdown only when it genuinely helps (lists, code, tables).
+
+You have a long-term memory about the user (the "memory" block). When they share something worth remembering, append it to memory with set_context without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, rewrite the memory block without it.
+
+When the user asks to be reminded of something, use the scheduleTask tool.`;
 
 /**
- * A personal assistant. Each browser gets its own Durable Object instance
- * (keyed by a random id on the client), which keeps the chat history,
- * long-term memories and scheduled reminders for that person.
+ * A personal assistant on Think. Each browser gets its own Durable Object
+ * instance (keyed by a random id on the client); Think keeps the chat
+ * history and the memory block, and the agent keeps scheduled reminders.
  */
-export class Assistant extends AIChatAgent<Env> {
-  maxPersistedMessages = 200;
-  chatRecovery = true;
-
-  onStart() {
-    this.sql`CREATE TABLE IF NOT EXISTS memories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`;
+export class Assistant extends Think<Env> {
+  getModel() {
+    return "@cf/moonshotai/kimi-k2.7-code";
   }
 
-  private getMemories() {
-    return this.sql<Memory>`SELECT * FROM memories ORDER BY id`;
+  configureContext(): ContextConfig[] {
+    return [
+      { label: "soul", provider: { get: async () => SOUL } },
+      {
+        label: "memory",
+        description:
+          "Durable facts about the user: name, preferences, people in their life, goals, ongoing projects, important dates. One fact per line.",
+        maxTokens: 2_000,
+        // Show newly saved facts on the next turn without rebuilding the
+        // cached system prompt.
+        whenChanged: "remind"
+      }
+    ];
   }
 
-  async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
-    const workersai = createWorkersAI({ binding: this.env.AI });
-    const memories = this.getMemories();
-    const memoryBlock =
-      memories.length > 0
-        ? memories.map((m) => `- [${m.id}] ${m.content}`).join("\n")
-        : "(nothing yet)";
+  getTools() {
+    return {
+      scheduleTask: tool({
+        description: `Schedule a reminder. Use this when the user asks to be reminded or wants something done later.
 
-    const result = streamText({
-      model: workersai("@cf/moonshotai/kimi-k2.7-code", {
-        sessionAffinity: this.sessionAffinity
+${getSchedulePrompt({ date: new Date() })}`,
+        inputSchema: scheduleSchema,
+        execute: async ({ when, description }) => {
+          if (when.type === "no-schedule") {
+            return "Not a valid schedule input";
+          }
+          const input =
+            when.type === "scheduled"
+              ? when.date
+              : when.type === "delayed"
+                ? when.delayInSeconds
+                : when.type === "cron"
+                  ? when.cron
+                  : null;
+          if (!input) return "Invalid schedule type";
+          try {
+            this.schedule(input, "executeTask", description, {
+              idempotent: true
+            });
+            return `Reminder set: "${description}" (${when.type}: ${input})`;
+          } catch (error) {
+            return `Error scheduling task: ${error}`;
+          }
+        }
       }),
-      system: `You are Cot, a warm, thoughtful personal assistant. You talk like a trusted friend who happens to be very capable: concise, clear, never robotic. Reply in the same language the user writes in. Use Markdown only when it genuinely helps (lists, code, tables).
 
-You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
-
-What you remember about the user:
-${memoryBlock}
-
-${getSchedulePrompt({ date: new Date() })}
-
-When the user asks to be reminded of something, use the scheduleTask tool.`,
-      messages: pruneMessages({
-        messages: await convertToModelMessages(this.messages),
-        toolCalls: "before-last-2-messages",
-        reasoning: "before-last-message"
+      getScheduledTasks: tool({
+        description: "List all scheduled reminders",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const tasks = this.getSchedules();
+          return tasks.length > 0 ? tasks : "No reminders scheduled.";
+        }
       }),
-      tools: {
-        remember: tool({
-          description:
-            "Save a durable fact about the user to long-term memory (preferences, people, goals, dates, etc).",
-          inputSchema: z.object({
-            content: z
-              .string()
-              .describe("One short, self-contained fact about the user")
-          }),
-          execute: async ({ content }) => {
-            this.sql`INSERT INTO memories (content) VALUES (${content})`;
-            return `Remembered: ${content}`;
-          }
+
+      cancelScheduledTask: tool({
+        description: "Cancel a scheduled reminder by its ID",
+        inputSchema: z.object({
+          taskId: z.string().describe("The ID of the task to cancel")
         }),
-
-        forget: tool({
-          description:
-            "Delete a memory by its id when it is wrong or outdated.",
-          inputSchema: z.object({
-            id: z.number().describe("The memory id shown in brackets")
-          }),
-          execute: async ({ id }) => {
-            this.sql`DELETE FROM memories WHERE id = ${id}`;
-            return `Forgot memory ${id}.`;
+        execute: async ({ taskId }) => {
+          try {
+            this.cancelSchedule(taskId);
+            return `Reminder ${taskId} cancelled.`;
+          } catch (error) {
+            return `Error cancelling reminder: ${error}`;
           }
-        }),
-
-        scheduleTask: tool({
-          description:
-            "Schedule a reminder. Use this when the user asks to be reminded or wants something done later.",
-          inputSchema: scheduleSchema,
-          execute: async ({ when, description }) => {
-            if (when.type === "no-schedule") {
-              return "Not a valid schedule input";
-            }
-            const input =
-              when.type === "scheduled"
-                ? when.date
-                : when.type === "delayed"
-                  ? when.delayInSeconds
-                  : when.type === "cron"
-                    ? when.cron
-                    : null;
-            if (!input) return "Invalid schedule type";
-            try {
-              this.schedule(input, "executeTask", description, {
-                idempotent: true
-              });
-              return `Reminder set: "${description}" (${when.type}: ${input})`;
-            } catch (error) {
-              return `Error scheduling task: ${error}`;
-            }
-          }
-        }),
-
-        getScheduledTasks: tool({
-          description: "List all scheduled reminders",
-          inputSchema: z.object({}),
-          execute: async () => {
-            const tasks = this.getSchedules();
-            return tasks.length > 0 ? tasks : "No reminders scheduled.";
-          }
-        }),
-
-        cancelScheduledTask: tool({
-          description: "Cancel a scheduled reminder by its ID",
-          inputSchema: z.object({
-            taskId: z.string().describe("The ID of the task to cancel")
-          }),
-          execute: async ({ taskId }) => {
-            try {
-              this.cancelSchedule(taskId);
-              return `Reminder ${taskId} cancelled.`;
-            } catch (error) {
-              return `Error cancelling reminder: ${error}`;
-            }
-          }
-        })
-      },
-      stopWhen: stepCountIs(10),
-      abortSignal: options?.abortSignal
-    });
-
-    return result.toUIMessageStreamResponse();
+        }
+      })
+    };
   }
 
   async executeTask(description: string, _task: Schedule<string>) {
