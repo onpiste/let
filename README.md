@@ -14,6 +14,11 @@ MVP features:
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant; the Pi assistant reads and writes them over RPC
 - **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification and, if linked, a Telegram message
 - **Telegram**: link your Telegram account from the web app and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only linked accounts in one-to-one chats reach an assistant
+- **Settings page** (gear icon, `/settings`), saved per account:
+  - **Assistant**: name, reply language and custom instructions, used by both harnesses
+  - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. Applies to the Think assistant and Telegram; the Pi assistant stays on Workers AI
+  - **MCP servers**: add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
+  - **Integrations**: Google account and Telegram connect/disconnect
 - A calm, minimal chat UI with light and dark mode that works on mobile
 
 ## Google sign-in setup
@@ -30,7 +35,7 @@ The Pi assistant calls Workers AI over REST, so it also needs `CLOUDFLARE_API_KE
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and note its token and username.
 2. Set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and a random `TELEGRAM_WEBHOOK_SECRET_TOKEN` (`openssl rand -hex 32`).
-3. Sign in to the deployed app and click the paper-plane button, then press **Start** in Telegram. The first link also points the bot's webhook at `https://<your-worker>/messengers/telegram/webhook`.
+3. Sign in to the deployed app, open **Settings → Integrations → Telegram → Connect**, then press **Start** in Telegram. The first link also points the bot's webhook at `https://<your-worker>/messengers/telegram/webhook`.
 
 Telegram only delivers webhooks to public `https://` URLs, so on `localhost` the button still creates a link but does not register the webhook; use the deployed Worker or a tunnel. Telegram talks to the Think assistant; the Pi assistant is web-only.
 
@@ -64,7 +69,9 @@ src/pi.ts         # Pi assistant
 src/reminders.ts  # Reminder logic shared by both
 src/prompt.ts     # Shared persona and memory formatting
 src/telegram.ts   # Telegram webhook, account linking and Bot API calls
+src/settings.ts   # Settings type, defaults, validation and persona (shared with the client)
 src/auth.ts       # Google sign-in and signed session cookie
 src/app.tsx       # Sign-in screen, harness switch and chat UI
+src/settings-page.tsx # Settings page
 src/styles.css    # Theme
 ```

@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
+import type { MCPServersState } from "agents";
 import { useAgentChat } from "@cloudflare/think/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import type { User } from "./auth";
 import type { Assistant, PiAssistant } from "./server";
+import SettingsPage from "./settings-page";
 
 // ── Identity ──────────────────────────────────────────────────────────
 // The Worker routes /chat to the signed-in user's own assistant instance.
@@ -142,7 +144,7 @@ const LogOut = () => (
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
   </svg>
 );
-const Telegram = () => (
+const Gear = () => (
   <svg
     width="16"
     height="16"
@@ -153,7 +155,8 @@ const Telegram = () => (
     strokeLinecap="round"
     strokeLinejoin="round"
   >
-    <path d="M21.5 3.5 2.5 11l7 2.5M21.5 3.5 18 20.5l-8.5-7M21.5 3.5l-12 10V19l3-3.5" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
   </svg>
 );
 const Sun = () => (
@@ -172,76 +175,6 @@ const Sun = () => (
 );
 
 // ── Small components ──────────────────────────────────────────────────
-
-type TelegramStatus = { linked: boolean; botUsername: string };
-
-/**
- * Links a Telegram account to this assistant. Linking opens the bot with a
- * one-time code; pressing Start in Telegram completes it.
- */
-function TelegramButton() {
-  const [status, setStatus] = useState<TelegramStatus | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  const refresh = useCallback(() => {
-    fetch("/telegram/status")
-      .then((r) => (r.ok ? (r.json() as Promise<TelegramStatus>) : null))
-      .then(setStatus)
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    refresh();
-    // Pick up the link once the user comes back from Telegram.
-    window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
-  }, [refresh]);
-
-  if (!status) return null;
-
-  const onClick = async () => {
-    if (busy) return;
-    if (status.linked) {
-      if (!confirm("Disconnect Telegram from Cot?")) return;
-      setBusy(true);
-      await fetch("/telegram/unlink", { method: "POST" }).catch(() => {});
-      setBusy(false);
-      refresh();
-      return;
-    }
-    // Open the tab synchronously so popup blockers allow it.
-    const tab = window.open("", "_blank");
-    setBusy(true);
-    try {
-      const res = await fetch("/telegram/link", { method: "POST" });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!data.url) throw new Error(data.error ?? "Could not create a link");
-      if (tab) tab.location.href = data.url;
-      else window.location.href = data.url;
-    } catch (e) {
-      tab?.close();
-      alert(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <button
-      className={`icon-btn ${status.linked ? "linked" : ""}`}
-      onClick={onClick}
-      disabled={busy}
-      aria-label={status.linked ? "Telegram connected" : "Connect Telegram"}
-      title={
-        status.linked
-          ? `Telegram connected (@${status.botUsername}) — click to disconnect`
-          : "Connect Telegram"
-      }
-    >
-      <Telegram />
-    </button>
-  );
-}
 
 function ThemeToggle() {
   const [dark, setDark] = useState(
@@ -271,7 +204,24 @@ const TOOL_LABELS: Record<string, string> = {
   cancelScheduledTask: "Reminder cancelled"
 };
 
-function ToolChip({ part }: { part: UIMessage["parts"][number] }) {
+/** "server · tool" for MCP tools, keyed by the AI SDK tool name. */
+function mcpToolLabels(state: MCPServersState) {
+  const labels: Record<string, string> = {};
+  for (const tool of state.tools) {
+    const server = state.servers[tool.serverId]?.name ?? "MCP";
+    labels[`tool_${tool.serverId.replace(/-/g, "")}_${tool.name}`] =
+      `${server} · ${tool.name}`;
+  }
+  return labels;
+}
+
+function ToolChip({
+  part,
+  labels
+}: {
+  part: UIMessage["parts"][number];
+  labels: Record<string, string>;
+}) {
   if (!isToolUIPart(part)) return null;
   const name = getToolName(part);
   const done = part.state === "output-available";
@@ -281,7 +231,9 @@ function ToolChip({ part }: { part: UIMessage["parts"][number] }) {
   return (
     <div className="tool-chip">
       <span className={`dot ${done ? "done" : "pending"}`} />
-      <span className="font-medium">{TOOL_LABELS[name] ?? name}</span>
+      <span className="font-medium">
+        {TOOL_LABELS[name] ?? labels[name] ?? name}
+      </span>
       {detail && <span className="opacity-70 truncate">· {detail}</span>}
     </div>
   );
@@ -309,11 +261,29 @@ function TypingDots() {
 
 // ── App ───────────────────────────────────────────────────────────────
 
+type Page = "chat" | "settings";
+
+function currentPage(): Page {
+  return location.pathname === "/settings" ? "settings" : "chat";
+}
+
 export default function App() {
   // undefined = still checking, null = signed out
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [harness, setHarness] = useState(getHarness);
+  const [page, setPage] = useState(currentPage);
+
+  useEffect(() => {
+    const onPop = () => setPage(currentPage());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const navigate = (to: Page) => {
+    history.pushState(null, "", to === "settings" ? "/settings" : "/");
+    setPage(to);
+  };
 
   const refresh = useCallback(() => {
     fetchCurrentUser()
@@ -343,6 +313,9 @@ export default function App() {
   if (error) return <SignIn message={error} />;
   if (user === undefined) return <div className="app" />;
   if (user === null) return <SignIn />;
+  if (page === "settings") {
+    return <SettingsPage user={user} onBack={() => navigate("chat")} />;
+  }
   // Remount on switch so the chat connects to the other agent cleanly.
   return (
     <Chat
@@ -352,6 +325,7 @@ export default function App() {
       onHarnessChange={changeHarness}
       onSignOut={signOut}
       onAuthCheck={refresh}
+      onOpenSettings={() => navigate("settings")}
     />
   );
 }
@@ -389,17 +363,20 @@ function Chat({
   harness,
   onHarnessChange,
   onSignOut,
-  onAuthCheck
+  onAuthCheck,
+  onOpenSettings
 }: {
   user: User;
   harness: Harness;
   onHarnessChange: (h: Harness) => void;
   onSignOut: () => void;
   onAuthCheck: () => void;
+  onOpenSettings: () => void;
 }) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -407,6 +384,10 @@ function Chat({
     agent: HARNESSES[harness].agent,
     basePath: HARNESSES[harness].path,
     onOpen: useCallback(() => setConnected(true), []),
+    onMcpUpdate: useCallback(
+      (state: MCPServersState) => setMcpLabels(mcpToolLabels(state)),
+      []
+    ),
     onClose: useCallback(() => {
       setConnected(false);
       // A closed socket may mean the session expired.
@@ -495,8 +476,15 @@ function Chat({
               <Plus />
             </button>
           )}
-          <TelegramButton />
           <ThemeToggle />
+          <button
+            className="icon-btn"
+            onClick={onOpenSettings}
+            aria-label="Settings"
+            title="Settings"
+          >
+            <Gear />
+          </button>
           <button
             className="icon-btn"
             onClick={onSignOut}
@@ -570,7 +558,9 @@ function Chat({
                         );
                       }
                       if (isToolUIPart(part))
-                        return <ToolChip key={j} part={part} />;
+                        return (
+                          <ToolChip key={j} part={part} labels={mcpLabels} />
+                        );
                       return null;
                     })}
                   </div>

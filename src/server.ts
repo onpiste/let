@@ -1,12 +1,15 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
 import { Think } from "@cloudflare/think";
 import {
   ThinkMessengerStateAgent,
   type ThinkMessengers
 } from "@cloudflare/think/messengers";
 import telegramMessenger from "@cloudflare/think/messengers/telegram";
-import { getAgentByName } from "agents";
+import { callable, getAgentByName } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
-import { tool, type ToolSet } from "ai";
+import { tool, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
 import {
   getUserFromRequest,
@@ -15,13 +18,21 @@ import {
   handleLogout,
   jsonResponse
 } from "./auth";
-import { formatMemories, PERSONA, type Memory } from "./prompt";
+import { formatMemories, type Memory } from "./prompt";
 import {
   broadcastReminder,
   cancelReminder,
   listReminders,
   setReminder
 } from "./reminders";
+import {
+  applySettingsPatch,
+  buildPersona,
+  DEFAULT_SETTINGS,
+  toPublicSettings,
+  type Settings,
+  type SettingsPatch
+} from "./settings";
 import {
   callTelegram,
   handleTelegramApi,
@@ -34,6 +45,9 @@ export { PiAssistant } from "./pi";
 export { TelegramLinks } from "./telegram";
 // Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.
 export { ThinkMessengerStateAgent };
+
+/** Where MCP servers send the user back after OAuth; routed like /chat. */
+const MCP_CALLBACK_PATH = "chat/mcp-callback";
 
 /**
  * A personal assistant. Each signed-in Google account gets its own Durable
@@ -52,6 +66,70 @@ export class Assistant extends Think<Env> {
       content TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`;
+    this.sql`CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )`;
+
+    // MCP OAuth opens in a popup; close it and let the settings page pick
+    // up the new connection state from the MCP broadcast.
+    this.mcp.configureOAuthCallback({
+      customHandler: (result) =>
+        new Response(
+          result.authSuccess
+            ? "<script>window.close()</script>Connected. You can close this window."
+            : `Authorization failed: ${result.authError ?? "unknown error"}`,
+          {
+            status: result.authSuccess ? 200 : 400,
+            headers: { "Content-Type": "text/html; charset=utf-8" }
+          }
+        )
+    });
+  }
+
+  // Settings, edited from the settings page over this agent's WebSocket.
+  // Only the signed-in owner can reach this instance (see the Worker).
+
+  private getSettingsRow(): Settings {
+    const [row] = this.sql<{ value: string }>`
+      SELECT value FROM settings WHERE key = 'settings'`;
+    return row
+      ? { ...DEFAULT_SETTINGS, ...(JSON.parse(row.value) as Partial<Settings>) }
+      : DEFAULT_SETTINGS;
+  }
+
+  @callable()
+  async getSettings() {
+    return toPublicSettings(this.getSettingsRow());
+  }
+
+  @callable()
+  async updateSettings(patch: SettingsPatch) {
+    const next = applySettingsPatch(this.getSettingsRow(), patch);
+    this.sql`INSERT OR REPLACE INTO settings (key, value)
+      VALUES ('settings', ${JSON.stringify(next)})`;
+    return toPublicSettings(next);
+  }
+
+  /** The persona text, also used by the Pi assistant over RPC. */
+  async getPersona() {
+    return buildPersona(this.getSettingsRow());
+  }
+
+  // MCP servers. Think adds connected servers' tools to every turn.
+
+  @callable()
+  async addMcp(name: string, url: string) {
+    if (!name.trim()) throw new Error("Give the server a name.");
+    if (!/^https?:\/\//.test(url)) throw new Error("Enter an http(s) URL.");
+    return this.addMcpServer(name.trim(), url.trim(), {
+      callbackPath: MCP_CALLBACK_PATH
+    });
+  }
+
+  @callable()
+  async removeMcp(id: string) {
+    await this.removeMcpServer(id);
   }
 
   // Telegram. The Worker only forwards updates from the Telegram account
@@ -103,8 +181,18 @@ export class Assistant extends Think<Env> {
     this.sql`DELETE FROM memories WHERE id = ${id}`;
   }
 
-  getModel() {
-    return "@cf/moonshotai/kimi-k2.7-code";
+  getModel(): string | LanguageModel {
+    const { provider, model, apiKeys } = this.getSettingsRow();
+    switch (provider) {
+      case "workers-ai":
+        return model;
+      case "openai":
+        return createOpenAI({ apiKey: apiKeys.openai })(model);
+      case "anthropic":
+        return createAnthropic({ apiKey: apiKeys.anthropic })(model);
+      case "google":
+        return createGoogleGenerativeAI({ apiKey: apiKeys.google })(model);
+    }
   }
 
   // Called every turn (no context blocks are configured), so the memory list
@@ -112,7 +200,7 @@ export class Assistant extends Think<Env> {
   getSystemPrompt() {
     const memories = this
       .sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
-    return `${PERSONA}
+    return `${buildPersona(this.getSettingsRow())}
 
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
 

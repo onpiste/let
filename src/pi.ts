@@ -12,7 +12,7 @@ import {
   createUIMessageStreamResponse,
   type UIMessage
 } from "ai";
-import { formatMemories, PERSONA } from "./prompt";
+import { formatMemories } from "./prompt";
 import type { Assistant } from "./server";
 import {
   broadcastReminder,
@@ -42,6 +42,7 @@ export class PiAssistant extends AIChatAgent<Env> {
     const agent = new PiAgent({
       initialState: {
         systemPrompt: this.systemPrompt(
+          await memory.getPersona(),
           formatMemories(await memory.getMemories())
         ),
         model: this.model(),
@@ -154,8 +155,8 @@ export class PiAssistant extends AIChatAgent<Env> {
     };
   }
 
-  private systemPrompt(memory: string) {
-    return `${PERSONA}
+  private systemPrompt(persona: string, memory: string) {
+    return `${persona}
 
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
 
