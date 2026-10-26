@@ -95,6 +95,28 @@ ${getSchedulePrompt({ date: new Date() })}`,
     };
   }
 
+  // The memory block is the user's one memory: the Pi assistant reads and
+  // writes it over RPC through these methods.
+
+  async readMemory() {
+    if (!this.context.getBlock("memory")) await this.context.load();
+    return this.context.getBlock("memory")?.content ?? "";
+  }
+
+  async addMemory(fact: string) {
+    await this.context.appendToBlock("memory", fact);
+  }
+
+  /** Remove every memory line containing `text`; returns how many went. */
+  async removeMemory(text: string) {
+    const lines = (await this.readMemory()).split("\n");
+    const kept = lines.filter((line) => !line.includes(text));
+    if (kept.length !== lines.length) {
+      await this.context.setBlock("memory", kept.join("\n"));
+    }
+    return lines.length - kept.length;
+  }
+
   async executeTask(description: string) {
     broadcastReminder(this, description);
   }

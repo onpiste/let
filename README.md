@@ -5,13 +5,13 @@ An OpenClaw-style personal assistant on the [Cloudflare Agents SDK](https://deve
 - **Think** ([`@cloudflare/think`](https://www.npmjs.com/package/@cloudflare/think)), Cloudflare's own harness
 - **Pi** ([`@mariozechner/pi-agent-core`](https://www.npmjs.com/package/@mariozechner/pi-agent-core)), wrapped in an `AIChatAgent`
 
-Each harness keeps its own history and memory.
+Each harness keeps its own chat history; long-term memory is shared.
 
 MVP features:
 
 - **Chat** with streaming replies (Workers AI, no third-party API key)
 - **Your own assistant**: each browser gets its own Durable Object, which keeps your chat history across reloads
-- **Long-term memory**: the assistant saves facts about you and uses them in later chats (a Think `memory` context block on Think, `remember` / `forget` tools in SQLite on Pi)
+- **Long-term memory**: the assistant saves facts about you and uses them in later chats. They live in the Think assistant's `memory` context block; Think writes it with `set_context`, Pi with `remember` / `forget` over RPC
 - **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast and a browser notification
 - A calm, minimal chat UI with light and dark mode that works on mobile
 

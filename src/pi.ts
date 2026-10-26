@@ -5,6 +5,7 @@ import {
   type AgentTool
 } from "@mariozechner/pi-agent-core";
 import { Type, type Model, type TSchema } from "@mariozechner/pi-ai";
+import { getAgentByName } from "agents";
 import { getSchedulePrompt } from "agents/schedule";
 import {
   createUIMessageStream,
@@ -12,14 +13,13 @@ import {
   type UIMessage
 } from "ai";
 import { PERSONA } from "./prompt";
+import type { Assistant } from "./server";
 import {
   broadcastReminder,
   cancelReminder,
   listReminders,
   setReminder
 } from "./reminders";
-
-type Memory = { id: number; content: string };
 
 const MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
 
@@ -30,25 +30,21 @@ const MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
  * client talks to it exactly like the Think assistant. Each turn rebuilds a
  * Pi agent from the stored transcript, lets Pi run the agentic loop, and
  * translates Pi's events into the AI SDK UI message stream.
+ *
+ * Memory is not stored here: it lives in the same user's Think assistant,
+ * so both harnesses share one memory.
  */
 export class PiAssistant extends AIChatAgent<Env> {
   maxPersistedMessages = 200;
 
-  onStart() {
-    this.sql`CREATE TABLE IF NOT EXISTS memories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`;
-  }
-
   async onChatMessage(_onFinish: unknown, options?: OnChatMessageOptions) {
+    const memory = await getAgentByName(this.env.Assistant, this.name);
     const agent = new PiAgent({
       initialState: {
-        systemPrompt: this.systemPrompt(),
+        systemPrompt: this.systemPrompt(await memory.readMemory()),
         model: this.model(),
         thinkingLevel: "off",
-        tools: this.tools(),
+        tools: this.tools(memory),
         messages: toPiMessages(this.messages)
       },
       sessionId: this.name,
@@ -154,24 +150,18 @@ export class PiAssistant extends AIChatAgent<Env> {
     };
   }
 
-  private systemPrompt() {
-    const memories = this
-      .sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
-    const memoryBlock =
-      memories.length > 0
-        ? memories.map((m) => `- [${m.id}] ${m.content}`).join("\n")
-        : "(nothing yet)";
+  private systemPrompt(memory: string) {
     return `${PERSONA}
 
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
 
 What you remember about the user:
-${memoryBlock}
+${memory.trim() || "(nothing yet)"}
 
 When the user asks to be reminded of something, use the scheduleTask tool.`;
   }
 
-  private tools(): AgentTool[] {
+  private tools(memory: DurableObjectStub<Assistant>): AgentTool[] {
     const tool = <P extends TSchema>(t: AgentTool<P>) =>
       t as unknown as AgentTool;
     return [
@@ -186,20 +176,25 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
           })
         }),
         execute: async (_id, { content }) => {
-          this.sql`INSERT INTO memories (content) VALUES (${content})`;
+          await memory.addMemory(content);
           return text(`Remembered: ${content}`);
         }
       }),
       tool({
         name: "forget",
         label: "Forget",
-        description: "Delete a memory by its id when it is wrong or outdated.",
+        description:
+          "Delete memories that are wrong or outdated. Every memory line containing the given text is removed.",
         parameters: Type.Object({
-          id: Type.Number({ description: "The memory id shown in brackets" })
+          text: Type.String({
+            description:
+              "Text copied from the memory line to delete, specific enough to match only that line"
+          })
         }),
-        execute: async (_id, { id }) => {
-          this.sql`DELETE FROM memories WHERE id = ${id}`;
-          return text(`Forgot memory ${id}.`);
+        execute: async (_id, { text: match }) => {
+          const removed = await memory.removeMemory(match);
+          if (removed === 0) throw new Error(`No memory contains "${match}"`);
+          return text(`Forgot ${removed} memory line(s).`);
         }
       }),
       tool({
