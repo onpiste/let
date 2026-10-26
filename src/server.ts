@@ -1,5 +1,5 @@
 import { Think } from "@cloudflare/think";
-import { getAgentByName, type Schedule } from "agents";
+import { getAgentByName } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
@@ -10,13 +10,21 @@ import {
   handleLogout,
   jsonResponse
 } from "./auth";
+import { formatMemories, PERSONA, type Memory } from "./prompt";
+import {
+  broadcastReminder,
+  cancelReminder,
+  listReminders,
+  setReminder
+} from "./reminders";
 
-type Memory = { id: number; content: string; created_at: string };
+export { PiAssistant } from "./pi";
 
 /**
  * A personal assistant. Each signed-in Google account gets its own Durable
  * Object instance, which keeps the chat history, long-term memories and
- * scheduled reminders for that person.
+ * scheduled reminders for that person. Its memories are also the memory of
+ * the same person's Pi assistant, which reads and writes them over RPC.
  *
  * Think runs the agentic loop, persists the conversation and resumes
  * interrupted turns; this class only supplies the model, prompt and tools.
@@ -30,8 +38,18 @@ export class Assistant extends Think<Env> {
     )`;
   }
 
-  private getMemories() {
-    return this.sql<Memory>`SELECT * FROM memories ORDER BY id`;
+  // Memory API, shared with the Pi assistant over RPC.
+
+  async getMemories() {
+    return this.sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
+  }
+
+  async addMemory(content: string) {
+    this.sql`INSERT INTO memories (content) VALUES (${content})`;
+  }
+
+  async removeMemory(id: number) {
+    this.sql`DELETE FROM memories WHERE id = ${id}`;
   }
 
   getModel() {
@@ -41,18 +59,14 @@ export class Assistant extends Think<Env> {
   // Called every turn (no context blocks are configured), so the memory list
   // and the current date are always fresh.
   getSystemPrompt() {
-    const memories = this.getMemories();
-    const memoryBlock =
-      memories.length > 0
-        ? memories.map((m) => `- [${m.id}] ${m.content}`).join("\n")
-        : "(nothing yet)";
-
-    return `You are Cot, a warm, thoughtful personal assistant. You talk like a trusted friend who happens to be very capable: concise, clear, never robotic. Reply in the same language the user writes in. Use Markdown only when it genuinely helps (lists, code, tables).
+    const memories = this
+      .sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
+    return `${PERSONA}
 
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
 
 What you remember about the user:
-${memoryBlock}
+${formatMemories(memories)}
 
 ${getSchedulePrompt({ date: new Date() })}
 
@@ -70,7 +84,7 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
             .describe("One short, self-contained fact about the user")
         }),
         execute: async ({ content }) => {
-          this.sql`INSERT INTO memories (content) VALUES (${content})`;
+          await this.addMemory(content);
           return `Remembered: ${content}`;
         }
       }),
@@ -81,7 +95,7 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
           id: z.number().describe("The memory id shown in brackets")
         }),
         execute: async ({ id }) => {
-          this.sql`DELETE FROM memories WHERE id = ${id}`;
+          await this.removeMemory(id);
           return `Forgot memory ${id}.`;
         }
       }),
@@ -104,10 +118,7 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
                   : null;
           if (!input) return "Invalid schedule type";
           try {
-            await this.schedule(input, "executeTask", description, {
-              idempotent: true
-            });
-            return `Reminder set: "${description}" (${when.type}: ${input})`;
+            return await setReminder(this, input, description);
           } catch (error) {
             return `Error scheduling task: ${error}`;
           }
@@ -117,10 +128,7 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
       getScheduledTasks: tool({
         description: "List all scheduled reminders",
         inputSchema: z.object({}),
-        execute: async () => {
-          const tasks = this.getSchedules();
-          return tasks.length > 0 ? tasks : "No reminders scheduled.";
-        }
+        execute: async () => listReminders(this)
       }),
 
       cancelScheduledTask: tool({
@@ -130,8 +138,7 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
         }),
         execute: async ({ taskId }) => {
           try {
-            await this.cancelSchedule(taskId);
-            return `Reminder ${taskId} cancelled.`;
+            return await cancelReminder(this, taskId);
           } catch (error) {
             return `Error cancelling reminder: ${error}`;
           }
@@ -140,16 +147,8 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
     };
   }
 
-  async executeTask(description: string, _task: Schedule<string>) {
-    // Broadcast instead of adding a message so the reminder doesn't enter the
-    // chat history and trigger another model turn.
-    this.broadcast(
-      JSON.stringify({
-        type: "reminder",
-        description,
-        timestamp: new Date().toISOString()
-      })
-    );
+  async executeTask(description: string) {
+    broadcastReminder(this, description);
   }
 }
 
@@ -177,10 +176,17 @@ export default {
 
       // The Worker, not the browser, decides which assistant instance a
       // request reaches. There is deliberately no generic /agents/* route.
-      if (url.pathname === "/chat" || url.pathname.startsWith("/chat/")) {
+      // /chat is the Think assistant, /pi the Pi one; both are keyed by the
+      // same account, so they share its memory.
+      const harness = url.pathname.split("/")[1];
+      if (harness === "chat" || harness === "pi") {
         const user = await getUserFromRequest(request, env);
         if (!user) return new Response("Unauthorized", { status: 401 });
-        const agent = await getAgentByName(env.Assistant, `google:${user.id}`);
+        const name = `google:${user.id}`;
+        const agent =
+          harness === "chat"
+            ? await getAgentByName(env.Assistant, name)
+            : await getAgentByName(env.PiAssistant, name);
         return agent.fetch(request);
       }
     } catch (error) {

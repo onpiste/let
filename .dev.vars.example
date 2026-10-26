@@ -11,3 +11,6 @@ SESSION_SECRET=
 
 # Comma-separated Google accounts allowed to sign in.
 ALLOWED_EMAILS=you@gmail.com
+
+# API token with Workers AI access, for the Pi assistant.
+CLOUDFLARE_API_KEY=

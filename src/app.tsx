@@ -5,7 +5,7 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import type { User } from "./auth";
-import type { Assistant } from "./server";
+import type { Assistant, PiAssistant } from "./server";
 
 // ── Identity ──────────────────────────────────────────────────────────
 // The Worker routes /chat to the signed-in user's own assistant instance.
@@ -18,6 +18,51 @@ async function fetchCurrentUser(): Promise<User | null> {
   if (!res.ok)
     throw new Error(`Failed to load the current user (${res.status})`);
   return (await res.json()) as User;
+}
+
+// ── Harness ───────────────────────────────────────────────────────────
+// The same assistant runs on two agent harnesses. Each keeps its own chat
+// history; long-term memory is shared.
+
+const HARNESSES = {
+  think: { agent: "Assistant", path: "chat", label: "Think" },
+  pi: { agent: "PiAssistant", path: "pi", label: "Pi" }
+} as const;
+
+type Harness = keyof typeof HARNESSES;
+
+function getHarness(): Harness {
+  try {
+    const saved = localStorage.getItem("cot:harness");
+    if (saved && saved in HARNESSES) return saved as Harness;
+  } catch {
+    // Storage unavailable — fall through to the default.
+  }
+  return "think";
+}
+
+function HarnessSwitch({
+  value,
+  onChange
+}: {
+  value: Harness;
+  onChange: (h: Harness) => void;
+}) {
+  return (
+    <fieldset className="harness" aria-label="Agent harness">
+      {(Object.keys(HARNESSES) as Harness[]).map((h) => (
+        <button
+          key={h}
+          type="button"
+          aria-pressed={value === h}
+          className={value === h ? "on" : ""}
+          onClick={() => onChange(h)}
+        >
+          {HARNESSES[h].label}
+        </button>
+      ))}
+    </fieldset>
+  );
 }
 
 function greeting() {
@@ -184,6 +229,7 @@ export default function App() {
   // undefined = still checking, null = signed out
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [harness, setHarness] = useState(getHarness);
 
   const refresh = useCallback(() => {
     fetchCurrentUser()
@@ -196,6 +242,15 @@ export default function App() {
 
   useEffect(refresh, [refresh]);
 
+  const changeHarness = (h: Harness) => {
+    setHarness(h);
+    try {
+      localStorage.setItem("cot:harness", h);
+    } catch {
+      // Not persisted — fine for this session.
+    }
+  };
+
   const signOut = async () => {
     await fetch("/auth/logout", { method: "POST" }).catch(() => {});
     setUser(null);
@@ -204,7 +259,17 @@ export default function App() {
   if (error) return <SignIn message={error} />;
   if (user === undefined) return <div className="app" />;
   if (user === null) return <SignIn />;
-  return <Chat user={user} onSignOut={signOut} onAuthCheck={refresh} />;
+  // Remount on switch so the chat connects to the other agent cleanly.
+  return (
+    <Chat
+      key={harness}
+      user={user}
+      harness={harness}
+      onHarnessChange={changeHarness}
+      onSignOut={signOut}
+      onAuthCheck={refresh}
+    />
+  );
 }
 
 function SignIn({ message }: { message?: string }) {
@@ -237,10 +302,14 @@ function SignIn({ message }: { message?: string }) {
 
 function Chat({
   user,
+  harness,
+  onHarnessChange,
   onSignOut,
   onAuthCheck
 }: {
   user: User;
+  harness: Harness;
+  onHarnessChange: (h: Harness) => void;
   onSignOut: () => void;
   onAuthCheck: () => void;
 }) {
@@ -250,9 +319,9 @@ function Chat({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  const agent = useAgent<Assistant>({
-    agent: "Assistant",
-    basePath: "chat",
+  const agent = useAgent<Assistant | PiAssistant>({
+    agent: HARNESSES[harness].agent,
+    basePath: HARNESSES[harness].path,
     onOpen: useCallback(() => setConnected(true), []),
     onClose: useCallback(() => {
       setConnected(false);
@@ -331,6 +400,7 @@ function Chat({
           />
         </div>
         <div className="flex items-center gap-1">
+          <HarnessSwitch value={harness} onChange={onHarnessChange} />
           {!empty && (
             <button
               className="icon-btn"
@@ -477,7 +547,8 @@ function Chat({
           )}
         </form>
         <p className="hint">
-          Cot remembers what you tell it. Built on Cloudflare Agents.
+          Cot remembers what you tell it. Running on {HARNESSES[harness].label},
+          built on Cloudflare Agents.
         </p>
       </footer>
 
