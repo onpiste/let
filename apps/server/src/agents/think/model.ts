@@ -25,3 +25,8 @@ export function modelFor({
       return createGoogleGenerativeAI({ apiKey: apiKeys.google })(model);
   }
 }
+
+/** Whether turns run on the user's own API key rather than the deployment's. */
+export function paidByUser({ provider, apiKeys }: Settings) {
+  return provider !== "workers-ai" && Boolean(apiKeys[provider]);
+}

@@ -9,7 +9,7 @@ import {
   type ReminderAgent
 } from "../../common/reminders";
 
-export function reminderTools(agent: ReminderAgent) {
+export function reminderTools(agent: ReminderAgent, env: Env) {
   return {
     scheduleTask: tool({
       description:
@@ -29,7 +29,7 @@ export function reminderTools(agent: ReminderAgent) {
                 : null;
         if (!input) return "Invalid schedule type";
         try {
-          return await setReminder(agent, input, description);
+          return await setReminder(agent, env, input, description);
         } catch (error) {
           return `Error scheduling task: ${String(error)}`;
         }

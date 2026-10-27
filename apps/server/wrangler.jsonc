@@ -19,9 +19,14 @@
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
   // TELEGRAM_API_BASE_URL points the bot at a self-hosted Bot API server;
   // empty means https://api.telegram.org.
+  // Usage limits per account ("0" turns one off). Messages count across the
+  // Think and Pi assistants; turns on a user's own API key don't count.
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e",
-    "TELEGRAM_API_BASE_URL": ""
+    "TELEGRAM_API_BASE_URL": "",
+    "DAILY_MESSAGE_LIMIT": "200",
+    "MINUTE_MESSAGE_LIMIT": "10",
+    "MAX_REMINDERS": "20"
   },
   // The client is built by apps/web (its Vite config points the Cloudflare
   // plugin at this file), so there is no assets directory here.
