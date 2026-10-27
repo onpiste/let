@@ -79,18 +79,19 @@ source layout has to change.
 - Add new server paths it needs to `@cot/shared/routes.ts` and to
   `assets.run_worker_first`.
 
-### iOS (`apps/mobile`)
+### iOS and Android (`apps/mobile`)
 
-- A Capacitor shell: its WebView loads the deployed Worker origin, so the
+- Capacitor shells: their WebView loads the deployed Worker origin, so the
   web app, session cookie and agent WebSockets work unchanged, and the page
   reaches device APIs through Capacitor plugins (`apps/web/src/lib/native.ts`).
   See [apps/mobile/README.md](../apps/mobile/README.md).
 - Sign-in is the one native-specific flow, because Google blocks embedded
-  WebViews: `ASWebAuthenticationSession` → `/auth/login` with a PKCE
+  WebViews: the system browser (`ASWebAuthenticationSession` on iOS, a
+  Custom Tab on Android) → `/auth/login` with a PKCE
   challenge → `cot://auth/callback?code=…` → `POST /auth/token`, which returns
   a bearer token and sets the session cookie (`NATIVE_AUTH_PARAMS` in
   `@cot/shared`, `apps/server/src/auth/native.ts`).
-- A fully native client later (SwiftUI) can reuse that flow: send the token
+- A fully native client later (SwiftUI, Compose) can reuse that flow: send the token
   as `Authorization: Bearer` on HTTP and on the WebSocket upgrade;
   `getUserFromRequest` already accepts it.
 

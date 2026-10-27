@@ -1,0 +1,78 @@
+name: Mobile
+
+# Builds the Capacitor shells: iOS for the simulator (unsigned) on macOS,
+# since Swift can't be built on Linux, and an Android debug APK.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - "apps/web/package.json"
+      - "bun.lock"
+      - ".github/workflows/mobile.yml"
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "apps/web/package.json"
+      - "bun.lock"
+      - ".github/workflows/mobile.yml"
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Generate native files
+        run: bun run --filter @cot/mobile sync
+
+      - name: Build for the simulator
+        working-directory: apps/mobile/ios/App
+        run: >
+          xcodebuild build
+          -project App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -destination "generic/platform=iOS Simulator"
+          CODE_SIGNING_ALLOWED=NO
+
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Generate native files
+        run: bun run --filter @cot/mobile sync
+
+      # The runner image ships the Android SDK (ANDROID_HOME).
+      - name: Build debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug --no-daemon

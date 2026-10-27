@@ -2,15 +2,19 @@
   "name": "@cot/mobile",
   "version": "0.0.0",
   "private": true,
-  "description": "Capacitor shell that runs the web app in a native iOS app with device APIs",
+  "description": "Capacitor shell that runs the web app in native iOS and Android apps with device APIs",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "sync": "cap sync ios",
-    "open": "cap open ios",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios",
+    "sync": "cap sync",
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "8.5.3",
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "8.5.3",
