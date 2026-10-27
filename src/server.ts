@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import { Think } from "@cloudflare/think";
+import { Think, type TurnContext } from "@cloudflare/think";
 import {
   ThinkMessengerStateAgent,
   type ThinkMessengers
@@ -19,6 +19,8 @@ import {
   isAllowed,
   jsonResponse
 } from "./auth";
+import { browsePage } from "./browser";
+import { runCode } from "./code-runner";
 import { formatMemories, type Memory } from "./prompt";
 import {
   broadcastReminder,
@@ -48,9 +50,19 @@ import {
 } from "./telegram";
 
 export { PiAssistant } from "./pi";
+export { Sandbox } from "./sandbox";
 export { TelegramRoutes } from "./telegram";
 // Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.
 export { ThinkMessengerStateAgent };
+
+/**
+ * Tools that wait for the user to approve them in the chat. Telegram has no
+ * approval buttons, so these are withheld from Telegram turns.
+ */
+const NEEDS_APPROVAL = ["runCommand", "writeSandboxFile"];
+
+/** The AI Search instance (in the default namespace) holding the knowledge base. */
+const KNOWLEDGE_INSTANCE = "cot-knowledge";
 
 /** Where MCP servers send the user back after OAuth; routed like /chat. */
 const MCP_CALLBACK_PATH = "chat/mcp-callback";
@@ -356,11 +368,32 @@ export class Assistant extends Think<Env> {
     }
   }
 
+  beforeTurn(ctx: TurnContext) {
+    if (!ctx.messenger) return;
+    return {
+      activeTools: Object.keys(ctx.tools).filter(
+        (name) => !NEEDS_APPROVAL.includes(name)
+      ),
+      instructions: this.buildSystemPrompt({ commandsAllowed: false })
+    };
+  }
+
   // Called every turn (no context blocks are configured), so the memory list
   // and the current date are always fresh.
   getSystemPrompt() {
+    return this.buildSystemPrompt({ commandsAllowed: true });
+  }
+
+  /**
+   * `commandsAllowed` is false for Telegram turns, where the approval-gated
+   * tools are withheld (see beforeTurn).
+   */
+  private buildSystemPrompt({ commandsAllowed }: { commandsAllowed: boolean }) {
     const memories = this
       .sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
+    const sandbox = commandsAllowed
+      ? "Use runCommand to run shell commands, and writeSandboxFile / readSandboxFile for files."
+      : "Use readSandboxFile to read files.";
     return `${buildPersona(this.getSettingsRow())}
 
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
@@ -370,10 +403,16 @@ ${formatMemories(memories)}
 
 ${getSchedulePrompt({ date: new Date() })}
 
-When the user asks to be reminded of something, use the scheduleTask tool.`;
+When the user asks to be reminded of something, use the scheduleTask tool.
+
+For a quick calculation or data transformation, use runCode: it runs JavaScript (or Python) in an isolated, short-lived runtime with no network and no files, and returns the output in about a second. Prefer JavaScript, which starts faster.
+
+You also have a Linux sandbox (Node.js 24 on Debian, with internet access; no Python preinstalled, install tools with apt-get) that keeps files between turns (working directory /workspace). ${sandbox} The first command after a while takes longer while the sandbox starts. Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.`;
   }
 
   getTools(): ToolSet {
+    const sandbox = this.env.SANDBOX.getByName(this.name);
+
     return {
       remember: tool({
         description:
@@ -441,6 +480,96 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
             return await cancelReminder(this, taskId);
           } catch (error) {
             return `Error cancelling reminder: ${error}`;
+          }
+        }
+      }),
+
+      runCommand: tool({
+        description:
+          "Run a shell command (sh) in the Linux sandbox, starting in /workspace. Files and installed packages persist across turns while the sandbox is running. Returns the exit code, stdout and stderr.",
+        inputSchema: z.object({
+          command: z.string().describe("The shell command to run"),
+          timeoutSeconds: z
+            .number()
+            .int()
+            .min(1)
+            .max(300)
+            .optional()
+            .describe("Give up after this many seconds (default 60)")
+        }),
+        // Runs only after the user approves it in the chat.
+        needsApproval: true,
+        execute: async ({ command, timeoutSeconds }) =>
+          sandbox.runCommand(command, (timeoutSeconds ?? 60) * 1000)
+      }),
+
+      writeSandboxFile: tool({
+        description:
+          "Write a text file in the Linux sandbox. Relative paths resolve against /workspace.",
+        inputSchema: z.object({
+          path: z.string().describe("File path, e.g. notes/todo.md"),
+          content: z.string().describe("The full file content")
+        }),
+        needsApproval: true,
+        execute: async ({ path, content }) => sandbox.writeFile(path, content)
+      }),
+
+      readSandboxFile: tool({
+        description:
+          "Read a text file from the Linux sandbox. Relative paths resolve against /workspace.",
+        inputSchema: z.object({
+          path: z.string().describe("File path to read")
+        }),
+        execute: async ({ path }) => sandbox.readFile(path)
+      }),
+
+      runCode: tool({
+        description:
+          "Run a JavaScript (default) or Python snippet in a fresh, isolated runtime with no network, no files and a 5 s CPU limit. JavaScript runs as the body of an async function: use console.log and/or return a value. Python: print the output. Best for calculations, parsing and data transformations.",
+        inputSchema: z.object({
+          language: z.enum(["javascript", "python"]).default("javascript"),
+          code: z.string().describe("The code to run")
+        }),
+        execute: async ({ language, code }) => {
+          try {
+            return await runCode(this.env, language, code);
+          } catch (error) {
+            return { logs: "", error: `The runtime stopped: ${error}` };
+          }
+        }
+      }),
+
+      searchKnowledge: tool({
+        description:
+          "Search the user's knowledge base (documents uploaded to AI Search) for passages relevant to a question. Use it before answering questions about the user's own documents or notes.",
+        inputSchema: z.object({
+          query: z.string().describe("What to look for, in natural language")
+        }),
+        execute: async ({ query }) => {
+          try {
+            const instance = this.env.AI_SEARCH.get(KNOWLEDGE_INSTANCE);
+            const results = await instance.search({
+              messages: [{ role: "user", content: query }]
+            });
+            return JSON.stringify(results).slice(0, 8000);
+          } catch (error) {
+            return `Error searching the knowledge base: ${error}`;
+          }
+        }
+      }),
+
+      browseWeb: tool({
+        description:
+          "Open a web page in a headless browser (JavaScript runs) and return its title and visible text. Use it for pages that need rendering, or to read a page the user links.",
+        inputSchema: z.object({
+          url: z.string().url().describe("Full http(s) URL to open")
+        }),
+        execute: async ({ url }) => {
+          try {
+            const page = await browsePage(this.env, url);
+            return `${page.title}\n${page.url}\n\n${page.text}`;
+          } catch (error) {
+            return `Error opening ${url}: ${error}`;
           }
         }
       })

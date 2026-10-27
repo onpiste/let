@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
-import { useAgentChat } from "@cloudflare/think/react";
+import { getToolApproval, useAgentChat } from "@cloudflare/think/react";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
@@ -201,7 +201,13 @@ const TOOL_LABELS: Record<string, string> = {
   forget: "Removed from memory",
   scheduleTask: "Reminder set",
   getScheduledTasks: "Checked reminders",
-  cancelScheduledTask: "Reminder cancelled"
+  cancelScheduledTask: "Reminder cancelled",
+  runCommand: "Ran command",
+  writeSandboxFile: "Wrote file",
+  readSandboxFile: "Read file",
+  browseWeb: "Opened web page",
+  searchKnowledge: "Searched knowledge base",
+  runCode: "Ran code"
 };
 
 /** "server · tool" for MCP tools, keyed by the AI SDK tool name. */
@@ -217,24 +223,52 @@ function mcpToolLabels(state: MCPServersState) {
 
 function ToolChip({
   part,
-  labels
+  labels,
+  onApproval
 }: {
   part: UIMessage["parts"][number];
   labels: Record<string, string>;
+  onApproval: (id: string, approved: boolean) => void;
 }) {
   if (!isToolUIPart(part)) return null;
   const name = getToolName(part);
   const done = part.state === "output-available";
   const input = part.input as Record<string, unknown> | undefined;
   const detail =
-    (input?.content as string) || (input?.description as string) || "";
+    (input?.command as string) ||
+    (input?.path as string) ||
+    (input?.content as string) ||
+    (input?.description as string) ||
+    "";
+  const approval =
+    part.state === "approval-requested" ? getToolApproval(part) : undefined;
   return (
-    <div className="tool-chip">
-      <span className={`dot ${done ? "done" : "pending"}`} />
-      <span className="font-medium">
-        {TOOL_LABELS[name] ?? labels[name] ?? name}
-      </span>
-      {detail && <span className="opacity-70 truncate">· {detail}</span>}
+    <div className="tool-chip-group">
+      <div className="tool-chip">
+        <span className={`dot ${done ? "done" : "pending"}`} />
+        <span className="font-medium">
+          {TOOL_LABELS[name] ?? labels[name] ?? name}
+        </span>
+        {detail && <span className="opacity-70 truncate">· {detail}</span>}
+      </div>
+      {approval && (
+        <div className="approval-actions">
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={() => onApproval(approval.id, true)}
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            className="link-btn"
+            onClick={() => onApproval(approval.id, false)}
+          >
+            Reject
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -411,7 +445,14 @@ function Chat({
     }, [])
   });
 
-  const { messages, sendMessage, clearHistory, stop, status } = useAgentChat({
+  const {
+    messages,
+    sendMessage,
+    clearHistory,
+    stop,
+    status,
+    addToolApprovalResponse
+  } = useAgentChat({
     agent,
     experimental_throttle: 50
   });
@@ -559,7 +600,14 @@ function Chat({
                       }
                       if (isToolUIPart(part))
                         return (
-                          <ToolChip key={j} part={part} labels={mcpLabels} />
+                          <ToolChip
+                            key={j}
+                            part={part}
+                            labels={mcpLabels}
+                            onApproval={(id, approved) =>
+                              addToolApprovalResponse({ id, approved })
+                            }
+                          />
                         );
                       return null;
                     })}
@@ -621,10 +669,6 @@ function Chat({
             </button>
           )}
         </form>
-        <p className="hint">
-          Cot remembers what you tell it. Running on {HARNESSES[harness].label},
-          built on Cloudflare Agents.
-        </p>
       </footer>
 
       {toast && (

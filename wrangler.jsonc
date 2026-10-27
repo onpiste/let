@@ -5,6 +5,15 @@
   "compatibility_date": "2026-06-11",
   "compatibility_flags": ["nodejs_compat"],
   "ai": { "binding": "AI", "remote": true },
+  "browser": { "binding": "BROWSER" },
+  "observability": { "enabled": true },
+  // Dynamic Workers: runCode loads each snippet into a fresh isolate.
+  "worker_loaders": [{ "binding": "LOADER" }],
+  // Knowledge base for the searchKnowledge tool. Create the instance named in
+  // src/server.ts (KNOWLEDGE_INSTANCE) in the Cloudflare dashboard first.
+  "ai_search_namespaces": [
+    { "binding": "AI_SEARCH", "namespace": "default", "remote": true }
+  ],
   "routes": [{ "pattern": "runlet.us", "custom_domain": true }],
   // The Pi assistant calls Workers AI over REST, so it needs the account id
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
@@ -39,9 +48,21 @@
       {
         "class_name": "TelegramRoutes",
         "name": "TelegramRoutes"
+      },
+      {
+        "class_name": "Sandbox",
+        "name": "SANDBOX"
       }
     ]
   },
+  // Each account's sandbox is a Durable Object that starts a container from
+  // Cloudflare's managed image (see src/sandbox.ts), so nothing is built here.
+  "containers": [
+    {
+      "class_name": "Sandbox",
+      "scheduling_policy": "durable_object"
+    }
+  ],
   "secrets": {
     "required": [
       "GOOGLE_CLIENT_ID",
@@ -63,6 +84,10 @@
     {
       "new_sqlite_classes": ["TelegramRoutes"],
       "tag": "v3"
+    },
+    {
+      "new_sqlite_classes": ["Sandbox"],
+      "tag": "v4"
     }
   ]
 }

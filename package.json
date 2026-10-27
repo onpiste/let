@@ -27,6 +27,7 @@
     "@chat-adapter/telegram": "^4.43.0",
     "@cloudflare/ai-chat": "^0.12.2",
     "@cloudflare/computer": "^0.5.1",
+    "@cloudflare/puppeteer": "1.4.0",
     "@cloudflare/think": "^0.21.0",
     "@mariozechner/pi-agent-core": "^0.73.1",
     "@mariozechner/pi-ai": "^0.73.1",
