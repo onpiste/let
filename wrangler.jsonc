@@ -8,11 +8,23 @@
   "routes": [{ "pattern": "runlet.us", "custom_domain": true }],
   // The Pi assistant calls Workers AI over REST, so it needs the account id
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
-  "vars": { "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e" },
+  // TELEGRAM_API_BASE_URL points the bot at a self-hosted Bot API server;
+  // empty means https://api.telegram.org.
+  "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e",
+    "TELEGRAM_API_BASE_URL": ""
+  },
   "assets": {
     "directory": "./public",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/auth/*", "/chat", "/chat/*", "/pi", "/pi/*"]
+    "run_worker_first": [
+      "/auth/*",
+      "/chat",
+      "/chat/*",
+      "/pi",
+      "/pi/*",
+      "/messengers/*"
+    ]
   },
   "durable_objects": {
     "bindings": [
@@ -23,6 +35,10 @@
       {
         "class_name": "PiAssistant",
         "name": "PiAssistant"
+      },
+      {
+        "class_name": "TelegramRoutes",
+        "name": "TelegramRoutes"
       }
     ]
   },
@@ -43,6 +59,10 @@
     {
       "new_sqlite_classes": ["PiAssistant"],
       "tag": "v2"
+    },
+    {
+      "new_sqlite_classes": ["TelegramRoutes"],
+      "tag": "v3"
     }
   ]
 }
