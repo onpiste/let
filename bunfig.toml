@@ -1,0 +1,4 @@
+[install]
+# Tailwind @source paths in apps/web/src/styles/index.css expect a flat,
+# root node_modules.
+linker = "hoisted"

@@ -22,24 +22,27 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
 
-      - run: npm ci
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
 
       - name: Format
-        run: npm run format:check
+        run: bun run format:check
 
       - name: Lint (type-aware, warnings fail)
-        run: npm run lint
+        run: bun run lint
 
       - name: Typecheck
-        run: npm run typecheck
+        run: bun run typecheck
 
       - name: Dead code (knip)
-        run: npm run knip
+        run: bun run knip
 
       - name: Worker types are up to date
-        run: npm run types:check -w @cot/server
+        run: bun run --filter @cot/server types:check
 
       - name: Build
-        run: npm run build
+        run: bun run build

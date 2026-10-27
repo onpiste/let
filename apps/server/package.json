@@ -19,7 +19,7 @@
     "@cloudflare/computer": "^0.5.1",
     "@cloudflare/puppeteer": "1.4.0",
     "@cloudflare/think": "^0.21.0",
-    "@cot/shared": "*",
+    "@cot/shared": "workspace:*",
     "@mariozechner/pi-agent-core": "^0.73.1",
     "@mariozechner/pi-ai": "^0.73.1",
     "@modelcontextprotocol/client": "2.3.1",
@@ -29,7 +29,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@cot/tsconfig": "*",
+    "@cot/tsconfig": "workspace:*",
     "@types/node": "^26.0.1",
     "wrangler": "^4.153.0"
   }
