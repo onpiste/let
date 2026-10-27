@@ -372,15 +372,27 @@ export class Assistant extends Think<Env> {
     return {
       activeTools: Object.keys(ctx.tools).filter(
         (name) => !NEEDS_APPROVAL.includes(name)
-      )
+      ),
+      instructions: this.buildSystemPrompt({ commandsAllowed: false })
     };
   }
 
   // Called every turn (no context blocks are configured), so the memory list
   // and the current date are always fresh.
   getSystemPrompt() {
+    return this.buildSystemPrompt({ commandsAllowed: true });
+  }
+
+  /**
+   * `commandsAllowed` is false for Telegram turns, where the approval-gated
+   * tools are withheld (see beforeTurn).
+   */
+  private buildSystemPrompt({ commandsAllowed }: { commandsAllowed: boolean }) {
     const memories = this
       .sql<Memory>`SELECT id, content FROM memories ORDER BY id`;
+    const sandbox = commandsAllowed
+      ? "Use runCommand to run shell commands, and writeSandboxFile / readSandboxFile for files."
+      : "Use readSandboxFile to read files.";
     return `${buildPersona(this.getSettingsRow())}
 
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
@@ -392,7 +404,7 @@ ${getSchedulePrompt({ date: new Date() })}
 
 When the user asks to be reminded of something, use the scheduleTask tool.
 
-You have a Linux sandbox that keeps files between turns (working directory /workspace). Use runCommand to run shell commands, and writeSandboxFile / readSandboxFile for files. Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.`;
+You have a Linux sandbox that keeps files between turns (working directory /workspace). ${sandbox} Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.`;
   }
 
   getTools(): ToolSet {
