@@ -621,10 +621,6 @@ function Chat({
             </button>
           )}
         </form>
-        <p className="hint">
-          Cot remembers what you tell it. Running on {HARNESSES[harness].label},
-          built on Cloudflare Agents.
-        </p>
       </footer>
 
       {toast && (
