@@ -2,7 +2,7 @@
 
 # Google Cloud Console → APIs & Services → Credentials → OAuth client (Web application).
 # Authorized redirect URIs: http://localhost:5173/auth/callback and
-# https://<your-worker>.workers.dev/auth/callback
+# https://runlet.us/auth/callback
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 

@@ -5,6 +5,7 @@
   "compatibility_date": "2026-06-11",
   "compatibility_flags": ["nodejs_compat"],
   "ai": { "binding": "AI", "remote": true },
+  "routes": [{ "pattern": "runlet.us", "custom_domain": true }],
   // The Pi assistant calls Workers AI over REST, so it needs the account id
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
   "vars": { "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e" },

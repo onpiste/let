@@ -20,7 +20,7 @@ MVP features:
 1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an **OAuth client ID** of type **Web application** (configure the OAuth consent screen first if asked).
 2. Add these **Authorized redirect URIs**:
    - `http://localhost:5173/auth/callback`
-   - `https://cot-assistant.<your-subdomain>.workers.dev/auth/callback`
+   - `https://runlet.us/auth/callback` (the custom domain in `wrangler.jsonc`)
 3. Copy `.dev.vars.example` to `.dev.vars` and fill in the client ID and secret, a random `SESSION_SECRET` (`openssl rand -base64 32`) and your email in `ALLOWED_EMAILS`.
 
 The Pi assistant calls Workers AI over REST, so it also needs `CLOUDFLARE_API_KEY` (an API token with Workers AI access) and your account id in `vars.CLOUDFLARE_ACCOUNT_ID` in `wrangler.jsonc`.
@@ -41,7 +41,7 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ALLOWED_EMAILS
 npx wrangler secret put CLOUDFLARE_API_KEY
-npm run deploy            # → https://cot-assistant.<your-subdomain>.workers.dev
+npm run deploy            # → https://runlet.us
 ```
 
 ## Structure
