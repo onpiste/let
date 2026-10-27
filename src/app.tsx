@@ -206,7 +206,8 @@ const TOOL_LABELS: Record<string, string> = {
   writeSandboxFile: "Wrote file",
   readSandboxFile: "Read file",
   browseWeb: "Opened web page",
-  searchKnowledge: "Searched knowledge base"
+  searchKnowledge: "Searched knowledge base",
+  runCode: "Ran code"
 };
 
 /** "server · tool" for MCP tools, keyed by the AI SDK tool name. */

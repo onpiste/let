@@ -7,6 +7,8 @@
   "ai": { "binding": "AI", "remote": true },
   "browser": { "binding": "BROWSER" },
   "observability": { "enabled": true },
+  // Dynamic Workers: runCode loads each snippet into a fresh isolate.
+  "worker_loaders": [{ "binding": "LOADER" }],
   // Knowledge base for the searchKnowledge tool. Create the instance named in
   // src/server.ts (KNOWLEDGE_INSTANCE) in the Cloudflare dashboard first.
   "ai_search_namespaces": [
@@ -53,15 +55,12 @@
       }
     ]
   },
-  // Each account's sandbox is a Durable Object that starts this container.
-  // The image is built from ./Dockerfile on deploy.
+  // Each account's sandbox is a Durable Object that starts a container from
+  // Cloudflare's managed image (see src/sandbox.ts), so nothing is built here.
   "containers": [
     {
       "class_name": "Sandbox",
-      "scheduling_policy": "durable_object",
-      "images": {
-        "sandbox": { "dockerfile": "./Dockerfile" }
-      }
+      "scheduling_policy": "durable_object"
     }
   ],
   "secrets": {

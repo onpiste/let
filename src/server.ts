@@ -20,6 +20,7 @@ import {
   jsonResponse
 } from "./auth";
 import { browsePage } from "./browser";
+import { runCode } from "./code-runner";
 import { formatMemories, type Memory } from "./prompt";
 import {
   broadcastReminder,
@@ -404,7 +405,9 @@ ${getSchedulePrompt({ date: new Date() })}
 
 When the user asks to be reminded of something, use the scheduleTask tool.
 
-You have a Linux sandbox that keeps files between turns (working directory /workspace). ${sandbox} Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.`;
+For a quick calculation or data transformation, use runCode: it runs JavaScript (or Python) in an isolated, short-lived runtime with no network and no files, and returns the output in about a second. Prefer JavaScript, which starts faster.
+
+You also have a Linux sandbox (Node.js 24 on Debian, with internet access; no Python preinstalled, install tools with apt-get) that keeps files between turns (working directory /workspace). ${sandbox} The first command after a while takes longer while the sandbox starts. Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.`;
   }
 
   getTools(): ToolSet {
@@ -518,6 +521,22 @@ You have a Linux sandbox that keeps files between turns (working directory /work
           path: z.string().describe("File path to read")
         }),
         execute: async ({ path }) => sandbox.readFile(path)
+      }),
+
+      runCode: tool({
+        description:
+          "Run a JavaScript (default) or Python snippet in a fresh, isolated runtime with no network, no files and a 5 s CPU limit. JavaScript runs as the body of an async function: use console.log and/or return a value. Python: print the output. Best for calculations, parsing and data transformations.",
+        inputSchema: z.object({
+          language: z.enum(["javascript", "python"]).default("javascript"),
+          code: z.string().describe("The code to run")
+        }),
+        execute: async ({ language, code }) => {
+          try {
+            return await runCode(this.env, language, code);
+          } catch (error) {
+            return { logs: "", error: `The runtime stopped: ${error}` };
+          }
+        }
       }),
 
       searchKnowledge: tool({

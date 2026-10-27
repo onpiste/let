@@ -66,6 +66,9 @@ npm run deploy            # → https://runlet.us
 src/server.ts     # Think assistant (model, prompt, memory and reminder tools) + Worker routes
 src/pi.ts         # Pi assistant
 src/reminders.ts  # Reminder logic shared by both
+src/sandbox.ts    # Per-account Linux sandbox (Container, Cloudflare's managed image)
+src/code-runner.ts # runCode: snippets in a fresh Dynamic Worker, no network
+src/browser.ts    # browseWeb: Browser Rendering
 src/prompt.ts     # Shared persona and memory formatting
 src/telegram.ts   # Per-user Telegram bots: webhook routing, owner gate, Bot API calls
 src/settings.ts   # Settings type, defaults, validation and persona (shared with the client)
