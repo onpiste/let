@@ -3,6 +3,7 @@ import { getAgentByName } from "agents";
 import { AUTH_ROUTES, HARNESSES } from "@cot/shared";
 
 import { handleCallback, handleLogin, handleLogout } from "../auth/google";
+import { handleToken } from "../auth/native";
 import { getUserFromRequest } from "../auth/session";
 import { handleTelegramWebhook } from "../integrations/telegram/webhook";
 import { jsonResponse } from "./responses";
@@ -19,6 +20,9 @@ export const router = {
       if (url.pathname === AUTH_ROUTES.login) return handleLogin(request, env);
       if (url.pathname === AUTH_ROUTES.callback) {
         return await handleCallback(request, env);
+      }
+      if (url.pathname === AUTH_ROUTES.token) {
+        return await handleToken(request, env);
       }
       if (url.pathname === AUTH_ROUTES.logout) {
         if (request.method !== "POST") {

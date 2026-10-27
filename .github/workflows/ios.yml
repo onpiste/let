@@ -1,0 +1,51 @@
+name: iOS
+
+# Builds the Capacitor iOS shell for the simulator (unsigned). Swift can't be
+# built on the Linux runners CI uses for everything else.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - "apps/web/package.json"
+      - "bun.lock"
+      - ".github/workflows/ios.yml"
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "apps/web/package.json"
+      - "bun.lock"
+      - ".github/workflows/ios.yml"
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Generate native files
+        run: bun run --filter @cot/mobile sync
+
+      - name: Build for the simulator
+        working-directory: apps/mobile/ios/App
+        run: >
+          xcodebuild build
+          -project App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -destination "generic/platform=iOS Simulator"
+          CODE_SIGNING_ALLOWED=NO

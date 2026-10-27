@@ -6,3 +6,16 @@ export type User = {
   name: string;
   picture: string | null;
 };
+
+/** Body of `POST /auth/token` (see `NATIVE_AUTH_PARAMS`). */
+export type NativeTokenRequest = {
+  code: string;
+  codeVerifier: string;
+};
+
+export type NativeTokenResponse = {
+  token: string;
+  /** Unix seconds; sign in again after this. */
+  expiresAt: number;
+  user: User;
+};

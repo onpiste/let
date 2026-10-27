@@ -12,7 +12,9 @@ src/
     responses.ts            no-store headers, JSON responses
   auth/
     google.ts               /auth/login, /auth/callback, /auth/logout
-    session.ts              Signed session cookie, current user, ALLOWED_EMAILS
+    session.ts              Signed session (cookie or Bearer), current user, ALLOWED_EMAILS
+    native.ts               Native-app sign-in: PKCE code → /auth/token
+    signing.ts              HMAC-signed values shared by sessions and codes
     cookies.ts              Cookie read/write helpers
   agents/
     common/                 Shared by both harnesses: persona + memory prompt, reminders

@@ -13,6 +13,7 @@ import {
 import { Brand } from "../../components/brand";
 import { Gear, LogOut, Plus } from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
+import { tapFeedback } from "../../lib/native";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
@@ -101,6 +102,7 @@ export function ChatPage({
     const t = text.trim();
     if (!t || busy) return;
     requestNotificationPermission();
+    tapFeedback();
     setInput("");
     void sendMessage({ role: "user", parts: [{ type: "text", text: t }] });
   };

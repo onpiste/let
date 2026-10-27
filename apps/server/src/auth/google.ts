@@ -2,13 +2,26 @@
  * Google sign-in.
  *
  * /auth/login redirects to Google, /auth/callback exchanges the code for the
- * user's profile and sets the session cookie (see session.ts). The Google
- * token itself never reaches the browser.
+ * user's profile and sets the session cookie (see session.ts), or hands a
+ * native app its one-time code (see native.ts). The Google token itself
+ * never reaches the client.
  */
 
 import { noStore } from "../http/responses";
 import { buildCookie, getCookie } from "./cookies";
-import { clearSessionCookie, isAllowed, sessionCookie } from "./session";
+import {
+  clearNativeLoginCookie,
+  nativeLoginCookie,
+  nativeRedirect,
+  pendingNativeLogin,
+  readNativeLogin
+} from "./native";
+import {
+  clearSessionCookie,
+  createSession,
+  isAllowed,
+  sessionCookie
+} from "./session";
 
 const STATE_COOKIE = "cot_oauth_state";
 const GOOGLE_SCOPE = "openid email profile";
@@ -29,6 +42,12 @@ function getRedirectUri(request: Request) {
 
 export function handleLogin(request: Request, env: Env) {
   const { clientId } = getGoogleConfig(env);
+  let native;
+  try {
+    native = readNativeLogin(new URL(request.url), env);
+  } catch (error) {
+    return new Response(String(error), { status: 400, headers: noStore() });
+  }
   const state = crypto.randomUUID();
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", clientId);
@@ -40,6 +59,13 @@ export function handleLogin(request: Request, env: Env) {
 
   const headers = noStore({ Location: url.toString() });
   headers.append("Set-Cookie", buildCookie(request, STATE_COOKIE, state, 600));
+  // A browser sign-in clears any native one left over in the same browser.
+  headers.append(
+    "Set-Cookie",
+    native
+      ? nativeLoginCookie(request, native)
+      : clearNativeLoginCookie(request)
+  );
   return new Response(null, { status: 302, headers });
 }
 
@@ -96,6 +122,7 @@ export async function handleCallback(request: Request, env: Env) {
 
   const headers = noStore();
   headers.append("Set-Cookie", buildCookie(request, STATE_COOKIE, "", 0));
+  headers.append("Set-Cookie", clearNativeLoginCookie(request));
 
   if (oauthError) {
     return new Response(`Google sign-in failed: ${oauthError}`, {
@@ -121,16 +148,20 @@ export async function handleCallback(request: Request, env: Env) {
     );
   }
 
-  const cookie = await sessionCookie(
-    request,
-    {
-      id: profile.sub,
-      email: profile.email,
-      name: profile.name ?? profile.email,
-      picture: profile.picture ?? null
-    },
-    env
-  );
+  const user = {
+    id: profile.sub,
+    email: profile.email,
+    name: profile.name ?? profile.email,
+    picture: profile.picture ?? null
+  };
+  const native = pendingNativeLogin(request, env);
+  if (native) {
+    headers.set("Location", await nativeRedirect(native, user, env));
+    return new Response(null, { status: 302, headers });
+  }
+
+  const { value } = await createSession(user, env);
+  const cookie = sessionCookie(request, value);
   headers.set("Location", "/");
   headers.append("Set-Cookie", cookie);
   return new Response(null, { status: 302, headers });
