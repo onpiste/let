@@ -19,6 +19,7 @@ import {
   isAllowed,
   jsonResponse
 } from "./auth";
+import { browsePage } from "./browser";
 import { formatMemories, type Memory } from "./prompt";
 import {
   broadcastReminder,
@@ -48,6 +49,7 @@ import {
 } from "./telegram";
 
 export { PiAssistant } from "./pi";
+export { Sandbox } from "./sandbox";
 export { TelegramRoutes } from "./telegram";
 // Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.
 export { ThinkMessengerStateAgent };
@@ -370,10 +372,14 @@ ${formatMemories(memories)}
 
 ${getSchedulePrompt({ date: new Date() })}
 
-When the user asks to be reminded of something, use the scheduleTask tool.`;
+When the user asks to be reminded of something, use the scheduleTask tool.
+
+You have a Linux sandbox that keeps files between turns (working directory /workspace). Use runCommand to run shell commands, and writeSandboxFile / readSandboxFile for files. Use browseWeb to open a web page and read its text.`;
   }
 
   getTools(): ToolSet {
+    const sandbox = this.env.SANDBOX.getByName(this.name);
+
     return {
       remember: tool({
         description:
@@ -441,6 +447,58 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
             return await cancelReminder(this, taskId);
           } catch (error) {
             return `Error cancelling reminder: ${error}`;
+          }
+        }
+      }),
+
+      runCommand: tool({
+        description:
+          "Run a shell command (sh) in the Linux sandbox, starting in /workspace. Files and installed packages persist across turns while the sandbox is running. Returns the exit code, stdout and stderr.",
+        inputSchema: z.object({
+          command: z.string().describe("The shell command to run"),
+          timeoutSeconds: z
+            .number()
+            .int()
+            .min(1)
+            .max(300)
+            .optional()
+            .describe("Give up after this many seconds (default 60)")
+        }),
+        execute: async ({ command, timeoutSeconds }) =>
+          sandbox.runCommand(command, (timeoutSeconds ?? 60) * 1000)
+      }),
+
+      writeSandboxFile: tool({
+        description:
+          "Write a text file in the Linux sandbox. Relative paths resolve against /workspace.",
+        inputSchema: z.object({
+          path: z.string().describe("File path, e.g. notes/todo.md"),
+          content: z.string().describe("The full file content")
+        }),
+        execute: async ({ path, content }) => sandbox.writeFile(path, content)
+      }),
+
+      readSandboxFile: tool({
+        description:
+          "Read a text file from the Linux sandbox. Relative paths resolve against /workspace.",
+        inputSchema: z.object({
+          path: z.string().describe("File path to read")
+        }),
+        execute: async ({ path }) => sandbox.readFile(path)
+      }),
+
+      browseWeb: tool({
+        description:
+          "Open a web page in a headless browser (JavaScript runs) and return its title and visible text. Use it for pages that need rendering, or to read a page the user links.",
+        inputSchema: z.object({
+          url: z.string().url().describe("Full http(s) URL to open")
+        }),
+        execute: async ({ url }) => {
+          try {
+            const page = await browsePage(this.env, url);
+            return `${page.title}\n${page.url}\n\n${page.text}`;
+          } catch (error) {
+            return `Error opening ${url}: ${error}`;
           }
         }
       })
