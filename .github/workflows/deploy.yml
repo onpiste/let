@@ -1,0 +1,39 @@
+name: Deploy
+
+# Every push to main is checked and deployed to Cloudflare (runlet.us).
+# Needs the CLOUDFLARE_API_TOKEN repository secret. Worker secrets
+# (GOOGLE_CLIENT_ID etc.) live in Cloudflare and are kept across deploys.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# One deploy at a time; a newer push waits instead of racing the older one.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run check
+
+      # vite build && wrangler deploy. The sandbox uses Cloudflare's managed
+      # image, so no Docker is needed here.
+      - run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 02eec653ae3b648ef566c2469e7fb68e
