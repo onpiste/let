@@ -21,6 +21,9 @@ export type TelegramConfigStore = {
 
 export type TelegramUpdateResult = "unauthorized" | "handled" | "forward";
 
+/** Telegram rejects messages longer than 4096 characters. */
+const MAX_TEXT = 4000;
+
 /**
  * One user's Telegram bot, as seen from their assistant. The assistant
  * exposes these methods as callables and webhook RPC; this class holds the
@@ -174,15 +177,15 @@ export class TelegramChannel {
     }
   }
 
-  /** Sends a fired reminder to the owner of the connected bot, if any. */
-  async sendReminder(description: string) {
+  /**
+   * Sends a message (a fired reminder, a scheduled task's reply) to the
+   * owner of the connected bot, if any.
+   */
+  async sendToOwner(text: string) {
     const config = this.config;
     if (!config?.ownerId) return;
-    await sendText(
-      this.options.env,
-      config.token,
-      config.ownerId,
-      `⏰ Reminder: ${description}`
-    );
+    const clipped =
+      text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT)}…` : text;
+    await sendText(this.options.env, config.token, config.ownerId, clipped);
   }
 }

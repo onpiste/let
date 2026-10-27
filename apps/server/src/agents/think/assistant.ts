@@ -1,6 +1,15 @@
-import { Think, type TurnContext } from "@cloudflare/think";
+import {
+  Think,
+  type ThinkSubmissionInspection,
+  type TurnContext
+} from "@cloudflare/think";
 import type { ThinkMessengers } from "@cloudflare/think/messengers";
-import { callable, getCurrentAgent } from "agents";
+import {
+  callable,
+  getAgentByName,
+  getCurrentAgent,
+  type Schedule
+} from "agents";
 import type { LanguageModel, ToolSet } from "ai";
 
 import {
@@ -8,6 +17,7 @@ import {
   MCP_CALLBACK_PATH,
   toPublicSettings,
   type AssistantRpc,
+  type NewJob,
   type SettingsPatch
 } from "@cot/shared";
 
@@ -16,8 +26,9 @@ import {
   TelegramChannel,
   type TelegramUpdateResult
 } from "../../integrations/telegram/channel";
-import { buildPersona } from "../common/prompt";
-import { broadcastReminder } from "../common/reminders";
+import type { Job, JobPayload } from "../common/jobs";
+import { buildPersona, timeNote } from "../common/prompt";
+import { AssistantJobs } from "./jobs";
 import { modelFor } from "./model";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
@@ -26,8 +37,8 @@ import { assistantTools, NEEDS_APPROVAL } from "./tools";
 /**
  * A personal assistant. Each signed-in Google account gets its own Durable
  * Object instance, which keeps the chat history, long-term memories and
- * scheduled reminders for that person. Its memories are also the memory of
- * the same person's Pi assistant, which reads and writes them over RPC.
+ * scheduled jobs for that person. Its memories and jobs are also those of
+ * the same person's Pi assistant, which reaches them over RPC.
  *
  * Think runs the agentic loop, persists the conversation and resumes
  * interrupted turns; this class only supplies the model, prompt and tools,
@@ -59,6 +70,14 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     });
   }
 
+  private get jobs() {
+    return new AssistantJobs({
+      agent: this,
+      pi: () => getAgentByName(this.env.PiAssistant, this.name),
+      sendToTelegram: (text) => this.sendToTelegramOwner(text)
+    });
+  }
+
   override onStart() {
     this.store.ensureTables();
 
@@ -87,23 +106,32 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   // Called every turn (no context blocks are configured), so the memory list
   // and the current date are always fresh.
   override getSystemPrompt() {
-    return this.systemPrompt(true);
+    return this.systemPrompt({ commandsAllowed: true });
   }
 
+  // Telegram turns and scheduled tasks (submissions) have nobody to approve
+  // a tool, so they run without the approval-gated ones.
   override beforeTurn(ctx: TurnContext) {
-    if (!ctx.messenger) return;
+    const scheduled = ctx.trigger === "submission";
+    if (!ctx.messenger && !scheduled) return;
     return {
       activeTools: Object.keys(ctx.tools).filter(
         (name) => !NEEDS_APPROVAL.has(name)
       ),
-      instructions: this.systemPrompt(false)
+      instructions: this.systemPrompt({ commandsAllowed: false, scheduled })
     };
+  }
+
+  protected override async onSubmissionStatus(
+    submission: ThinkSubmissionInspection
+  ) {
+    await this.jobs.onSubmission(submission);
   }
 
   override getTools(): ToolSet {
     return assistantTools({
       env: this.env,
-      agent: this,
+      jobs: this,
       memory: this,
       sandbox: this.env.SANDBOX.getByName(this.name)
     });
@@ -114,11 +142,15 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return this.telegram.messengers();
   }
 
-  private systemPrompt(commandsAllowed: boolean) {
+  private systemPrompt(options: {
+    commandsAllowed: boolean;
+    scheduled?: boolean;
+  }) {
     return buildSystemPrompt({
       settings: this.store.getSettings(),
       memories: this.store.listMemories(),
-      commandsAllowed
+      timezone: this.store.getTimezone(),
+      ...options
     });
   }
 
@@ -185,17 +217,53 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return this.telegram.receive(secret, body);
   }
 
-  /** Sends a fired reminder to the owner of the connected bot, if any. */
-  async sendTelegramReminder(description: string) {
-    await this.telegram.sendReminder(description);
+  /** Sends a message to the owner of the connected bot, if any. */
+  async sendToTelegramOwner(text: string) {
+    await this.telegram.sendToOwner(text);
+  }
+
+  // ── Scheduled jobs (callables + RPC), kept for both harnesses ───────
+
+  @callable()
+  async listJobs() {
+    return this.jobs.list();
+  }
+
+  @callable()
+  async createJob(job: NewJob) {
+    return this.jobs.create(job);
+  }
+
+  @callable()
+  async cancelJob(id: string) {
+    return this.jobs.cancel(id);
+  }
+
+  /** Used by the scheduleTask tool of both harnesses. */
+  async scheduleJob(when: Date | number | string, job: Job) {
+    return this.jobs.schedule(when, job);
+  }
+
+  /** The schedule callback: a job is due. */
+  async executeTask(payload: JobPayload, schedule?: Schedule<JobPayload>) {
+    await this.jobs.run(payload, schedule);
   }
 
   // ── RPC for the Worker and the Pi assistant ─────────────────────────
 
-  /** The owner's email, recorded by the Worker on every web connection. */
-  async setOwnerEmail(email: string) {
+  /**
+   * The owner's email and the time zone Cloudflare saw them in, recorded by
+   * the Worker on every web connection.
+   */
+  async setOwner(email: string, timezone: string | null) {
     this.store.ensureTables();
     this.store.setOwnerEmail(email);
+    if (timezone) this.store.setTimezone(timezone);
+  }
+
+  /** The current time for the Pi assistant's prompt. */
+  async getTimeNote() {
+    return timeNote(this.store.getTimezone());
   }
 
   /** The persona text, also used by the Pi assistant. */
@@ -213,12 +281,5 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   async removeMemory(id: number) {
     this.store.removeMemory(id);
-  }
-
-  // ── Scheduled reminders fire here ───────────────────────────────────
-
-  async executeTask(description: string) {
-    broadcastReminder(this, description);
-    await this.sendTelegramReminder(description);
   }
 }

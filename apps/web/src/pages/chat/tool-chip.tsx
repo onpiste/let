@@ -5,9 +5,9 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 const TOOL_LABELS: Record<string, string> = {
   remember: "Saved to memory",
   forget: "Removed from memory",
-  scheduleTask: "Reminder set",
-  getScheduledTasks: "Checked reminders",
-  cancelScheduledTask: "Reminder cancelled",
+  scheduleTask: "Scheduled",
+  getScheduledTasks: "Checked schedule",
+  cancelScheduledTask: "Cancelled schedule",
   runCommand: "Ran command",
   writeSandboxFile: "Wrote file",
   readSandboxFile: "Read file",

@@ -3,7 +3,15 @@ import { Agent as PiAgent } from "@mariozechner/pi-agent-core";
 import { getAgentByName } from "agents";
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 
-import { broadcastReminder } from "../common/reminders";
+import type { ServerEvent } from "@cot/shared";
+
+import {
+  broadcastEvent,
+  cancelOwnJob,
+  listOwnJobs,
+  toJob,
+  type JobPayload
+} from "../common/jobs";
 import { workersAiModel } from "./model";
 import { buildPiSystemPrompt } from "./system-prompt";
 import { piTools } from "./tools";
@@ -18,8 +26,8 @@ import { forwardPiEvents } from "./ui-stream";
  * Pi agent from the stored transcript, lets Pi run the agentic loop, and
  * translates Pi's events into the AI SDK UI message stream.
  *
- * Memory is not stored here: it lives in the same user's Think assistant,
- * so both harnesses share one memory.
+ * Memory and scheduled jobs are not stored here: they live in the same
+ * user's Think assistant, so both harnesses share them.
  */
 export class PiAssistant extends AIChatAgent<Env> {
   override maxPersistedMessages = 200;
@@ -33,11 +41,12 @@ export class PiAssistant extends AIChatAgent<Env> {
       initialState: {
         systemPrompt: buildPiSystemPrompt(
           await memory.getPersona(),
-          await memory.getMemories()
+          await memory.getMemories(),
+          await memory.getTimeNote()
         ),
         model: workersAiModel(this.env),
         thinkingLevel: "off",
-        tools: piTools(this, memory),
+        tools: piTools(memory),
         messages: toPiMessages(this.messages)
       },
       sessionId: this.name,
@@ -56,9 +65,30 @@ export class PiAssistant extends AIChatAgent<Env> {
     return createUIMessageStreamResponse({ stream });
   }
 
-  async executeTask(description: string) {
-    broadcastReminder(this, description);
+  /** Shows a fired job, sent by the Think assistant, in open Pi chats. */
+  async notify(event: ServerEvent) {
+    broadcastEvent(this, event);
+  }
+
+  // Reminders scheduled here before jobs moved to the Think assistant. They
+  // still fire here, and the Think assistant lists and cancels them.
+
+  async executeTask(payload: JobPayload) {
+    const { description } = toJob(payload);
+    broadcastEvent(this, {
+      type: "reminder",
+      description,
+      timestamp: new Date().toISOString()
+    });
     const assistant = await getAgentByName(this.env.Assistant, this.name);
-    await assistant.sendTelegramReminder(description);
+    await assistant.sendToTelegramOwner(`⏰ Reminder: ${description}`);
+  }
+
+  async listOwnJobs() {
+    return listOwnJobs(this, "pi");
+  }
+
+  async cancelOwnJob(id: string) {
+    return cancelOwnJob(this, id);
   }
 }

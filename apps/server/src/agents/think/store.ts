@@ -5,11 +5,12 @@ import { DEFAULT_SETTINGS, type Settings } from "@cot/shared";
 import type { TelegramConfig } from "../../integrations/telegram/config";
 import type { Memory } from "../common/prompt";
 
-type SettingsKey = "settings" | "owner_email" | "telegram";
+type SettingsKey = "settings" | "owner_email" | "timezone" | "telegram";
 
 /**
  * The Think assistant's own SQLite tables: `memories`, and a key/value
- * `settings` table for the user's settings, owner email and Telegram bot.
+ * `settings` table for the user's settings, owner email and time zone, and
+ * Telegram bot.
  */
 export class AssistantStore {
   constructor(private readonly db: Pick<Agent<Env>, "sql">) {}
@@ -62,6 +63,14 @@ export class AssistantStore {
 
   setOwnerEmail(email: string) {
     this.write("owner_email", email);
+  }
+
+  getTimezone() {
+    return this.read("timezone");
+  }
+
+  setTimezone(timezone: string) {
+    this.write("timezone", timezone);
   }
 
   getTelegramConfig(): TelegramConfig | null {
