@@ -10,7 +10,7 @@
   // Dynamic Workers: runCode loads each snippet into a fresh isolate.
   "worker_loaders": [{ "binding": "LOADER" }],
   // Knowledge base for the searchKnowledge tool. Create the instance named in
-  // src/agents/assistant.ts (KNOWLEDGE_INSTANCE) in the Cloudflare dashboard first.
+  // src/tools/knowledge.ts (KNOWLEDGE_INSTANCE) in the Cloudflare dashboard first.
   "ai_search_namespaces": [
     { "binding": "AI_SEARCH", "namespace": "default", "remote": true }
   ],

@@ -2,14 +2,10 @@ import { getAgentByName } from "agents";
 
 import { AUTH_ROUTES, HARNESSES } from "@cot/shared";
 
-import {
-  getUserFromRequest,
-  handleCallback,
-  handleLogin,
-  handleLogout,
-  jsonResponse
-} from "../auth/google";
-import { handleTelegramWebhook } from "../integrations/telegram";
+import { handleCallback, handleLogin, handleLogout } from "../auth/google";
+import { getUserFromRequest } from "../auth/session";
+import { handleTelegramWebhook } from "../integrations/telegram/webhook";
+import { jsonResponse } from "./responses";
 
 /**
  * The Worker's HTTP entry point. Static assets are served before this runs;

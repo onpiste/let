@@ -3,7 +3,7 @@ import type { Agent } from "agents";
 import type { ServerEvent } from "@cot/shared";
 
 /** An agent that can fire reminders through its `executeTask` callback. */
-type ReminderAgent = Agent<Env> & {
+export type ReminderAgent = Agent<Env> & {
   executeTask(description: string): Promise<void>;
 };
 

@@ -74,20 +74,21 @@ client (browser extension, iOS).
 ```
 apps/server/               # @cot/server — Cloudflare Worker
   src/index.ts             #   entry: router + Durable Object exports
-  src/http/router.ts       #   routes each request to the signed-in user's agent
-  src/auth/google.ts       #   Google sign-in and signed session cookie
-  src/agents/assistant.ts  #   Think assistant (model, prompt, memory, reminders, tools)
-  src/agents/pi.ts         #   Pi assistant
-  src/agents/reminders.ts  #   reminder logic shared by both
-  src/agents/prompt.ts     #   persona and memory formatting
-  src/integrations/telegram.ts # per-user Telegram bots
-  src/tools/               #   sandbox (Container), code runner (Dynamic Workers), browser
+  src/http/                #   routes each request to the signed-in user's agent
+  src/auth/                #   Google sign-in and signed session cookie
+  src/agents/think/        #   Think assistant: DO class, store, model, prompt, tools/
+  src/agents/pi/           #   Pi assistant: DO class, model, prompt, tools, stream bridge
+  src/agents/common/       #   persona/memory prompt and reminders shared by both
+  src/integrations/telegram/ # per-user Telegram bots
+  src/tools/               #   sandbox (Container), code runner, knowledge search, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
 apps/web/                  # @cot/web — React client (its Vite build also bundles the Worker)
-  src/app.tsx              #   sign-in screen, harness switch and chat UI
-  src/pages/settings-page.tsx
-  src/lib/                 #   client-side API calls
-  src/styles.css           #   theme
+  src/app.tsx              #   session state and page switching
+  src/pages/chat/          #   chat page and its components
+  src/pages/settings/      #   settings page, one file per card
+  src/components/          #   shared UI
+  src/lib/                 #   client-side API calls and helpers
+  src/styles/              #   theme, split by area
 packages/shared/           # @cot/shared — contract: routes, AssistantRpc, settings, types
 packages/tsconfig/         # @cot/tsconfig — strict TypeScript presets
 ```

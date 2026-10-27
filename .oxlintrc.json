@@ -53,6 +53,11 @@
     "eqeqeq": ["error", "always", { "null": "ignore" }],
     "no-console": ["error", { "allow": ["warn", "error"] }],
     "no-debugger": "error",
+    // Split a module before it grows past this; see "File size" in AGENTS.md.
+    "max-lines": [
+      "error",
+      { "max": 300, "skipBlankLines": true, "skipComments": true }
+    ],
     "no-var": "error",
     "prefer-const": "error",
     "no-param-reassign": "off",

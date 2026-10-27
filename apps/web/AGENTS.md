@@ -5,15 +5,20 @@ The React web client. Root rules in [/AGENTS.md](../../AGENTS.md) apply.
 ## Layout
 
 ```
-index.html            Vite entry (theme bootstrap script, fonts)
-public/               Static files served as-is
+index.html                Vite entry (theme bootstrap script, fonts)
+public/                   Static files served as-is
 src/
-  main.tsx            Mounts <App />
-  app.tsx             Sign-in, harness switch, chat UI
-  pages/              Full-page views (settings-page.tsx)
-  lib/                Non-UI client code (auth.ts: /auth/* calls)
-  styles.css          Theme tokens and component styles (Tailwind v4)
-vite.config.ts        Builds this client *and* the apps/server Worker (Cloudflare plugin)
+  main.tsx                Mounts <App />
+  app.tsx                 Session state and page switching
+  components/             UI shared by pages (brand, icons, theme toggle)
+  pages/
+    sign-in-page.tsx
+    chat/                 chat-page (state + agent socket), message-list, composer,
+                          empty-state, tool-chip, thinking, harness-switch, reminder-toast
+    settings/             settings-page + one file per card (assistant, mcp, integrations)
+  lib/                    Non-UI code: auth, assistant RPC, harness storage, notifications
+  styles/                 index.css imports tokens, base, topbar, layout, chat, settings in order
+vite.config.ts            Builds this client *and* the apps/server Worker (Cloudflare plugin)
 ```
 
 ## Rules
@@ -29,5 +34,10 @@ vite.config.ts        Builds this client *and* the apps/server Worker (Cloudflar
   React client (e.g. the browser extension) can lift `lib/` into a shared
   package.
 - Wrap `localStorage` access in `try/catch`; it throws in some private modes.
+- A page component owns its agent socket and state; child components take
+  props and callbacks. Add a new card or panel as its own file.
+- Tailwind scans Streamdown's bundles through `@source` paths in
+  `styles/index.css`, relative to that file and pointing at the repository
+  root `node_modules` (npm hoists them). Update them if either moves.
 - Accessibility rules (`jsx-a11y`) are errors: label inputs, give icon
   buttons an `aria-label`, use `type="button"` for non-submit buttons.

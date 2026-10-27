@@ -1,0 +1,12 @@
+/* Scrolling content column shared by every page. */
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.column {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px;
+}

@@ -1,0 +1,27 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createOpenAI } from "@ai-sdk/openai";
+import type { LanguageModel } from "ai";
+
+import type { Settings } from "@cot/shared";
+
+/**
+ * The model for the user's chosen provider. A plain string is a Workers AI
+ * model id, which Think runs through the AI binding.
+ */
+export function modelFor({
+  provider,
+  model,
+  apiKeys
+}: Settings): string | LanguageModel {
+  switch (provider) {
+    case "workers-ai":
+      return model;
+    case "openai":
+      return createOpenAI({ apiKey: apiKeys.openai })(model);
+    case "anthropic":
+      return createAnthropic({ apiKey: apiKeys.anthropic })(model);
+    case "google":
+      return createGoogleGenerativeAI({ apiKey: apiKeys.google })(model);
+  }
+}

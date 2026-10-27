@@ -114,8 +114,25 @@ To silence a lint rule on one line, use
 file-wide or loosen `.oxlintrc.json` to make a change pass.
 
 Comments explain _why_, not _what_; match the density of the surrounding
-code. Keep modules small and single-purpose (see the server layout in
-`apps/server/AGENTS.md`).
+code.
+
+### File size
+
+One module, one job. Lint fails any TS/TSX file over **300 lines** (blank
+lines and comments excluded); aim for well under 200. Split by
+responsibility, not by line count:
+
+- **React**: one component per file, grouped by page or feature
+  (`pages/chat/composer.tsx`). Shared UI goes to `components/`, non-UI logic
+  (fetch, storage, formatting) to `lib/`.
+- **Durable Object classes** stay thin: lifecycle hooks and callables that
+  delegate. Storage goes in a `store.ts`, prompts in `system-prompt.ts`,
+  tools in `tools/<group>.ts`, integrations in a channel class (see
+  `apps/server/src/agents/think/`).
+- **CSS**: one file per area under `apps/web/src/styles/`, imported in
+  cascade order from `index.css`.
+- When a folder gains three or more files about one integration or feature,
+  give it a short `README.md` (see `integrations/telegram/README.md`).
 
 ## Local setup and secrets
 

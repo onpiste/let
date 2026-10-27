@@ -13,7 +13,7 @@
   },
   "sortPackageJson": true,
   "sortTailwindcss": {
-    "stylesheet": "./apps/web/src/styles.css"
+    "stylesheet": "./apps/web/src/styles/index.css"
   },
   "ignorePatterns": [
     "**/env.d.ts",
