@@ -10,6 +10,7 @@
        │ WS/HTTP│                ── /chat/*  ──► Assistant DO   (Think)  ─┐ per account: google:<sub> │
        └───────►│                ── /pi/*    ──► PiAssistant DO (Pi)   ──┤ memory shared over RPC    │
  Telegram ─────►│                ── /messengers/telegram/* ──► TelegramRoutes DO ──► Assistant DO     │
+ Email ────────►│ email handler ── <alias>@runlet.us ──► EmailAddresses DO ──► Assistant DO (inbox)   │
                 │                                                                                     │
                 │ tools/: Sandbox DO (container) · Dynamic Worker code runner · Browser Rendering      │
                 └─────────────────────────────────────────────────────────────────────────────────────┘

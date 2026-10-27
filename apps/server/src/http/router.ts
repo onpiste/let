@@ -57,7 +57,7 @@ export const router = {
         }
         const agent = await getAgentByName(env.Assistant, name);
         if (request.headers.get("Upgrade") === "websocket") {
-          await agent.setOwnerEmail(user.email);
+          await agent.setOwner(user.email, user.name);
         }
         return agent.fetch(request);
       }

@@ -1,3 +1,4 @@
+import type { EmailPolicy, EmailStatus } from "./email";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { TelegramStatus } from "./telegram";
 
@@ -21,11 +22,19 @@ export interface AssistantRpc {
   connectTelegram(token: string): Promise<TelegramStatus>;
   newTelegramClaimLink(): Promise<TelegramStatus>;
   disconnectTelegram(): Promise<TelegramStatus>;
+  getEmailStatus(): Promise<EmailStatus>;
+  setEmailAlias(alias: string): Promise<EmailStatus>;
+  updateEmailPolicy(policy: EmailPolicy): Promise<EmailStatus>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */
-export type ServerEvent = {
-  type: "reminder";
-  description: string;
-  timestamp: string;
-};
+export type ServerEvent =
+  | { type: "reminder"; description: string; timestamp: string }
+  | {
+      type: "email";
+      from: string;
+      subject: string;
+      /** False for mail from a stranger. */
+      trusted: boolean;
+      timestamp: string;
+    };

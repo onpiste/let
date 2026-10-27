@@ -8,10 +8,16 @@ import {
   MCP_CALLBACK_PATH,
   toPublicSettings,
   type AssistantRpc,
+  type EmailPolicy,
+  type ServerEvent,
   type SettingsPatch
 } from "@cot/shared";
 
 import { isAllowed } from "../../auth/session";
+import { EmailChannel } from "../../integrations/email/channel";
+import { toEmailStatus } from "../../integrations/email/config";
+import { Inbox } from "../../integrations/email/inbox";
+import type { ParsedEmail } from "../../integrations/email/parse";
 import {
   TelegramChannel,
   type TelegramUpdateResult
@@ -33,6 +39,7 @@ import { assistantTools, NEEDS_APPROVAL } from "./tools";
  * interrupted turns; this class only supplies the model, prompt and tools,
  * and exposes the callables in AssistantRpc. The user's own Telegram bot,
  * once connected, shares this same conversation (integrations/telegram).
+ * Its own email address files incoming mail in an inbox (integrations/email).
  *
  * Only the signed-in owner can reach an instance (see http/router.ts).
  */
@@ -48,15 +55,39 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       env: this.env,
       userId: () => this.name.slice("google:".length),
       store: this.store,
-      ownerAllowed: () => {
-        const email = this.store.getOwnerEmail();
-        return Boolean(email && isAllowed(email, this.env));
-      },
+      ownerAllowed: () => this.allowedOwner() !== null,
       // Restart after the current reply goes out so Think re-reads the bot.
       onBotChanged: () => {
         setTimeout(() => this.ctx.abort("Telegram bot changed"), 500);
       }
     });
+  }
+
+  private get email() {
+    return new EmailChannel({
+      env: this.env,
+      userId: () => this.name.slice("google:".length),
+      store: this.store,
+      inbox: () => new Inbox(this),
+      owner: () => this.allowedOwner(),
+      ownerName: () => this.store.getOwnerName(),
+      onEmail: (email, trusted, preview) =>
+        this.announceEmail(email, trusted, preview)
+    });
+  }
+
+  /** The owner's email while it is still in ALLOWED_EMAILS. */
+  private allowedOwner() {
+    const email = this.store.getOwnerEmail();
+    return email && isAllowed(email, this.env) ? email : null;
+  }
+
+  private emailAddress() {
+    const status = toEmailStatus(
+      this.store.getEmailConfig(),
+      this.env.EMAIL_DOMAIN
+    );
+    return status.enabled ? status.address : null;
   }
 
   override onStart() {
@@ -105,7 +136,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       env: this.env,
       agent: this,
       memory: this,
-      sandbox: this.env.SANDBOX.getByName(this.name)
+      sandbox: this.env.SANDBOX.getByName(this.name),
+      inbox: this.emailAddress() ? () => new Inbox(this) : null
     });
   }
 
@@ -118,7 +150,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return buildSystemPrompt({
       settings: this.store.getSettings(),
       memories: this.store.listMemories(),
-      commandsAllowed
+      commandsAllowed,
+      emailAddress: this.emailAddress()
     });
   }
 
@@ -190,12 +223,56 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     await this.telegram.sendReminder(description);
   }
 
+  // ── Email (callables + Worker RPC) ──────────────────────────────────
+
+  @callable()
+  async getEmailStatus() {
+    return this.email.status();
+  }
+
+  @callable()
+  async setEmailAlias(alias: string) {
+    return this.email.setAlias(alias);
+  }
+
+  @callable()
+  async updateEmailPolicy(policy: EmailPolicy) {
+    return this.email.updatePolicy(policy);
+  }
+
+  /** Called by the Worker's email handler with the raw message. */
+  async receiveEmail(envelopeFrom: string, raw: Uint8Array) {
+    this.store.ensureTables();
+    return this.email.receive(envelopeFrom, raw);
+  }
+
+  private async announceEmail(
+    email: ParsedEmail,
+    trusted: boolean,
+    preview: string | null
+  ) {
+    // Like reminders, a broadcast rather than a chat message, so new mail
+    // never starts a model turn on its own.
+    const event: ServerEvent = {
+      type: "email",
+      from: email.from,
+      subject: email.subject,
+      trusted,
+      timestamp: new Date().toISOString()
+    };
+    this.broadcast(JSON.stringify(event));
+    const sender = trusted ? email.from : `${email.from} (unknown sender)`;
+    await this.telegram.notify(
+      `📧 New email from ${sender}\n${email.subject}${preview ? `\n\n${preview}` : ""}`
+    );
+  }
+
   // ── RPC for the Worker and the Pi assistant ─────────────────────────
 
-  /** The owner's email, recorded by the Worker on every web connection. */
-  async setOwnerEmail(email: string) {
+  /** The owner's email and name, recorded by the Worker on every web connection. */
+  async setOwner(email: string, name: string) {
     this.store.ensureTables();
-    this.store.setOwnerEmail(email);
+    this.store.setOwner(email, name);
   }
 
   /** The persona text, also used by the Pi assistant. */
