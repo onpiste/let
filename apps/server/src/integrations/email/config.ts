@@ -1,9 +1,12 @@
-import type { EmailStatus } from "@cot/shared";
+import type { EmailPolicy, EmailStatus } from "@cot/shared";
 
-/** The assistant's address, stored in its agent. */
-export type EmailConfig = {
-  alias: string;
-  allowedSenders: string[];
+/** The assistant's address and who may use it, stored in its agent. */
+export type EmailConfig = EmailPolicy & { alias: string };
+
+/** New addresses take mail from anyone, marking strangers as such. */
+export const DEFAULT_POLICY: EmailPolicy = {
+  acceptFromAnyone: true,
+  trustedSenders: []
 };
 
 const ALIAS_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
@@ -45,6 +48,7 @@ export function toEmailStatus(
   return {
     enabled: true,
     address: `${config.alias}@${domain}`,
-    allowedSenders: config.allowedSenders
+    acceptFromAnyone: config.acceptFromAnyone,
+    trustedSenders: config.trustedSenders
   };
 }

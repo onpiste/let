@@ -1,9 +1,10 @@
 # Email integration
 
 Each assistant gets its own address, `<alias>@EMAIL_DOMAIN`, with a random
-alias. People (or Gmail forwarding rules) send mail there; the assistant
-files it in an inbox and tells the owner. The model reads it only when the
-owner asks, through the `listEmails` / `readEmail` tools.
+alias. Anyone (or a Gmail forwarding rule) can send mail there; the
+assistant files it in an inbox and tells the owner. The model reads it only
+when the owner asks, through the `listEmails` / `readEmail` tools, and
+never starts a turn because mail arrived.
 
 1. The settings page calls `getEmailStatus`. `EmailChannel.status` allocates
    an alias on first use and records `alias → account` in the global
@@ -11,12 +12,17 @@ owner asks, through the `listEmails` / `readEmail` tools.
 2. Email Routing delivers mail for the domain to the Worker's `email`
    handler (`handler.ts`), which maps the alias to an account and hands the
    raw message to that account's `Assistant`. Unknown aliases bounce.
-3. `EmailChannel.receive` parses it and runs `gateEmail`: only the owner,
-   the senders they allowed and Gmail's forwarding confirmation get in;
-   everything else bounces. Email Routing has already rejected mail failing
-   SPF/DKIM or the sender's DMARC policy.
-4. Accepted mail goes into the `emails` table and the owner gets a web
-   toast and a Telegram message.
+3. `EmailChannel.receive` parses it and runs `gateEmail`. Mail from the
+   owner (including Gmail auto-forwards) and their trusted senders is
+   marked trusted. Strangers' mail is accepted but marked untrusted, or
+   bounced if the owner turned off "Accept mail from anyone". Gmail's
+   forwarding confirmation always gets through. Email Routing has already
+   rejected mail failing SPF/DKIM or the sender's DMARC policy.
+4. Accepted mail goes into the `emails` table (the newest 200 are kept)
+   and the owner gets a web toast and a Telegram message. Untrusted mail is
+   labelled "unknown sender" in both, and in what `readEmail` returns; the
+   system prompt tells the model to treat it as possible spam or phishing.
+   Every body is fenced as untrusted content either way.
 
 SDK `routeAgentEmail` with `createAddressBasedEmailResolver` is deliberately
 not used: it takes the instance name from the address, which would expose

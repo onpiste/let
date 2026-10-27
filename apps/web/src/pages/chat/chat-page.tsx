@@ -63,7 +63,8 @@ export function ChatPage({
           notify("Cot reminder", data.description);
         }
         if (data.type === "email" && data.subject) {
-          const text = `${data.from ?? "Someone"}: ${data.subject}`;
+          const from = data.from ?? "Someone";
+          const text = `${data.trusted === false ? `${from} (unknown sender)` : from}: ${data.subject}`;
           setToast({ icon: "📧", title: "New email", text });
           notify("Cot: new email", text);
         }

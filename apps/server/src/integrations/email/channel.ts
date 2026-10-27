@@ -1,7 +1,12 @@
-import { normalizeSenders, type EmailStatus } from "@cot/shared";
+import { normalizeEmailPolicy, type EmailStatus } from "@cot/shared";
 
 import { addresses } from "./addresses";
-import { newAlias, toEmailStatus, type EmailConfig } from "./config";
+import {
+  DEFAULT_POLICY,
+  newAlias,
+  toEmailStatus,
+  type EmailConfig
+} from "./config";
 import { gateEmail } from "./gate";
 import type { Inbox } from "./inbox";
 import { parseEmail, type ParsedEmail } from "./parse";
@@ -29,7 +34,11 @@ export class EmailChannel {
       /** The owner's email while the account is still allowed, else null. */
       owner: () => string | null;
       /** Tells the owner about a new email (web and Telegram). */
-      onEmail: (email: ParsedEmail, preview: string | null) => Promise<void>;
+      onEmail: (
+        email: ParsedEmail,
+        trusted: boolean,
+        preview: string | null
+      ) => Promise<void>;
     }
   ) {}
 
@@ -42,23 +51,22 @@ export class EmailChannel {
     if (!this.domain) return { enabled: false };
     const config = this.options.store.getEmailConfig();
     if (config) return toEmailStatus(config, this.domain);
-    return this.assign({ alias: newAlias(), allowedSenders: [] });
+    return this.assign({ alias: newAlias(), ...DEFAULT_POLICY });
   }
 
   /** Replaces the address; mail to the old one bounces from then on. */
   async newAddress(): Promise<EmailStatus> {
     if (!this.domain) return { enabled: false };
-    const allowedSenders =
-      this.options.store.getEmailConfig()?.allowedSenders ?? [];
-    return this.assign({ alias: newAlias(), allowedSenders });
+    const config = this.options.store.getEmailConfig();
+    return this.assign({ ...DEFAULT_POLICY, ...config, alias: newAlias() });
   }
 
-  async updateAllowedSenders(senders: unknown): Promise<EmailStatus> {
-    const allowedSenders = normalizeSenders(senders);
+  async updatePolicy(input: unknown): Promise<EmailStatus> {
+    const policy = normalizeEmailPolicy(input);
     const status = await this.status();
     const config = this.options.store.getEmailConfig();
     if (!config) return status;
-    const next = { ...config, allowedSenders };
+    const next = { ...config, ...policy };
     this.options.store.saveEmailConfig(next);
     return toEmailStatus(next, this.domain);
   }
@@ -81,20 +89,20 @@ export class EmailChannel {
       envelopeFrom,
       headerFrom: email.fromAddress,
       owner: this.options.owner(),
-      allowedSenders: config.allowedSenders
+      policy: config
     });
     switch (decision.kind) {
       case "reject":
         return "rejected";
       case "accept":
-        this.options.inbox().add(email);
-        await this.options.onEmail(email, null);
+        this.options.inbox().add(email, decision.trusted);
+        await this.options.onEmail(email, decision.trusted, null);
         return "accepted";
       case "forwarding-confirmation":
         // The owner needs the code or link in it to finish setting up
         // Gmail forwarding, so pass the text on directly.
-        this.options.inbox().add(email);
-        await this.options.onEmail(email, email.body.slice(0, 600));
+        this.options.inbox().add(email, false);
+        await this.options.onEmail(email, false, email.body.slice(0, 600));
         return "accepted";
     }
   }

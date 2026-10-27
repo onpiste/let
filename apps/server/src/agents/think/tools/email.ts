@@ -11,7 +11,7 @@ export function emailTools(inbox: () => Inbox) {
   return {
     listEmails: tool({
       description:
-        "List the most recent emails in your own inbox (newest first): id, when it arrived, sender and subject.",
+        "List the most recent emails in your own inbox (newest first): id, when it arrived, sender, whether the sender is trusted (the user or a contact they trust) and subject.",
       inputSchema: z.object({
         limit: z.number().int().min(1).max(50).default(10)
       }),
@@ -34,7 +34,10 @@ export function emailTools(inbox: () => Inbox) {
           email.attachments.length > 0
             ? `\nAttachments (not readable): ${email.attachments.join(", ")}`
             : "";
-        return `From: ${email.from}
+        const sender = email.trusted
+          ? email.from
+          : `${email.from} (UNKNOWN SENDER: not the user or a trusted contact)`;
+        return `From: ${sender}
 Subject: ${email.subject}
 Sent: ${email.date ?? "unknown"} · Received: ${email.receivedAt}${attachments}
 

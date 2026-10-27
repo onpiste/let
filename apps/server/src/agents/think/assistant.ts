@@ -8,6 +8,7 @@ import {
   MCP_CALLBACK_PATH,
   toPublicSettings,
   type AssistantRpc,
+  type EmailPolicy,
   type ServerEvent,
   type SettingsPatch
 } from "@cot/shared";
@@ -69,7 +70,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       store: this.store,
       inbox: () => new Inbox(this),
       owner: () => this.allowedOwner(),
-      onEmail: (email, preview) => this.announceEmail(email, preview)
+      onEmail: (email, trusted, preview) =>
+        this.announceEmail(email, trusted, preview)
     });
   }
 
@@ -233,8 +235,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   @callable()
-  async updateAllowedSenders(senders: string[]) {
-    return this.email.updateAllowedSenders(senders);
+  async updateEmailPolicy(policy: EmailPolicy) {
+    return this.email.updatePolicy(policy);
   }
 
   /** Called by the Worker's email handler with the raw message. */
@@ -243,18 +245,24 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return this.email.receive(envelopeFrom, raw);
   }
 
-  private async announceEmail(email: ParsedEmail, preview: string | null) {
+  private async announceEmail(
+    email: ParsedEmail,
+    trusted: boolean,
+    preview: string | null
+  ) {
     // Like reminders, a broadcast rather than a chat message, so new mail
     // never starts a model turn on its own.
     const event: ServerEvent = {
       type: "email",
       from: email.from,
       subject: email.subject,
+      trusted,
       timestamp: new Date().toISOString()
     };
     this.broadcast(JSON.stringify(event));
+    const sender = trusted ? email.from : `${email.from} (unknown sender)`;
     await this.telegram.notify(
-      `📧 New email from ${email.from}\n${email.subject}${preview ? `\n\n${preview}` : ""}`
+      `📧 New email from ${sender}\n${email.subject}${preview ? `\n\n${preview}` : ""}`
     );
   }
 

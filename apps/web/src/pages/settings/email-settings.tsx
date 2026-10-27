@@ -16,13 +16,16 @@ export function EmailSettings({
 }) {
   const [status, setStatus] = useState<EmailStatus | null>(null);
   const [senders, setSenders] = useState("");
+  const [anyone, setAnyone] = useState(true);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const show = useCallback((next: EmailStatus) => {
     setStatus(next);
-    if (next.enabled) setSenders(next.allowedSenders.join("\n"));
+    if (!next.enabled) return;
+    setSenders(next.trustedSenders.join("\n"));
+    setAnyone(next.acceptFromAnyone);
   }, []);
 
   useEffect(() => {
@@ -47,8 +50,10 @@ export function EmailSettings({
 
   const save = (e: FormEvent) => {
     e.preventDefault();
-    const list = senders.split(/[\s,]+/).filter(Boolean);
-    void run(() => api(agent).updateAllowedSenders(list));
+    const trustedSenders = senders.split(/[\s,]+/).filter(Boolean);
+    void run(() =>
+      api(agent).updateEmailPolicy({ acceptFromAnyone: anyone, trustedSenders })
+    );
   };
 
   const replace = () => {
@@ -80,8 +85,8 @@ export function EmailSettings({
               <div>
                 <div className="font-medium select-all">{status.address}</div>
                 <div className="muted small">
-                  Your assistant’s own address. Mail from you and the senders
-                  below lands in its inbox; ask it about your email in chat.
+                  Your assistant’s own address. Mail to it lands in its inbox;
+                  ask it about your email in chat.
                 </div>
               </div>
               <button
@@ -100,11 +105,31 @@ export function EmailSettings({
           </li>
           <li className="stacked">
             <form className="flex flex-col gap-2" onSubmit={save}>
-              <label className="font-medium" htmlFor="allowed-senders">
-                Also accept mail from
+              <div className="flex items-start gap-2">
+                <input
+                  id="accept-anyone"
+                  type="checkbox"
+                  className="mt-1"
+                  checked={anyone}
+                  aria-describedby="accept-anyone-hint"
+                  onChange={(e) => setAnyone(e.target.checked)}
+                />
+                <div>
+                  <label className="font-medium" htmlFor="accept-anyone">
+                    Accept mail from anyone
+                  </label>
+                  <div id="accept-anyone-hint" className="muted small">
+                    {anyone
+                      ? "Strangers’ mail is kept but marked as from an unknown sender."
+                      : "Only you and your trusted senders can reach it; other mail bounces."}
+                  </div>
+                </div>
+              </div>
+              <label className="font-medium" htmlFor="trusted-senders">
+                Trusted senders
               </label>
               <textarea
-                id="allowed-senders"
+                id="trusted-senders"
                 rows={3}
                 value={senders}
                 placeholder="one address per line"
