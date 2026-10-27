@@ -35,19 +35,20 @@ one.
 
 Run from the repository root.
 
-| Command                | What it does                                              |
-| ---------------------- | --------------------------------------------------------- |
-| `npm install`          | Install every workspace (also installs the git hooks)     |
-| `npm run dev`          | Web app + Worker in workerd at http://localhost:5173      |
-| `npm run check`        | Format check + type-aware lint + typecheck (what CI runs) |
-| `npm run format`       | Format everything with oxfmt                              |
-| `npm run lint`         | oxlint, type-aware; any warning fails                     |
-| `npm run lint:fix`     | Apply safe lint fixes                                     |
-| `npm run typecheck`    | `tsc` in every workspace                                  |
-| `npm run build`        | Production build of client + Worker                       |
-| `npm run types`        | Regenerate `apps/server/env.d.ts` from `wrangler.jsonc`   |
-| `npm run deploy`       | Build and deploy to Cloudflare                            |
-| `npm run <s> -w <pkg>` | Run a script in one workspace, e.g. `-w @cot/server`      |
+| Command                | What it does                                               |
+| ---------------------- | ---------------------------------------------------------- |
+| `npm install`          | Install every workspace (also installs the git hooks)      |
+| `npm run dev`          | Web app + Worker in workerd at http://localhost:5173       |
+| `npm run check`        | Format, lint, typecheck and dead-code check (what CI runs) |
+| `npm run format`       | Format everything with oxfmt                               |
+| `npm run lint`         | oxlint, type-aware; any warning fails                      |
+| `npm run lint:fix`     | Apply safe lint fixes                                      |
+| `npm run typecheck`    | `tsc` in every workspace                                   |
+| `npm run knip`         | Find unused files, exports and dependencies                |
+| `npm run build`        | Production build of client + Worker                        |
+| `npm run types`        | Regenerate `apps/server/env.d.ts` from `wrangler.jsonc`    |
+| `npm run deploy`       | Build and deploy to Cloudflare                             |
+| `npm run <s> -w <pkg>` | Run a script in one workspace, e.g. `-w @cot/server`       |
 
 There is no test suite yet. When adding one, use Vitest
 (`@cloudflare/vitest-pool-workers` for the server) and wire it into
@@ -58,7 +59,10 @@ There is no test suite yet. When adding one, use Vitest
 Before you commit, all of these must pass. CI runs the same steps and blocks
 the merge otherwise:
 
-1. `npm run check` — no format diffs, **zero** lint warnings, no type errors.
+1. `npm run check` — no format diffs, **zero** lint warnings, no type errors,
+   no dead code (knip: unused files, exports, types or dependencies). Delete
+   dead code rather than ignoring it; a genuine exception goes in
+   `knip.jsonc` with a comment saying why.
 2. `npm run build` succeeds.
 3. If you changed `apps/server/wrangler.jsonc` or renamed/moved an exported
    Durable Object class, run `npm run types` and commit `env.d.ts`
