@@ -1,0 +1,4 @@
+{
+  "extends": "@cot/tsconfig/worker.json",
+  "include": ["src", "env.d.ts"]
+}

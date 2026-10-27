@@ -1,0 +1,9 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "oxc.typeAware": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "files.associations": {
+    "wrangler.jsonc": "jsonc"
+  }
+}

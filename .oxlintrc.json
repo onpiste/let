@@ -1,13 +1,67 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "jsx-a11y", "typescript"],
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "promise",
+    "react",
+    "react-perf",
+    "jsx-a11y"
+  ],
   "categories": {
-    "correctness": "error"
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error"
   },
+  "env": {
+    "builtin": true,
+    "es2024": true
+  },
+  "ignorePatterns": [
+    "**/env.d.ts",
+    "**/dist/**",
+    "**/.wrangler/**",
+    "**/node_modules/**"
+  ],
   "rules": {
-    "no-explicit-any": "error",
+    // ── Types ───────────────────────────────────────────────────────────
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-imports": [
+      "error",
+      { "prefer": "type-imports", "fixStyle": "inline-type-imports" }
+    ],
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
+    // TypeScript's noImplicitReturns already covers this, with fewer false
+    // positives on `void | T` hooks such as beforeTurn.
+    "typescript/consistent-return": "off",
+    // Library types widen model ids as `"known-id" | string` on purpose.
+    "typescript/no-redundant-type-constituents": "off",
+    "typescript/prefer-nullish-coalescing": "off",
+    "typescript/no-unsafe-type-assertion": "off",
+
+    // ── Correctness & hygiene ───────────────────────────────────────────
+    "eqeqeq": ["error", "always", { "null": "ignore" }],
+    "no-console": ["error", { "allow": ["warn", "error"] }],
+    "no-debugger": "error",
+    // Split a module before it grows past this; see "File size" in AGENTS.md.
+    "max-lines": [
+      "error",
+      { "max": 300, "skipBlankLines": true, "skipComments": true }
+    ],
+    "no-var": "error",
+    "prefer-const": "error",
+    "no-param-reassign": "off",
     "no-unused-expressions": "off",
-    "react-hooks/exhaustive-deps": "warn",
     "no-unused-vars": [
       "error",
       {
@@ -15,7 +69,116 @@
         "varsIgnorePattern": "^_",
         "caughtErrorsIgnorePattern": "^_"
       }
-    ]
+    ],
+
+    // ── Modules ─────────────────────────────────────────────────────────
+    "import/no-cycle": "error",
+    "import/no-self-import": "error",
+    "import/no-duplicates": "error",
+    "import/no-default-export": "off",
+    "import/no-named-as-default": "off",
+    "import/no-named-as-default-member": "off",
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+
+    // ── Promises ────────────────────────────────────────────────────────
+    // `.then(setState)` chains are fine; floating promises are caught by the
+    // type-aware rules above.
+    "promise/always-return": "off",
+
+    // ── Style that hurts more than it helps here ────────────────────────
+    "unicorn/consistent-function-scoping": "off",
+
+    // ── React ───────────────────────────────────────────────────────────
+    "react/react-in-jsx-scope": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    // Effects that scroll or refresh on a trigger value list it on purpose.
+    "react/exhaustive-effect-dependencies": "off",
+    // Message parts have no stable ids; their order never changes.
+    "react/no-array-index-key": "off",
+    // Inline handlers and literals are fine at this app's scale.
+    "react-perf/jsx-no-new-function-as-prop": "off",
+    "react-perf/jsx-no-new-object-as-prop": "off",
+    "react-perf/jsx-no-new-array-as-prop": "off",
+    "react-perf/jsx-no-jsx-as-prop": "off"
   },
-  "ignorePatterns": ["**/env.d.ts"]
+  "overrides": [
+    {
+      // The shared package is imported by every client (web, browser
+      // extension, mobile) and by the server, so it stays runtime-agnostic.
+      "files": ["packages/shared/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@cot/server",
+                  "@cot/web",
+                  "cloudflare:*",
+                  "agents",
+                  "agents/*",
+                  "@cloudflare/*",
+                  "react",
+                  "react-dom",
+                  "node:*"
+                ],
+                "message": "@cot/shared must stay free of runtime-specific dependencies."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Clients talk to the server only through its HTTP/WebSocket surface,
+      // described by @cot/shared. Never import server code.
+      "files": ["apps/web/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@cot/server", "@cot/server/*", "cloudflare:*"],
+                "message": "Clients must not import server code; put the contract in @cot/shared."
+              },
+              {
+                "group": ["**/apps/*", "**/packages/*"],
+                "message": "Import other workspaces by package name (@cot/…), not by path."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/server/src/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@cot/web", "@cot/web/*", "react", "react-dom"],
+                "message": "The server must not depend on client code."
+              },
+              {
+                "group": ["**/apps/*", "**/packages/*"],
+                "message": "Import other workspaces by package name (@cot/…), not by path."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Config files and Worker entry points use default exports by convention.
+      "files": ["**/*.config.ts"],
+      "rules": {
+        "import/no-default-export": "off"
+      }
+    }
+  ]
 }

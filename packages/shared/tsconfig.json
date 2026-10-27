@@ -1,0 +1,4 @@
+{
+  "extends": "@cot/tsconfig/base.json",
+  "include": ["src"]
+}

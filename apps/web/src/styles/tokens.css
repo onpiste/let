@@ -1,0 +1,25 @@
+/* Theme tokens. index.html sets data-mode before first paint. */
+
+:root {
+  --bg: #f7f5f0;
+  --surface: #ffffff;
+  --text: #1f1d1a;
+  --muted: #7a756c;
+  --line: #e7e2d8;
+  --user-bubble: #ece7dd;
+  --accent: #d9774b;
+  --accent-text: #ffffff;
+  --shadow: 0 8px 30px rgba(60, 45, 20, 0.08);
+}
+
+[data-mode="dark"] {
+  --bg: #1a1917;
+  --surface: #252320;
+  --text: #ece8e1;
+  --muted: #9b958a;
+  --line: #34312c;
+  --user-bubble: #2f2c28;
+  --accent: #e08a5f;
+  --accent-text: #1a1917;
+  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}

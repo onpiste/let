@@ -1,5 +1,5 @@
 {
-  "name": "cot-assistant",
+  "name": "cot",
   "version": "1.0.0",
   "private": true,
   "description": "Personal AI assistant built on the Cloudflare Agents SDK",
@@ -9,54 +9,44 @@
     "cloudflare"
   ],
   "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "start": "vite dev",
-    "deploy": "vite build && wrangler deploy",
-    "types": "wrangler types env.d.ts",
+    "dev": "npm run dev -w @cot/web",
+    "build": "npm run build -w @cot/web",
+    "deploy": "npm run deploy -w @cot/web",
+    "types": "npm run types -w @cot/server",
     "format": "oxfmt --write .",
-    "lint": "oxlint src/",
-    "check": "oxfmt --check . && oxlint src/ && tsc"
-  },
-  "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.89",
-    "@ai-sdk/google": "^4.0.106",
-    "@ai-sdk/openai": "^4.0.103",
-    "@ai-sdk/react": "^4.0.0",
-    "@chat-adapter/telegram": "^4.43.0",
-    "@cloudflare/ai-chat": "^0.12.2",
-    "@cloudflare/computer": "^0.5.1",
-    "@cloudflare/puppeteer": "1.4.0",
-    "@cloudflare/think": "^0.21.0",
-    "@mariozechner/pi-agent-core": "^0.73.1",
-    "@mariozechner/pi-ai": "^0.73.1",
-    "@modelcontextprotocol/client": "2.3.1",
-    "@opentelemetry/api": "^1.9.0",
-    "@streamdown/code": "^1.1.1",
-    "agents": "^0.30.1",
-    "ai": "^7.0.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "streamdown": "^2.5.0",
-    "zod": "^4.4.3"
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "lint:fix": "oxlint --type-aware --fix",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-decorators": "^8.0.2",
-    "@cloudflare/vite-plugin": "^1.65.0",
-    "@rolldown/plugin-babel": "^0.2.3",
-    "@tailwindcss/vite": "^4.3.1",
-    "@types/node": "^26.0.1",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",
-    "tailwindcss": "^4.3.1",
-    "typescript": "^6.0.3",
-    "vite": "^8.1.0",
-    "wrangler": "^4.153.0"
+    "oxlint-tsgolint": "^7.0.2005",
+    "typescript": "^6.0.3"
   },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs,cjs}": [
+      "oxfmt --no-error-on-unmatched-pattern",
+      "oxlint --deny-warnings --fix"
+    ],
+    "*.{json,jsonc,md,css,html,yml,yaml}": "oxfmt --no-error-on-unmatched-pattern"
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
+  "packageManager": "npm@10.9.4",
   "allowScripts": {
     "core-js-pure@3.49.0": true,
     "esbuild@0.28.1": true,
