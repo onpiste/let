@@ -96,6 +96,11 @@ export async function getUserFromRequest(request: Request, env: Env) {
   return user && isAllowed(user.email, env) ? user : null;
 }
 
+/** The Durable Object name of a user's assistants; only the Worker picks it. */
+export function agentName(user: User) {
+  return `google:${user.id}`;
+}
+
 export function isAllowed(email: string, env: Env) {
   const allowed = (env.ALLOWED_EMAILS ?? "")
     .split(",")

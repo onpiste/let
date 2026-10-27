@@ -41,7 +41,7 @@ Features:
   - **Assistant**: name, reply language and custom instructions, used by both harnesses
   - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. Applies to the Think assistant and Telegram; the Pi assistant stays on Workers AI
   - **MCP servers**: add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
-  - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
+  - **Integrations**: Gmail and Google Calendar with the account you signed in with (one consent screen each, no new sign-in), and your Telegram bot (connect with its token, claim, disconnect)
 - A calm, minimal chat UI with light and dark mode that works on mobile
 
 ## Make it yours
@@ -77,7 +77,8 @@ Before committing, read [AGENTS.md](AGENTS.md): `npm run check` and
 2. Add these **Authorized redirect URIs**:
    - `http://localhost:5173/auth/callback`
    - `https://runlet.us/auth/callback` (the custom domain in `apps/server/wrangler.jsonc`)
-3. Copy `apps/server/.dev.vars.example` to `apps/server/.dev.vars` and fill in the client ID and secret, a random `SESSION_SECRET` (`openssl rand -base64 32`) and your email in `ALLOWED_EMAILS`.
+3. For **Gmail** and **Calendar**, enable the [Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com) and [Google Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com) in the same project. No other setup: users connect each one from **Settings → Integrations**, and it reuses the redirect URI above. Gmail's scopes are restricted, so while the consent screen is in **Testing**, add each user under **Test users** (they'll see an "unverified app" notice); publishing to many users needs Google's verification.
+4. Copy `apps/server/.dev.vars.example` to `apps/server/.dev.vars` and fill in the client ID and secret, a random `SESSION_SECRET` (`openssl rand -base64 32`) and your email in `ALLOWED_EMAILS`.
 
 The Pi assistant calls Workers AI over REST, so it also needs `CLOUDFLARE_API_KEY` (an API token with Workers AI access) and your account id in `vars.CLOUDFLARE_ACCOUNT_ID` in `apps/server/wrangler.jsonc`.
 

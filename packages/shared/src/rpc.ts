@@ -1,3 +1,4 @@
+import type { GoogleStatus } from "./google";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { TelegramStatus } from "./telegram";
 
@@ -17,6 +18,8 @@ export interface AssistantRpc {
   updateSettings(patch: SettingsPatch): Promise<PublicSettings>;
   addMcp(name: string, url: string): Promise<AddMcpResult>;
   removeMcp(id: string): Promise<void>;
+  getGoogleStatus(): Promise<GoogleStatus>;
+  disconnectGoogle(): Promise<GoogleStatus>;
   getTelegramStatus(): Promise<TelegramStatus>;
   connectTelegram(token: string): Promise<TelegramStatus>;
   newTelegramClaimLink(): Promise<TelegramStatus>;

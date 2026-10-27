@@ -8,7 +8,9 @@ export const AUTH_ROUTES = {
   login: "/auth/login",
   callback: "/auth/callback",
   logout: "/auth/logout",
-  me: "/auth/me"
+  me: "/auth/me",
+  /** Grants one more Google service; see `googleConnectUrl`. */
+  googleConnect: "/auth/google/connect"
 } as const;
 
 /**

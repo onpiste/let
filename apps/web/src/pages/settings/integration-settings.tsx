@@ -4,8 +4,9 @@ import type { TelegramStatus, User } from "@cot/shared";
 
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
+import { GoogleSettings } from "./google-settings";
 
-/** The Google account and the user's own Telegram bot. */
+/** Google services and the user's own Telegram bot. */
 export function IntegrationSettings({
   user,
   agent,
@@ -63,13 +64,7 @@ export function IntegrationSettings({
     <section className="card">
       <h2>Integrations</h2>
       <ul className="list">
-        <li>
-          <div>
-            <div className="font-medium">Google</div>
-            <div className="muted small">Signed in as {user.email}</div>
-          </div>
-          <span className="pill ready">connected</span>
-        </li>
+        <GoogleSettings user={user} agent={agent} epoch={epoch} />
         <li className="stacked">
           <div className="row">
             <div>

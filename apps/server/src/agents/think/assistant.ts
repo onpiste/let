@@ -12,6 +12,8 @@ import {
 } from "@cot/shared";
 
 import { isAllowed } from "../../auth/session";
+import { GoogleAccount } from "../../integrations/google/account";
+import type { TokenResponse } from "../../integrations/google/oauth";
 import {
   TelegramChannel,
   type TelegramUpdateResult
@@ -57,6 +59,10 @@ export class Assistant extends Think<Env> implements AssistantRpc {
         setTimeout(() => this.ctx.abort("Telegram bot changed"), 500);
       }
     });
+  }
+
+  private get google() {
+    return new GoogleAccount({ env: this.env, store: this.store });
   }
 
   override onStart() {
@@ -105,7 +111,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       env: this.env,
       agent: this,
       memory: this,
-      sandbox: this.env.SANDBOX.getByName(this.name)
+      sandbox: this.env.SANDBOX.getByName(this.name),
+      google: this.google
     });
   }
 
@@ -150,6 +157,24 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   @callable()
   async removeMcp(id: string) {
     await this.removeMcpServer(id);
+  }
+
+  // ── Google services (callables + grant RPC) ──────────────────────────
+
+  @callable()
+  async getGoogleStatus() {
+    return this.google.status();
+  }
+
+  @callable()
+  async disconnectGoogle() {
+    return this.google.disconnect();
+  }
+
+  /** Called by the Worker when the user grants a service (connect.ts). */
+  async saveGoogleGrant(tokens: TokenResponse) {
+    this.store.ensureTables();
+    this.google.save(tokens);
   }
 
   // ── Telegram (callables + webhook RPC) ──────────────────────────────

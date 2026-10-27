@@ -3,7 +3,8 @@ import { getAgentByName } from "agents";
 import { AUTH_ROUTES, HARNESSES } from "@cot/shared";
 
 import { handleCallback, handleLogin, handleLogout } from "../auth/google";
-import { getUserFromRequest } from "../auth/session";
+import { agentName, getUserFromRequest } from "../auth/session";
+import { handleGoogleConnect } from "../integrations/google/connect";
 import { handleTelegramWebhook } from "../integrations/telegram/webhook";
 import { jsonResponse } from "./responses";
 
@@ -26,6 +27,9 @@ export const router = {
         }
         return handleLogout(request);
       }
+      if (url.pathname === AUTH_ROUTES.googleConnect) {
+        return await handleGoogleConnect(request, env);
+      }
       if (url.pathname.startsWith("/messengers/telegram/")) {
         return await handleTelegramWebhook(request, env);
       }
@@ -47,7 +51,7 @@ export const router = {
       ) {
         const user = await getUserFromRequest(request, env);
         if (!user) return new Response("Unauthorized", { status: 401 });
-        const name = `google:${user.id}`;
+        const name = agentName(user);
         if (harness === HARNESSES.pi.basePath) {
           return (await getAgentByName(env.PiAssistant, name)).fetch(request);
         }

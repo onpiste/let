@@ -2,14 +2,16 @@ import type { Agent } from "agents";
 
 import { DEFAULT_SETTINGS, type Settings } from "@cot/shared";
 
+import type { GoogleGrant } from "../../integrations/google/grant";
 import type { TelegramConfig } from "../../integrations/telegram/config";
 import type { Memory } from "../common/prompt";
 
-type SettingsKey = "settings" | "owner_email" | "telegram";
+type SettingsKey = "settings" | "owner_email" | "telegram" | "google";
 
 /**
  * The Think assistant's own SQLite tables: `memories`, and a key/value
- * `settings` table for the user's settings, owner email and Telegram bot.
+ * `settings` table for the user's settings, owner email, Telegram bot and
+ * Google grant.
  */
 export class AssistantStore {
   constructor(private readonly db: Pick<Agent<Env>, "sql">) {}
@@ -72,6 +74,16 @@ export class AssistantStore {
   saveTelegramConfig(config: TelegramConfig | null) {
     if (config) this.write("telegram", JSON.stringify(config));
     else this.remove("telegram");
+  }
+
+  getGoogleGrant(): GoogleGrant | null {
+    const value = this.read("google");
+    return value ? (JSON.parse(value) as GoogleGrant) : null;
+  }
+
+  saveGoogleGrant(grant: GoogleGrant | null) {
+    if (grant) this.write("google", JSON.stringify(grant));
+    else this.remove("google");
   }
 
   // ── Memories ────────────────────────────────────────────────────────
