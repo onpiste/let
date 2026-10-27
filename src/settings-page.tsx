@@ -3,6 +3,7 @@ import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
 import type { User } from "./auth";
 import type { Assistant } from "./server";
+import type { TelegramStatus } from "./telegram";
 import {
   PROVIDERS,
   type KeyedProvider,
@@ -39,9 +40,11 @@ export default function SettingsPage({
   onBack: () => void;
 }) {
   const [mcp, setMcp] = useState<MCPServersState | null>(null);
+  const [epoch, setEpoch] = useState(0);
   const agent = useAgent<Assistant>({
     agent: "Assistant",
     basePath: "chat",
+    onOpen: useCallback(() => setEpoch((n) => n + 1), []),
     onMcpUpdate: useCallback((state: MCPServersState) => setMcp(state), [])
   });
 
@@ -59,7 +62,7 @@ export default function SettingsPage({
         <div className="column settings">
           <AssistantSettings agent={agent} />
           <McpSettings agent={agent} state={mcp} />
-          <Integrations user={user} />
+          <Integrations user={user} agent={agent} epoch={epoch} />
         </div>
       </main>
     </div>
@@ -81,7 +84,15 @@ function api(agent: AgentHandle) {
       agent.stub.updateSettings(patch) as Promise<PublicSettings>,
     addMcp: (name: string, url: string) =>
       agent.stub.addMcp(name, url) as Promise<AddMcpResult>,
-    removeMcp: (id: string) => agent.stub.removeMcp(id) as Promise<void>
+    removeMcp: (id: string) => agent.stub.removeMcp(id) as Promise<void>,
+    getTelegramStatus: () =>
+      agent.stub.getTelegramStatus() as Promise<TelegramStatus>,
+    connectTelegram: (token: string) =>
+      agent.stub.connectTelegram(token) as Promise<TelegramStatus>,
+    newTelegramClaimLink: () =>
+      agent.stub.newTelegramClaimLink() as Promise<TelegramStatus>,
+    disconnectTelegram: () =>
+      agent.stub.disconnectTelegram() as Promise<TelegramStatus>
   };
 }
 
@@ -411,52 +422,57 @@ function McpSettings({
 
 // ── Integrations ─────────────────────────────────────────────────────
 
-type TelegramStatus = { linked: boolean; botUsername: string };
-
-function Integrations({ user }: { user: User }) {
+function Integrations({
+  user,
+  agent,
+  epoch
+}: {
+  user: User;
+  agent: AgentHandle;
+  /** Bumps on every (re)connect; changing the bot restarts the assistant. */
+  epoch: number;
+}) {
   const [telegram, setTelegram] = useState<TelegramStatus | null>(null);
+  const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    fetch("/telegram/status")
-      .then((r) => (r.ok ? (r.json() as Promise<TelegramStatus>) : null))
+    api(agent)
+      .getTelegramStatus()
       .then(setTelegram)
-      .catch(() => {});
-  }, []);
+      .catch((e: unknown) => setError(errorText(e)));
+  }, [agent]);
 
   useEffect(() => {
+    if (epoch === 0) return;
     refresh();
-    // Pick up the link once the user comes back from Telegram.
+    // Pick up the claim once the user comes back from Telegram.
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
-  }, [refresh]);
+  }, [refresh, epoch]);
 
-  const connect = async () => {
+  const run = async (action: () => Promise<TelegramStatus>) => {
     setError(null);
-    // Open the tab synchronously so popup blockers allow it.
-    const tab = window.open("", "_blank");
     setBusy(true);
     try {
-      const res = await fetch("/telegram/link", { method: "POST" });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (!data.url) throw new Error(data.error ?? "Could not create a link");
-      if (tab) tab.location.href = data.url;
-      else window.location.href = data.url;
+      setTelegram(await action());
+      setToken("");
     } catch (e) {
-      tab?.close();
       setError(errorText(e));
     } finally {
       setBusy(false);
     }
   };
 
-  const disconnect = async () => {
-    if (!confirm("Disconnect Telegram from your assistant?")) return;
-    setBusy(true);
-    await fetch("/telegram/unlink", { method: "POST" }).catch(() => {});
-    setBusy(false);
-    refresh();
+  const connect = (e: FormEvent) => {
+    e.preventDefault();
+    void run(() => api(agent).connectTelegram(token));
+  };
+
+  const disconnect = () => {
+    if (!confirm("Disconnect your Telegram bot from the assistant?")) return;
+    void run(() => api(agent).disconnectTelegram());
   };
 
   return (
@@ -470,25 +486,86 @@ function Integrations({ user }: { user: User }) {
           </div>
           <span className="pill ready">connected</span>
         </li>
-        <li>
-          <div>
-            <div className="font-medium">Telegram</div>
-            <div className="muted small">
-              {telegram?.linked
-                ? `Chat with @${telegram.botUsername} — same conversation, memory and reminders`
-                : "Chat with your assistant from Telegram"}
+        <li className="stacked">
+          <div className="row">
+            <div>
+              <div className="font-medium">Telegram</div>
+              <div className="muted small">
+                {telegram?.configured
+                  ? `Your bot @${telegram.botUsername} — same conversation, memory and reminders as here`
+                  : "Chat with your assistant through your own Telegram bot"}
+              </div>
             </div>
+            {telegram?.configured &&
+              (telegram.linked ? (
+                <span className="pill ready">connected</span>
+              ) : (
+                <span className="pill">waiting for Start</span>
+              ))}
           </div>
-          {telegram &&
-            (telegram.linked ? (
+
+          {telegram && !telegram.configured && (
+            <form className="inline-form two" onSubmit={connect}>
+              <input
+                required
+                type="password"
+                autoComplete="off"
+                value={token}
+                placeholder="Bot token from @BotFather"
+                onChange={(e) => setToken(e.target.value)}
+              />
+              <button type="submit" className="primary-btn" disabled={busy}>
+                {busy ? "Connecting…" : "Connect"}
+              </button>
+            </form>
+          )}
+          {telegram && !telegram.configured && (
+            <p className="muted small">
+              In Telegram, message @BotFather, send /newbot and paste the token
+              it gives you. Only you will be able to use the bot.
+            </p>
+          )}
+
+          {telegram?.configured && !telegram.webhookSet && (
+            <p className="error small">
+              The webhook isn’t set: Telegram needs a public https:// address,
+              so connect the bot from the deployed app.
+            </p>
+          )}
+          {telegram?.configured && !telegram.linked && (
+            <div className="flex items-center gap-3 flex-wrap">
+              {telegram.claimUrl ? (
+                <a
+                  className="primary-btn"
+                  href={telegram.claimUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open @{telegram.botUsername} and press Start
+                </a>
+              ) : (
+                <button
+                  className="primary-btn"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(() => api(agent).newTelegramClaimLink())
+                  }
+                >
+                  New Start link
+                </button>
+              )}
+              <span className="muted small">
+                The first account to press Start becomes the bot’s owner.
+              </span>
+            </div>
+          )}
+          {telegram?.configured && (
+            <div>
               <button className="link-btn" disabled={busy} onClick={disconnect}>
-                Disconnect
+                Disconnect bot
               </button>
-            ) : (
-              <button className="primary-btn" disabled={busy} onClick={connect}>
-                Connect
-              </button>
-            ))}
+            </div>
+          )}
         </li>
       </ul>
       {error && <p className="error">{error}</p>}
