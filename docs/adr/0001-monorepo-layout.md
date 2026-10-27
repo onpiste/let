@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-27
+- Superseded in part by [ADR 0002](0002-bun.md) (package manager)
 
 ## Context
 

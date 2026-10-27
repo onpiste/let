@@ -44,10 +44,10 @@ Telegram only delivers webhooks to public `https://` URLs, so a bot connected fr
 ## Run locally
 
 ```bash
-npm install               # all workspaces; also installs the pre-commit hook
-npx wrangler login        # or set CLOUDFLARE_API_TOKEN (Workers AI has no local simulator)
-npm run dev               # http://localhost:5173
-npm run check             # format + lint + typecheck + knip (dead code), as in CI
+bun install               # all workspaces; also installs the pre-commit hook
+bunx wrangler login        # or set CLOUDFLARE_API_TOKEN (Workers AI has no local simulator)
+bun run dev               # http://localhost:5173
+bun run check             # format + lint + typecheck + knip (dead code), as in CI
 ```
 
 ## Deploy
@@ -56,18 +56,18 @@ Secrets are read from `apps/server/wrangler.jsonc`, so set them from there:
 
 ```bash
 cd apps/server
-npx wrangler secret put GOOGLE_CLIENT_ID
-npx wrangler secret put GOOGLE_CLIENT_SECRET
-npx wrangler secret put SESSION_SECRET
-npx wrangler secret put ALLOWED_EMAILS
-npx wrangler secret put CLOUDFLARE_API_KEY
+bunx wrangler secret put GOOGLE_CLIENT_ID
+bunx wrangler secret put GOOGLE_CLIENT_SECRET
+bunx wrangler secret put SESSION_SECRET
+bunx wrangler secret put ALLOWED_EMAILS
+bunx wrangler secret put CLOUDFLARE_API_KEY
 cd ../..
-npm run deploy            # → https://runlet.us (also runs on every push to main)
+bun run deploy            # → https://runlet.us (also runs on every push to main)
 ```
 
 ## Structure
 
-An npm-workspaces monorepo. See [AGENTS.md](AGENTS.md) for conventions and
+A Bun-workspaces monorepo. See [AGENTS.md](AGENTS.md) for conventions and
 [docs/architecture.md](docs/architecture.md) for boundaries and how to add a
 client (browser extension, iOS).
 
