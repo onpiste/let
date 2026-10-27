@@ -13,11 +13,11 @@ Each user brings their own bot.
 3. Forwarded updates go to Think's messenger runtime, which replies in the
    same conversation as the web chat.
 
-| File         | What it holds                                                    |
-| ------------ | ---------------------------------------------------------------- |
-| `config.ts`  | `TelegramConfig` (stored in the user's agent), claim codes       |
-| `bot-api.ts` | Bot API calls                                                    |
-| `gate.ts`    | Who may reach the assistant through a bot                        |
-| `routes.ts`  | `TelegramRoutes` DO and webhook paths                            |
-| `webhook.ts` | The Worker's webhook handler                                     |
-| `channel.ts` | Bot lifecycle for one assistant: connect, claim, gate, reminders |
+| File         | What it holds                                                                |
+| ------------ | ---------------------------------------------------------------------------- |
+| `config.ts`  | `TelegramConfig` (stored in the user's agent), claim codes                   |
+| `bot-api.ts` | Bot API calls                                                                |
+| `gate.ts`    | Who may reach the assistant through a bot                                    |
+| `routes.ts`  | `TelegramRoutes` DO and webhook paths                                        |
+| `webhook.ts` | The Worker's webhook handler                                                 |
+| `channel.ts` | Bot lifecycle for one assistant: connect, claim, gate, messages to the owner |

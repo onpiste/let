@@ -29,5 +29,39 @@ What you remember about the user:
 ${formatMemories(memories)}`;
 }
 
-export const REMINDER_HINT =
-  "When the user asks to be reminded of something, use the scheduleTask tool.";
+export const SCHEDULE_HINT =
+  "When the user asks to be reminded of something, or wants something done at a later or recurring time, use the scheduleTask tool.";
+
+/** How the scheduleTask tool is explained to the model, in both harnesses. */
+export const SCHEDULE_TOOL_DESCRIPTION =
+  "Schedule a reminder or a task. A reminder only notifies the user at that time. A task is something the user wants done at that time (look something up, summarize, check a page, write something): give `prompt`, the instruction you will carry out then, written so it makes sense on its own. The result is sent to the user in the app and on Telegram.";
+
+export const PROMPT_FIELD_DESCRIPTION =
+  "For a task: the instruction to carry out when it runs. Leave out for a plain reminder.";
+
+/**
+ * The current time for the model, since schedules (cron included) run in
+ * UTC. `timezone` is the IANA zone Cloudflare saw the user in, if known.
+ */
+export function timeNote(timezone: string | null, now = new Date()) {
+  const utc = `Current time: ${now.toUTCString()}.`;
+  const fallback = `${utc} Schedules, cron included, run in UTC.`;
+  if (!timezone) return fallback;
+  try {
+    const local = now.toLocaleString("en-US", {
+      timeZone: timezone,
+      dateStyle: "full",
+      timeStyle: "short"
+    });
+    const offset = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      timeZoneName: "longOffset"
+    })
+      .formatToParts(now)
+      .find((p) => p.type === "timeZoneName")?.value;
+    return `${utc} The user is in ${timezone} (${offset ?? "unknown offset"}), where it is ${local}. Schedules, cron included, run in UTC: convert the user's local times to UTC.`;
+  } catch {
+    // An unknown zone name throws a RangeError.
+    return fallback;
+  }
+}

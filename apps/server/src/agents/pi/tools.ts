@@ -3,14 +3,13 @@ import { Type, type TSchema } from "@mariozechner/pi-ai";
 import { getSchedulePrompt } from "agents/schedule";
 
 import {
-  cancelReminder,
-  listReminders,
-  setReminder,
-  type ReminderAgent
-} from "../common/reminders";
+  PROMPT_FIELD_DESCRIPTION,
+  SCHEDULE_TOOL_DESCRIPTION
+} from "../common/prompt";
+import type { JobScheduler } from "../think/tools/schedule";
 
-/** Where memories live: the same user's Think assistant, over RPC. */
-export type MemoryStore = {
+/** Where memories and jobs live: the user's Think assistant, over RPC. */
+export type MemoryStore = JobScheduler & {
   addMemory(content: string): Promise<void>;
   removeMemory(id: number): Promise<void>;
 };
@@ -20,10 +19,7 @@ function text(value: string) {
 }
 
 /** The Pi assistant's tools, in Pi's (TypeBox) tool format. */
-export function piTools(
-  agent: ReminderAgent,
-  memory: MemoryStore
-): AgentTool[] {
+export function piTools(memory: MemoryStore): AgentTool[] {
   const tool = <P extends TSchema>(t: AgentTool<P>) =>
     t as unknown as AgentTool;
   return [
@@ -56,14 +52,19 @@ export function piTools(
     }),
     tool({
       name: "scheduleTask",
-      label: "Schedule reminder",
-      description: `Schedule a reminder. Use this when the user asks to be reminded or wants something done later. Give exactly one of date, delayInSeconds or cron.
+      label: "Schedule",
+      description: `${SCHEDULE_TOOL_DESCRIPTION} Give exactly one of date, delayInSeconds or cron.
 
   ${getSchedulePrompt({ date: new Date() })}`,
       parameters: Type.Object({
-        description: Type.String({ description: "What to remind about" }),
+        description: Type.String({
+          description: "Short description of the reminder or task"
+        }),
+        prompt: Type.Optional(
+          Type.String({ description: PROMPT_FIELD_DESCRIPTION })
+        ),
         date: Type.Optional(
-          Type.String({ description: "ISO date-time for a one-off reminder" })
+          Type.String({ description: "ISO date-time for a one-off job" })
         ),
         delayInSeconds: Type.Optional(
           Type.Number({ description: "Seconds from now" })
@@ -72,30 +73,43 @@ export function piTools(
           Type.String({ description: "Cron expression for a repeating one" })
         )
       }),
-      execute: async (_id, { description, date, delayInSeconds, cron }) => {
+      execute: async (
+        _id,
+        { description, prompt, date, delayInSeconds, cron }
+      ) => {
         const when = date ? new Date(date) : (delayInSeconds ?? cron);
         if (when === undefined) {
           throw new Error("Give one of date, delayInSeconds or cron");
         }
-        return text(await setReminder(agent, when, description));
+        const job = await memory.scheduleJob(when, { description, prompt });
+        return text(JSON.stringify({ scheduled: job }));
       }
     }),
     tool({
       name: "getScheduledTasks",
-      label: "List reminders",
-      description: "List all scheduled reminders",
+      label: "List scheduled",
+      description: "List the scheduled reminders and tasks",
       parameters: Type.Object({}),
-      execute: async () => text(JSON.stringify(listReminders(agent)))
+      execute: async () => {
+        const jobs = await memory.listJobs();
+        return text(
+          jobs.length > 0 ? JSON.stringify(jobs) : "Nothing is scheduled."
+        );
+      }
     }),
     tool({
       name: "cancelScheduledTask",
-      label: "Cancel reminder",
-      description: "Cancel a scheduled reminder by its ID",
+      label: "Cancel scheduled",
+      description: "Cancel a scheduled reminder or task by its ID",
       parameters: Type.Object({
-        taskId: Type.String({ description: "The ID of the task to cancel" })
+        taskId: Type.String({ description: "The ID of the job to cancel" })
       }),
       execute: async (_id, { taskId }) =>
-        text(await cancelReminder(agent, taskId))
+        text(
+          (await memory.cancelJob(taskId))
+            ? `Cancelled ${taskId}.`
+            : `Nothing scheduled with id ${taskId}.`
+        )
     })
   ];
 }

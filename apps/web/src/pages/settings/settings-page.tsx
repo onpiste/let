@@ -6,6 +6,7 @@ import { HARNESSES, type User } from "@cot/shared";
 
 import { AssistantSettings } from "./assistant-settings";
 import { IntegrationSettings } from "./integration-settings";
+import { JobSettings } from "./job-settings";
 import { McpSettings } from "./mcp-settings";
 
 /**
@@ -41,6 +42,7 @@ export function SettingsPage({
       <main className="scroll">
         <div className="column settings">
           <AssistantSettings agent={agent} />
+          <JobSettings agent={agent} epoch={epoch} />
           <McpSettings agent={agent} state={mcp} />
           <IntegrationSettings user={user} agent={agent} epoch={epoch} />
         </div>

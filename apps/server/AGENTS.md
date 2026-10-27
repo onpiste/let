@@ -15,13 +15,14 @@ src/
     session.ts              Signed session cookie, current user, ALLOWED_EMAILS
     cookies.ts              Cookie read/write helpers
   agents/
-    common/                 Shared by both harnesses: persona + memory prompt, reminders
+    common/                 Shared by both harnesses: persona + memory prompt, scheduled jobs
     think/
       assistant.ts          Assistant DO: Think hooks + callables, delegating to the files below
+      jobs.ts               Scheduled reminders and tasks: schedule, list, cancel, run, report
       store.ts              Its SQLite tables (settings, owner, Telegram config, memories)
       model.ts              Settings → model (Workers AI / OpenAI / Anthropic / Google)
       system-prompt.ts      System prompt
-      tools/                AI SDK tools by group (memory, reminders, sandbox, research)
+      tools/                AI SDK tools by group (memory, schedule, sandbox, research)
     pi/
       pi-assistant.ts       PiAssistant DO: one Pi agent per turn
       model.ts              Workers AI model over REST

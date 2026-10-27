@@ -16,10 +16,22 @@ import { ThemeToggle } from "../../components/theme-toggle";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
+import { describeEvent, EventToast } from "./event-toast";
 import { HarnessSwitch } from "./harness-switch";
 import { MessageList } from "./message-list";
-import { ReminderToast } from "./reminder-toast";
 import { mcpToolLabels } from "./tool-chip";
+
+/** A ServerEvent, or null for anything else (MCP and chat frames). */
+function parseServerEvent(data: string): ServerEvent | null {
+  // Untyped JSON from the socket; check the fields this page reads.
+  const event = JSON.parse(data) as Partial<ServerEvent>;
+  if (typeof event.description !== "string") return null;
+  if (event.type === "reminder") return event as ServerEvent;
+  if (event.type === "task-result" && typeof event.text === "string") {
+    return event as ServerEvent;
+  }
+  return null;
+}
 
 export function ChatPage({
   user,
@@ -38,7 +50,7 @@ export function ChatPage({
 }) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ServerEvent | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -57,11 +69,11 @@ export function ChatPage({
     }, [onAuthCheck]),
     onMessage: useCallback((message: MessageEvent) => {
       try {
-        const data = JSON.parse(String(message.data)) as Partial<ServerEvent>;
-        if (data.type === "reminder" && data.description) {
-          setToast(data.description);
-          notify("Cot reminder", data.description);
-        }
+        const event = parseServerEvent(String(message.data));
+        if (!event) return;
+        setToast(event);
+        const { title, body } = describeEvent(event);
+        notify(`Cot · ${title}`, body.slice(0, 200));
       } catch {
         // Not JSON — ignore.
       }
@@ -167,7 +179,7 @@ export function ChatPage({
         onStop={() => void stop()}
       />
 
-      {toast && <ReminderToast text={toast} onDismiss={dismissToast} />}
+      {toast && <EventToast event={toast} onDismiss={dismissToast} />}
     </div>
   );
 }

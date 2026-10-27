@@ -53,7 +53,8 @@ export const router = {
         }
         const agent = await getAgentByName(env.Assistant, name);
         if (request.headers.get("Upgrade") === "websocket") {
-          await agent.setOwnerEmail(user.email);
+          const cf = request.cf as IncomingRequestCfProperties | undefined;
+          await agent.setOwner(user.email, cf?.timezone ?? null);
         }
         return agent.fetch(request);
       }

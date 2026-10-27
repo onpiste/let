@@ -1,3 +1,4 @@
+import type { JobInfo, NewJob } from "./schedules";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { TelegramStatus } from "./telegram";
 
@@ -21,11 +22,21 @@ export interface AssistantRpc {
   connectTelegram(token: string): Promise<TelegramStatus>;
   newTelegramClaimLink(): Promise<TelegramStatus>;
   disconnectTelegram(): Promise<TelegramStatus>;
+  /** Every scheduled reminder and task, soonest first. */
+  listJobs(): Promise<JobInfo[]>;
+  createJob(job: NewJob): Promise<JobInfo>;
+  /** Resolves false when no job has this id. */
+  cancelJob(id: string): Promise<boolean>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */
-export type ServerEvent = {
-  type: "reminder";
-  description: string;
-  timestamp: string;
-};
+export type ServerEvent =
+  | { type: "reminder"; description: string; timestamp: string }
+  | {
+      /** A scheduled task finished; `text` is the reply or the error. */
+      type: "task-result";
+      description: string;
+      ok: boolean;
+      text: string;
+      timestamp: string;
+    };
