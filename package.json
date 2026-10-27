@@ -21,14 +21,16 @@
     "types": "npm run types -w @cot/server",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
+    "knip": "knip",
     "lint": "oxlint --type-aware --deny-warnings",
     "lint:fix": "oxlint --type-aware --fix",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "check": "npm run format:check && npm run lint && npm run typecheck",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run knip",
     "prepare": "husky"
   },
   "devDependencies": {
     "husky": "^9.1.7",
+    "knip": "^6.43.0",
     "lint-staged": "^17.6.0",
     "oxfmt": "^0.56.0",
     "oxlint": "^1.71.0",

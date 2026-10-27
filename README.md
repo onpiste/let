@@ -47,7 +47,7 @@ Telegram only delivers webhooks to public `https://` URLs, so a bot connected fr
 npm install               # all workspaces; also installs the pre-commit hook
 npx wrangler login        # or set CLOUDFLARE_API_TOKEN (Workers AI has no local simulator)
 npm run dev               # http://localhost:5173
-npm run check             # format + type-aware lint + typecheck, as in CI
+npm run check             # format + lint + typecheck + knip (dead code), as in CI
 ```
 
 ## Deploy
