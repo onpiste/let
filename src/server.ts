@@ -1,4 +1,9 @@
 import { Think } from "@cloudflare/think";
+import {
+  ThinkMessengerStateAgent,
+  type ThinkMessengers
+} from "@cloudflare/think/messengers";
+import telegramMessenger from "@cloudflare/think/messengers/telegram";
 import { getAgentByName } from "agents";
 import { getSchedulePrompt, scheduleSchema } from "agents/schedule";
 import { tool, type ToolSet } from "ai";
@@ -17,8 +22,18 @@ import {
   listReminders,
   setReminder
 } from "./reminders";
+import {
+  callTelegram,
+  handleTelegramApi,
+  handleTelegramWebhook,
+  links,
+  TELEGRAM_WEBHOOK_PATH
+} from "./telegram";
 
 export { PiAssistant } from "./pi";
+export { TelegramLinks } from "./telegram";
+// Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.
+export { ThinkMessengerStateAgent };
 
 /**
  * A personal assistant. Each signed-in Google account gets its own Durable
@@ -28,6 +43,7 @@ export { PiAssistant } from "./pi";
  *
  * Think runs the agentic loop, persists the conversation and resumes
  * interrupted turns; this class only supplies the model, prompt and tools.
+ * A linked Telegram chat shares this same conversation (see telegram.ts).
  */
 export class Assistant extends Think<Env> {
   onStart() {
@@ -36,6 +52,41 @@ export class Assistant extends Think<Env> {
       content TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )`;
+  }
+
+  // Telegram. The Worker only forwards updates from the Telegram account
+  // linked to this assistant; Think's messenger runtime replies in the same
+  // conversation as the web chat.
+
+  getMessengers(): ThinkMessengers {
+    return {
+      telegram: telegramMessenger({
+        token: this.env.TELEGRAM_BOT_TOKEN,
+        userName: this.env.TELEGRAM_BOT_USERNAME,
+        secretToken: this.env.TELEGRAM_WEBHOOK_SECRET_TOKEN,
+        apiBaseUrl: this.env.TELEGRAM_API_BASE_URL || undefined,
+        conversation: "self",
+        respondTo: ["direct-message"]
+      })
+    };
+  }
+
+  /**
+   * Sends a fired reminder to the Telegram account currently linked to this
+   * assistant, if any. Looked up at send time so a re-link takes effect.
+   */
+  async sendTelegramReminder(description: string) {
+    const userId = this.name.slice("google:".length);
+    const chatId = await links(this.env).telegramFor(userId);
+    if (!chatId) return;
+    try {
+      await callTelegram(this.env, "sendMessage", {
+        chat_id: chatId,
+        text: `⏰ Reminder: ${description}`
+      });
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   // Memory API, shared with the Pi assistant over RPC.
@@ -149,6 +200,7 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
 
   async executeTask(description: string) {
     broadcastReminder(this, description);
+    await this.sendTelegramReminder(description);
   }
 }
 
@@ -166,6 +218,14 @@ export default {
           return new Response("Method not allowed", { status: 405 });
         }
         return handleLogout(request);
+      }
+      if (url.pathname === TELEGRAM_WEBHOOK_PATH) {
+        return await handleTelegramWebhook(request, env);
+      }
+      if (url.pathname.startsWith("/telegram/")) {
+        const user = await getUserFromRequest(request, env);
+        if (!user) return new Response("Unauthorized", { status: 401 });
+        return await handleTelegramApi(request, env, user);
       }
       if (url.pathname === "/auth/me") {
         const user = await getUserFromRequest(request, env);

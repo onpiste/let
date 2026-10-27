@@ -142,6 +142,20 @@ const LogOut = () => (
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
   </svg>
 );
+const Telegram = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M21.5 3.5 2.5 11l7 2.5M21.5 3.5 18 20.5l-8.5-7M21.5 3.5l-12 10V19l3-3.5" />
+  </svg>
+);
 const Sun = () => (
   <svg
     width="16"
@@ -158,6 +172,76 @@ const Sun = () => (
 );
 
 // ── Small components ──────────────────────────────────────────────────
+
+type TelegramStatus = { linked: boolean; botUsername: string };
+
+/**
+ * Links a Telegram account to this assistant. Linking opens the bot with a
+ * one-time code; pressing Start in Telegram completes it.
+ */
+function TelegramButton() {
+  const [status, setStatus] = useState<TelegramStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(() => {
+    fetch("/telegram/status")
+      .then((r) => (r.ok ? (r.json() as Promise<TelegramStatus>) : null))
+      .then(setStatus)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    // Pick up the link once the user comes back from Telegram.
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [refresh]);
+
+  if (!status) return null;
+
+  const onClick = async () => {
+    if (busy) return;
+    if (status.linked) {
+      if (!confirm("Disconnect Telegram from Cot?")) return;
+      setBusy(true);
+      await fetch("/telegram/unlink", { method: "POST" }).catch(() => {});
+      setBusy(false);
+      refresh();
+      return;
+    }
+    // Open the tab synchronously so popup blockers allow it.
+    const tab = window.open("", "_blank");
+    setBusy(true);
+    try {
+      const res = await fetch("/telegram/link", { method: "POST" });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!data.url) throw new Error(data.error ?? "Could not create a link");
+      if (tab) tab.location.href = data.url;
+      else window.location.href = data.url;
+    } catch (e) {
+      tab?.close();
+      alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      className={`icon-btn ${status.linked ? "linked" : ""}`}
+      onClick={onClick}
+      disabled={busy}
+      aria-label={status.linked ? "Telegram connected" : "Connect Telegram"}
+      title={
+        status.linked
+          ? `Telegram connected (@${status.botUsername}) — click to disconnect`
+          : "Connect Telegram"
+      }
+    >
+      <Telegram />
+    </button>
+  );
+}
 
 function ThemeToggle() {
   const [dark, setDark] = useState(
@@ -411,6 +495,7 @@ function Chat({
               <Plus />
             </button>
           )}
+          <TelegramButton />
           <ThemeToggle />
           <button
             className="icon-btn"

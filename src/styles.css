@@ -95,6 +95,9 @@ body {
   color: var(--muted);
   transition: background 0.15s;
 }
+.icon-btn.linked {
+  color: #2aabee;
+}
 .icon-btn:hover {
   background: var(--user-bubble);
   color: var(--text);

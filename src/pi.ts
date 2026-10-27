@@ -134,6 +134,8 @@ export class PiAssistant extends AIChatAgent<Env> {
 
   async executeTask(description: string) {
     broadcastReminder(this, description);
+    const assistant = await getAgentByName(this.env.Assistant, this.name);
+    await assistant.sendTelegramReminder(description);
   }
 
   private model(): Model<"openai-completions"> {
