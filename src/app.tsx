@@ -6,6 +6,7 @@ import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 import { code } from "@streamdown/code";
 import type { User } from "./auth";
+import type { JobNotice } from "./schedules";
 import type { Assistant, PiAssistant } from "./server";
 import SettingsPage from "./settings-page";
 
@@ -196,12 +197,32 @@ function ThemeToggle() {
   );
 }
 
+type Toast = { icon: string; title: string; body: string };
+
+/** The toast for a fired reminder or a finished scheduled task. */
+function toastFor(notice: JobNotice): Toast | null {
+  switch (notice.type) {
+    case "reminder":
+      return { icon: "⏰", title: "Reminder", body: notice.description };
+    case "task-result":
+      return notice.ok
+        ? { icon: "✅", title: notice.description, body: notice.text }
+        : {
+            icon: "⚠️",
+            title: `${notice.description} failed`,
+            body: notice.text
+          };
+    default:
+      return null;
+  }
+}
+
 const TOOL_LABELS: Record<string, string> = {
   remember: "Saved to memory",
   forget: "Removed from memory",
-  scheduleTask: "Reminder set",
-  getScheduledTasks: "Checked reminders",
-  cancelScheduledTask: "Reminder cancelled",
+  scheduleTask: "Scheduled",
+  getScheduledTasks: "Checked schedule",
+  cancelScheduledTask: "Cancelled schedule",
   runCommand: "Ran command",
   writeSandboxFile: "Wrote file",
   readSandboxFile: "Read file",
@@ -409,7 +430,7 @@ function Chat({
 }) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -429,15 +450,14 @@ function Chat({
     }, [onAuthCheck]),
     onMessage: useCallback((message: MessageEvent) => {
       try {
-        const data = JSON.parse(String(message.data));
-        if (data.type === "reminder") {
-          setToast(data.description);
-          if (
-            "Notification" in window &&
-            Notification.permission === "granted"
-          ) {
-            new Notification("Cot reminder", { body: data.description });
-          }
+        const data = JSON.parse(String(message.data)) as JobNotice;
+        const next = toastFor(data);
+        if (!next) return;
+        setToast(next);
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(`Cot · ${next.title}`, {
+            body: next.body.slice(0, 200)
+          });
         }
       } catch {
         // Not JSON — ignore.
@@ -678,10 +698,12 @@ function Chat({
           aria-live="polite"
           onClick={() => setToast(null)}
         >
-          <span className="text-lg">⏰</span>
+          <span className="text-lg">{toast.icon}</span>
           <span className="text-left">
-            <span className="block font-semibold text-sm">Reminder</span>
-            <span className="block text-sm opacity-80">{toast}</span>
+            <span className="block font-semibold text-sm">{toast.title}</span>
+            <span className="block text-sm opacity-80 toast-body">
+              {toast.body}
+            </span>
           </span>
         </button>
       )}

@@ -12,11 +12,12 @@ MVP features:
 - **Chat** with streaming replies (Workers AI, no third-party API key)
 - **Sign in with Google**: each account gets its own Durable Object (chat history, memory, reminders). Only emails in `ALLOWED_EMAILS` can sign in, and the Worker — not the browser — picks which assistant a request reaches
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant; the Pi assistant reads and writes them over RPC
-- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification and, if you connected a bot, a Telegram message
+- **Reminders and scheduled tasks**: "remind me in 10 minutes to…" schedules a reminder; "every weekday at 8, summarize the tech news for me" schedules a task. At that time a reminder just notifies you, while a task runs as a turn in your Think chat (no approval-gated tools, since nobody is there to approve) and sends you the reply. Both show up as an in-app toast, a browser notification and, if you connected a bot, a Telegram message. Schedules run in UTC; the Worker records the time zone Cloudflare sees you in so the assistant can convert your local times. Both harnesses keep their jobs in the Think assistant
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:
   - **Assistant**: name, reply language and custom instructions, used by both harnesses
   - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. Applies to the Think assistant and Telegram; the Pi assistant stays on Workers AI
+  - **Scheduled**: every reminder and task with its next run, a cancel button, and a form to add one (once, daily, weekdays, weekly at a local time, or a custom UTC cron)
   - **MCP servers**: add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
   - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
 - A calm, minimal chat UI with light and dark mode that works on mobile

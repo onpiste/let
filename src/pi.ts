@@ -15,11 +15,14 @@ import {
 import { formatMemories } from "./prompt";
 import type { Assistant } from "./server";
 import {
-  broadcastReminder,
-  cancelReminder,
-  listReminders,
-  setReminder
-} from "./reminders";
+  byNextRun,
+  isJobSchedule,
+  SCHEDULE_TOOL_DESCRIPTION,
+  toJob,
+  toJobInfo,
+  type JobNotice,
+  type JobPayload
+} from "./schedules";
 
 const MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
 
@@ -31,8 +34,8 @@ const MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
  * Pi agent from the stored transcript, lets Pi run the agentic loop, and
  * translates Pi's events into the AI SDK UI message stream.
  *
- * Memory is not stored here: it lives in the same user's Think assistant,
- * so both harnesses share one memory.
+ * Memory and scheduled jobs are not stored here: they live in the same
+ * user's Think assistant, so both harnesses share them.
  */
 export class PiAssistant extends AIChatAgent<Env> {
   maxPersistedMessages = 200;
@@ -43,7 +46,8 @@ export class PiAssistant extends AIChatAgent<Env> {
       initialState: {
         systemPrompt: this.systemPrompt(
           await memory.getPersona(),
-          formatMemories(await memory.getMemories())
+          formatMemories(await memory.getMemories()),
+          await memory.getTimeNote()
         ),
         model: this.model(),
         thinkingLevel: "off",
@@ -133,10 +137,39 @@ export class PiAssistant extends AIChatAgent<Env> {
     return createUIMessageStreamResponse({ stream });
   }
 
-  async executeTask(description: string) {
-    broadcastReminder(this, description);
+  /** Shows a fired job, sent by the Think assistant, in open Pi chats. */
+  async notify(notice: JobNotice) {
+    // Broadcast instead of saving a message so the notice doesn't enter the
+    // chat history and trigger another model turn.
+    this.broadcast(JSON.stringify(notice));
+  }
+
+  // Reminders scheduled here before jobs moved to the Think assistant. They
+  // still fire, and the Think assistant lists and cancels them.
+
+  async executeTask(payload: JobPayload) {
+    const { description } = toJob(payload);
+    await this.notify({
+      type: "reminder",
+      description,
+      timestamp: new Date().toISOString()
+    });
     const assistant = await getAgentByName(this.env.Assistant, this.name);
-    await assistant.sendTelegramReminder(description);
+    await assistant.sendToTelegramOwner(`⏰ Reminder: ${description}`);
+  }
+
+  async listOwnJobs() {
+    return (await this.listSchedules())
+      .filter(isJobSchedule)
+      .map((s) => toJobInfo(s, "pi"))
+      .sort(byNextRun);
+  }
+
+  async cancelOwnJob(id: string) {
+    const schedule = await this.getScheduleById(id);
+    return Boolean(
+      schedule && isJobSchedule(schedule) && (await this.cancelSchedule(id))
+    );
   }
 
   private model(): Model<"openai-completions"> {
@@ -155,7 +188,7 @@ export class PiAssistant extends AIChatAgent<Env> {
     };
   }
 
-  private systemPrompt(persona: string, memory: string) {
+  private systemPrompt(persona: string, memory: string, time: string) {
     return `${persona}
 
 You have a long-term memory about the user. When they share something worth remembering (name, preferences, people in their life, goals, ongoing projects, important dates), save it with the remember tool without asking. Use what you know naturally — don't recite the memory back. If something you remembered is no longer true, forget it and remember the new fact.
@@ -163,7 +196,9 @@ You have a long-term memory about the user. When they share something worth reme
 What you remember about the user:
 ${memory}
 
-When the user asks to be reminded of something, use the scheduleTask tool.`;
+${time}
+
+When the user asks to be reminded of something, or wants something done at a later or recurring time, use the scheduleTask tool.`;
   }
 
   private tools(memory: DurableObjectStub<Assistant>): AgentTool[] {
@@ -199,14 +234,22 @@ When the user asks to be reminded of something, use the scheduleTask tool.`;
       }),
       tool({
         name: "scheduleTask",
-        label: "Schedule reminder",
-        description: `Schedule a reminder. Use this when the user asks to be reminded or wants something done later. Give exactly one of date, delayInSeconds or cron.
+        label: "Schedule",
+        description: `${SCHEDULE_TOOL_DESCRIPTION} Give exactly one of date, delayInSeconds or cron.
 
 ${getSchedulePrompt({ date: new Date() })}`,
         parameters: Type.Object({
-          description: Type.String({ description: "What to remind about" }),
+          description: Type.String({
+            description: "Short description of the reminder or task"
+          }),
+          prompt: Type.Optional(
+            Type.String({
+              description:
+                "For a task: the instruction to carry out when it runs. Leave out for a plain reminder."
+            })
+          ),
           date: Type.Optional(
-            Type.String({ description: "ISO date-time for a one-off reminder" })
+            Type.String({ description: "ISO date-time for a one-off job" })
           ),
           delayInSeconds: Type.Optional(
             Type.Number({ description: "Seconds from now" })
@@ -215,30 +258,43 @@ ${getSchedulePrompt({ date: new Date() })}`,
             Type.String({ description: "Cron expression for a repeating one" })
           )
         }),
-        execute: async (_id, { description, date, delayInSeconds, cron }) => {
+        execute: async (
+          _id,
+          { description, prompt, date, delayInSeconds, cron }
+        ) => {
           const when = date ? new Date(date) : (delayInSeconds ?? cron);
           if (when === undefined) {
             throw new Error("Give one of date, delayInSeconds or cron");
           }
-          return text(await setReminder(this, when, description));
+          const job = await memory.scheduleJob(when, { description, prompt });
+          return text(JSON.stringify({ scheduled: job }));
         }
       }),
       tool({
         name: "getScheduledTasks",
-        label: "List reminders",
-        description: "List all scheduled reminders",
+        label: "List scheduled",
+        description: "List the scheduled reminders and tasks",
         parameters: Type.Object({}),
-        execute: async () => text(JSON.stringify(listReminders(this)))
+        execute: async () => {
+          const jobs = await memory.listJobs();
+          return text(
+            jobs.length > 0 ? JSON.stringify(jobs) : "Nothing is scheduled."
+          );
+        }
       }),
       tool({
         name: "cancelScheduledTask",
-        label: "Cancel reminder",
-        description: "Cancel a scheduled reminder by its ID",
+        label: "Cancel scheduled",
+        description: "Cancel a scheduled reminder or task by its ID",
         parameters: Type.Object({
-          taskId: Type.String({ description: "The ID of the task to cancel" })
+          taskId: Type.String({ description: "The ID of the job to cancel" })
         }),
         execute: async (_id, { taskId }) =>
-          text(await cancelReminder(this, taskId))
+          text(
+            (await memory.cancelJob(taskId))
+              ? `Cancelled ${taskId}.`
+              : `Nothing scheduled with id ${taskId}.`
+          )
       })
     ];
   }
@@ -258,7 +314,7 @@ function resultText(result: { content?: { type: string; text?: string }[] }) {
 /**
  * Rebuild Pi's transcript from the persisted UI messages. Only text is
  * carried over: tool calls from earlier turns have already done their work,
- * and their effects (memories, reminders) are reachable through the tools.
+ * and their effects (memories, scheduled jobs) are reachable through the tools.
  */
 function toPiMessages(messages: UIMessage[]): AgentMessage[] {
   const out: AgentMessage[] = [];

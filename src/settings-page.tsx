@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useAgent } from "agents/react";
 import type { MCPServersState } from "agents";
 import type { User } from "./auth";
+import type { JobInfo, NewJob } from "./schedules";
 import type { Assistant } from "./server";
 import type { TelegramStatus } from "./telegram";
 import {
@@ -61,6 +62,7 @@ export default function SettingsPage({
       <main className="scroll">
         <div className="column settings">
           <AssistantSettings agent={agent} />
+          <ScheduledJobs agent={agent} epoch={epoch} />
           <McpSettings agent={agent} state={mcp} />
           <Integrations user={user} agent={agent} epoch={epoch} />
         </div>
@@ -85,6 +87,9 @@ function api(agent: AgentHandle) {
     addMcp: (name: string, url: string) =>
       agent.stub.addMcp(name, url) as Promise<AddMcpResult>,
     removeMcp: (id: string) => agent.stub.removeMcp(id) as Promise<void>,
+    listJobs: () => agent.stub.listJobs() as Promise<JobInfo[]>,
+    createJob: (job: NewJob) => agent.stub.createJob(job) as Promise<JobInfo>,
+    cancelJob: (id: string) => agent.stub.cancelJob(id) as Promise<boolean>,
     getTelegramStatus: () =>
       agent.stub.getTelegramStatus() as Promise<TelegramStatus>,
     connectTelegram: (token: string) =>
@@ -298,6 +303,299 @@ function AssistantSettings({ agent }: { agent: AgentHandle }) {
         </button>
       </div>
     </form>
+  );
+}
+
+// ── Scheduled jobs ───────────────────────────────────────────────────
+
+type Repeat = "once" | "daily" | "weekdays" | "weekly" | "cron";
+const WEEKDAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday"
+];
+
+/**
+ * A cron expression (schedules run in UTC) for a local time of day on the
+ * given local weekdays. Uses today's UTC offset, so a daylight-saving change
+ * moves the run by an hour.
+ */
+function localCron(time: string, days: number[] | null) {
+  const [hours, minutes] = time.split(":").map(Number);
+  const at = new Date();
+  at.setHours(hours, minutes, 0, 0);
+  // Converting to UTC can move the time into the day before or after.
+  const shift = (at.getUTCDay() - at.getDay() + 7) % 7;
+  const delta = shift === 6 ? -1 : shift;
+  const dow = days
+    ? days
+        .map((d) => (d + delta + 7) % 7)
+        .sort((a, b) => a - b)
+        .join(",")
+    : "*";
+  return `${at.getUTCMinutes()} ${at.getUTCHours()} * * ${dow}`;
+}
+
+function formatRun(iso: string) {
+  return new Date(iso).toLocaleString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function ScheduledJobs({
+  agent,
+  epoch
+}: {
+  agent: AgentHandle;
+  /** Bumps on every (re)connect. */
+  epoch: number;
+}) {
+  const [jobs, setJobs] = useState<JobInfo[] | null>(null);
+  const [kind, setKind] = useState<JobInfo["kind"]>("task");
+  const [description, setDescription] = useState("");
+  const [prompt, setPrompt] = useState("");
+  const [repeat, setRepeat] = useState<Repeat>("daily");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("09:00");
+  const [weekday, setWeekday] = useState(1);
+  const [cron, setCron] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    api(agent)
+      .listJobs()
+      .then(setJobs)
+      .catch((e: unknown) => setError(errorText(e)));
+  }, [agent]);
+
+  useEffect(() => {
+    if (epoch === 0) return;
+    refresh();
+    // Jobs also change from the chat and as one-off jobs run.
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [refresh, epoch]);
+
+  const when = (): NewJob["when"] => {
+    switch (repeat) {
+      case "once":
+        return { type: "date", date: new Date(date).toISOString() };
+      case "daily":
+        return { type: "cron", cron: localCron(time, null) };
+      case "weekdays":
+        return { type: "cron", cron: localCron(time, [1, 2, 3, 4, 5]) };
+      case "weekly":
+        return { type: "cron", cron: localCron(time, [weekday]) };
+      case "cron":
+        return { type: "cron", cron };
+    }
+  };
+
+  const add = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (repeat === "once" && !(new Date(date).getTime() > Date.now())) {
+      setError("Pick a time in the future.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await api(agent).createJob({
+        description,
+        ...(kind === "task" && { prompt }),
+        when: when()
+      });
+      setDescription("");
+      setPrompt("");
+      refresh();
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = async (job: JobInfo) => {
+    if (!confirm(`Cancel “${job.description}”?`)) return;
+    setError(null);
+    try {
+      await api(agent).cancelJob(job.id);
+      refresh();
+    } catch (err) {
+      setError(errorText(err));
+    }
+  };
+
+  return (
+    <section className="card">
+      <h2>Scheduled</h2>
+      <p className="muted">
+        A reminder just notifies you. A task runs the instruction in your Think
+        chat at that time and sends you the reply, here and on Telegram. You can
+        also schedule from the chat: “every weekday at 8 summarize the news for
+        me”.
+      </p>
+      {jobs === null ? (
+        <p className="muted">Loading…</p>
+      ) : jobs.length === 0 ? (
+        <p className="muted">Nothing scheduled yet.</p>
+      ) : (
+        <ul className="list">
+          {jobs.map((job) => (
+            <li key={job.id}>
+              <div>
+                <div className="font-medium">{job.description}</div>
+                {job.prompt && (
+                  <div className="muted small job-prompt">{job.prompt}</div>
+                )}
+                <div className="small">
+                  <span
+                    className={`pill ${job.kind === "task" ? "ready" : ""}`}
+                  >
+                    {job.kind}
+                  </span>{" "}
+                  <span className="muted">
+                    {job.cron ? "Next" : "At"} {formatRun(job.nextRun)}
+                    {job.cron && (
+                      <>
+                        {" · repeats ("}
+                        <code>{job.cron}</code>
+                        {" UTC)"}
+                      </>
+                    )}
+                    {job.owner === "pi" && " · set in Pi"}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => void cancel(job)}
+              >
+                Cancel
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form className="job-form" onSubmit={add}>
+        <h3>New</h3>
+        <label>
+          <span>Type</span>
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as JobInfo["kind"])}
+          >
+            <option value="task">Task — the assistant does something</option>
+            <option value="reminder">Reminder — just notify me</option>
+          </select>
+        </label>
+        <label>
+          <span>{kind === "task" ? "Name" : "Remind me to"}</span>
+          <input
+            required
+            maxLength={200}
+            value={description}
+            placeholder={
+              kind === "task" ? "Morning news digest" : "Stand up and stretch"
+            }
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+        {kind === "task" && (
+          <label>
+            <span>Instruction</span>
+            <textarea
+              required
+              rows={3}
+              maxLength={4000}
+              value={prompt}
+              placeholder="Search the web for today’s top tech news and give me five bullet points with links."
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+          </label>
+        )}
+        <label>
+          <span>When</span>
+          <select
+            value={repeat}
+            onChange={(e) => setRepeat(e.target.value as Repeat)}
+          >
+            <option value="once">Once</option>
+            <option value="daily">Every day</option>
+            <option value="weekdays">Every weekday</option>
+            <option value="weekly">Every week</option>
+            <option value="cron">Custom (cron, UTC)</option>
+          </select>
+        </label>
+        {repeat === "once" && (
+          <label>
+            <span>Date and time</span>
+            <input
+              required
+              type="datetime-local"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </label>
+        )}
+        {repeat === "weekly" && (
+          <label>
+            <span>Day</span>
+            <select
+              value={weekday}
+              onChange={(e) => setWeekday(Number(e.target.value))}
+            >
+              {WEEKDAYS.map((day, i) => (
+                <option key={day} value={i}>
+                  {day}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {(repeat === "daily" ||
+          repeat === "weekdays" ||
+          repeat === "weekly") && (
+          <label>
+            <span>Time (your local time)</span>
+            <input
+              required
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+          </label>
+        )}
+        {repeat === "cron" && (
+          <label>
+            <span>Cron expression (UTC)</span>
+            <input
+              required
+              value={cron}
+              placeholder="0 1 * * 1-5"
+              onChange={(e) => setCron(e.target.value)}
+            />
+          </label>
+        )}
+        <div className="actions">
+          {error && <span className="error">{error}</span>}
+          <button type="submit" className="primary-btn" disabled={busy}>
+            {busy ? "Scheduling…" : "Schedule"}
+          </button>
+        </div>
+      </form>
+    </section>
   );
 }
 
