@@ -19,11 +19,15 @@
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
   // TELEGRAM_API_BASE_URL points the bot at a self-hosted Bot API server;
   // empty means https://api.telegram.org.
+  // EMAIL_DOMAIN is where each assistant gets its own address; Email Routing
+  // must send that domain's mail to this Worker (catch-all rule). Empty
+  // turns the email feature off.
   // Usage limits per account ("0" turns one off). Messages count across the
   // Think and Pi assistants; turns on a user's own API key don't count.
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e",
     "TELEGRAM_API_BASE_URL": "",
+    "EMAIL_DOMAIN": "runlet.us",
     "DAILY_MESSAGE_LIMIT": "500",
     "MINUTE_MESSAGE_LIMIT": "20",
     "MAX_REMINDERS": "50"
@@ -54,6 +58,10 @@
       {
         "class_name": "TelegramRoutes",
         "name": "TelegramRoutes"
+      },
+      {
+        "class_name": "EmailAddresses",
+        "name": "EmailAddresses"
       },
       {
         "class_name": "Sandbox",
@@ -94,6 +102,10 @@
     {
       "new_sqlite_classes": ["Sandbox"],
       "tag": "v4"
+    },
+    {
+      "new_sqlite_classes": ["EmailAddresses"],
+      "tag": "v5"
     }
   ]
 }

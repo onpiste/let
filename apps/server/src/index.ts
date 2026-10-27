@@ -5,12 +5,18 @@
 import { ThinkMessengerStateAgent } from "@cloudflare/think/messengers";
 
 import { router } from "./http/router";
+import { handleIncomingEmail } from "./integrations/email/handler";
 
 export { Assistant } from "./agents/think/assistant";
 export { PiAssistant } from "./agents/pi/pi-assistant";
+export { EmailAddresses } from "./integrations/email/addresses";
 export { TelegramRoutes } from "./integrations/telegram/routes";
 export { Sandbox } from "./tools/sandbox";
 // Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.
 export { ThinkMessengerStateAgent };
 
-export default router;
+export default {
+  ...router,
+  // Mail that Email Routing sends to this Worker (integrations/email).
+  email: handleIncomingEmail
+} satisfies ExportedHandler<Env>;
