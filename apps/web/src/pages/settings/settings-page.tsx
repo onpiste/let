@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import { HARNESSES, type User } from "@cot/shared";
 
 import { AssistantSettings } from "./assistant-settings";
+import { EmailSettings } from "./email-settings";
 import { IntegrationSettings } from "./integration-settings";
 import { McpSettings } from "./mcp-settings";
 
@@ -43,6 +44,7 @@ export function SettingsPage({
           <AssistantSettings agent={agent} />
           <McpSettings agent={agent} state={mcp} />
           <IntegrationSettings user={user} agent={agent} epoch={epoch} />
+          <EmailSettings agent={agent} epoch={epoch} />
         </div>
       </main>
     </div>

@@ -18,7 +18,7 @@ import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
 import { HarnessSwitch } from "./harness-switch";
 import { MessageList } from "./message-list";
-import { ReminderToast } from "./reminder-toast";
+import { NoticeToast, type Notice } from "./notice-toast";
 import { mcpToolLabels } from "./tool-chip";
 
 export function ChatPage({
@@ -38,7 +38,7 @@ export function ChatPage({
 }) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<Notice | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -59,8 +59,13 @@ export function ChatPage({
       try {
         const data = JSON.parse(String(message.data)) as Partial<ServerEvent>;
         if (data.type === "reminder" && data.description) {
-          setToast(data.description);
+          setToast({ icon: "⏰", title: "Reminder", text: data.description });
           notify("Cot reminder", data.description);
+        }
+        if (data.type === "email" && data.subject) {
+          const text = `${data.from ?? "Someone"}: ${data.subject}`;
+          setToast({ icon: "📧", title: "New email", text });
+          notify("Cot: new email", text);
         }
       } catch {
         // Not JSON — ignore.
@@ -167,7 +172,7 @@ export function ChatPage({
         onStop={() => void stop()}
       />
 
-      {toast && <ReminderToast text={toast} onDismiss={dismissToast} />}
+      {toast && <NoticeToast notice={toast} onDismiss={dismissToast} />}
     </div>
   );
 }

@@ -1,0 +1,133 @@
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+
+import type { EmailStatus } from "@cot/shared";
+
+import { api, type AgentHandle } from "../../lib/assistant-rpc";
+import { errorText } from "../../lib/errors";
+
+/** The assistant's own email address and who may send to it. */
+export function EmailSettings({
+  agent,
+  epoch
+}: {
+  agent: AgentHandle;
+  /** Bumps on every (re)connect. */
+  epoch: number;
+}) {
+  const [status, setStatus] = useState<EmailStatus | null>(null);
+  const [senders, setSenders] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const show = useCallback((next: EmailStatus) => {
+    setStatus(next);
+    if (next.enabled) setSenders(next.allowedSenders.join("\n"));
+  }, []);
+
+  useEffect(() => {
+    if (epoch === 0) return;
+    api(agent)
+      .getEmailStatus()
+      .then(show)
+      .catch((e: unknown) => setError(errorText(e)));
+  }, [agent, epoch, show]);
+
+  const run = async (action: () => Promise<EmailStatus>) => {
+    setError(null);
+    setBusy(true);
+    try {
+      show(await action());
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    const list = senders.split(/[\s,]+/).filter(Boolean);
+    void run(() => api(agent).updateAllowedSenders(list));
+  };
+
+  const replace = () => {
+    if (!confirm("Get a new address? Mail to the current one will bounce.")) {
+      return;
+    }
+    void run(() => api(agent).newEmailAddress());
+  };
+
+  const copy = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard blocked; the address is still selectable.
+    }
+  };
+
+  if (status && !status.enabled) return null;
+
+  return (
+    <section className="card">
+      <h2>Email</h2>
+      {status?.enabled && (
+        <ul className="list">
+          <li className="stacked">
+            <div className="row">
+              <div>
+                <div className="font-medium select-all">{status.address}</div>
+                <div className="muted small">
+                  Your assistant’s own address. Mail from you and the senders
+                  below lands in its inbox; ask it about your email in chat.
+                </div>
+              </div>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => void copy(status.address)}
+              >
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <p className="muted small">
+              To pass on Gmail: Settings → Forwarding → add this address. The
+              confirmation link arrives here and on Telegram; then add a filter
+              that forwards the mail you want the assistant to see.
+            </p>
+          </li>
+          <li className="stacked">
+            <form className="flex flex-col gap-2" onSubmit={save}>
+              <label className="font-medium" htmlFor="allowed-senders">
+                Also accept mail from
+              </label>
+              <textarea
+                id="allowed-senders"
+                rows={3}
+                value={senders}
+                placeholder="one address per line"
+                onChange={(e) => setSenders(e.target.value)}
+              />
+              <div className="flex items-center gap-3">
+                <button type="submit" className="primary-btn" disabled={busy}>
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className="link-btn"
+                  disabled={busy}
+                  onClick={replace}
+                >
+                  New address
+                </button>
+              </div>
+            </form>
+          </li>
+        </ul>
+      )}
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}

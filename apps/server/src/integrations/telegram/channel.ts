@@ -176,13 +176,13 @@ export class TelegramChannel {
 
   /** Sends a fired reminder to the owner of the connected bot, if any. */
   async sendReminder(description: string) {
+    await this.notify(`⏰ Reminder: ${description}`);
+  }
+
+  /** Messages the owner of the connected bot, if any, outside the chat. */
+  async notify(text: string) {
     const config = this.config;
     if (!config?.ownerId) return;
-    await sendText(
-      this.options.env,
-      config.token,
-      config.ownerId,
-      `⏰ Reminder: ${description}`
-    );
+    await sendText(this.options.env, config.token, config.ownerId, text);
   }
 }

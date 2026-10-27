@@ -1,3 +1,4 @@
+import type { EmailStatus } from "./email";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { TelegramStatus } from "./telegram";
 
@@ -21,11 +22,12 @@ export interface AssistantRpc {
   connectTelegram(token: string): Promise<TelegramStatus>;
   newTelegramClaimLink(): Promise<TelegramStatus>;
   disconnectTelegram(): Promise<TelegramStatus>;
+  getEmailStatus(): Promise<EmailStatus>;
+  newEmailAddress(): Promise<EmailStatus>;
+  updateAllowedSenders(senders: string[]): Promise<EmailStatus>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */
-export type ServerEvent = {
-  type: "reminder";
-  description: string;
-  timestamp: string;
-};
+export type ServerEvent =
+  | { type: "reminder"; description: string; timestamp: string }
+  | { type: "email"; from: string; subject: string; timestamp: string };

@@ -1,3 +1,4 @@
+export * from "./email";
 export * from "./routes";
 export * from "./rpc";
 export * from "./settings";
