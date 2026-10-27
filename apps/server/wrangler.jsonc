@@ -24,9 +24,9 @@
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e",
     "TELEGRAM_API_BASE_URL": "",
-    "DAILY_MESSAGE_LIMIT": "200",
-    "MINUTE_MESSAGE_LIMIT": "10",
-    "MAX_REMINDERS": "20"
+    "DAILY_MESSAGE_LIMIT": "500",
+    "MINUTE_MESSAGE_LIMIT": "20",
+    "MAX_REMINDERS": "50"
   },
   // The client is built by apps/web (its Vite config points the Cloudflare
   // plugin at this file), so there is no assets directory here.

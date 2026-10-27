@@ -61,11 +61,11 @@ Cot is meant to be forked and changed. The usual first steps:
    OpenAI, Anthropic or Google with their own key in **Settings → Model**.
    **Usage limits** keep a shared deployment's bill in check. They are `vars`
    in `apps/server/wrangler.jsonc` (`"0"` turns one off):
-   - `DAILY_MESSAGE_LIMIT` (default 200) and `MINUTE_MESSAGE_LIMIT`
-     (default 10): messages per account, counted across the Think and Pi
+   - `DAILY_MESSAGE_LIMIT` (default 500) and `MINUTE_MESSAGE_LIMIT`
+     (default 20): messages per account, counted across the Think and Pi
      assistants and Telegram; the day resets at 00:00 UTC. Turns on a
      user's own API key don't count.
-   - `MAX_REMINDERS` (default 20): scheduled reminders per assistant.
+   - `MAX_REMINDERS` (default 50): scheduled reminders per assistant.
 
    Each turn makes at most 10 tool-call rounds, and an account's sandbox
    container stops after 15 minutes without a command. Rate limits on the
