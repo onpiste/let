@@ -26,15 +26,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: npm
 
-      - run: npm ci
-      - run: npm run check
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+      - run: bun run check
 
       # apps/web: vite build (client + the apps/server Worker) && wrangler
       # deploy. The sandbox uses Cloudflare's managed image, so no Docker is
       # needed here.
-      - run: npm run deploy
+      - run: bun run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 02eec653ae3b648ef566c2469e7fb68e

@@ -38,6 +38,6 @@ vite.config.ts            Builds this client *and* the apps/server Worker (Cloud
   props and callbacks. Add a new card or panel as its own file.
 - Tailwind scans Streamdown's bundles through `@source` paths in
   `styles/index.css`, relative to that file and pointing at the repository
-  root `node_modules` (npm hoists them). Update them if either moves.
+  root `node_modules` (`bunfig.toml` sets the hoisted linker). Update them if either moves.
 - Accessibility rules (`jsx-a11y`) are errors: label inputs, give icon
   buttons an `aria-label`, use `type="button"` for non-submit buttons.

@@ -6,13 +6,40 @@ directory.
 
 ## What this is
 
-Cot is a personal AI assistant on the Cloudflare Agents SDK. One Cloudflare
-Worker serves the web app and the API; each signed-in account gets its own
-Durable Object agents (chat history, memory, reminders, settings).
+Cot is a **template for a personal AI assistant**, in the spirit of Muse and
+OpenClaw, that an individual or a small/medium business can fork, brand and
+deploy quickly. It is built on the Cloudflare Agents SDK: one Cloudflare
+Worker serves the web app and the API, and each signed-in account gets its
+own Durable Object agents (chat history, memory, reminders, settings).
+
+## Product goals
+
+Keep these in mind when deciding how to build something:
+
+- **Forkable first.** Someone who clones this should get a working assistant
+  after setting secrets, a name and a domain. Keep deployment-specific values
+  (domain, names, allow-lists, API bases) in `wrangler.jsonc`, secrets or
+  `DEFAULT_SETTINGS`, not scattered through code. If you add a new one,
+  document it in the README's "Make it yours" or setup sections.
+- **Per-user by default.** Everything a user configures (model and keys,
+  persona, MCP servers, bots) is stored in their own Durable Object and set
+  from the settings page, not in deployment config. One deployment must serve
+  a person, a family or a small team without code changes.
+- **Private and owned.** Data stays in the deployer's Cloudflare account.
+  Secrets never go back to the browser in full; the Worker, not the client,
+  decides which assistant a request reaches.
+- **Extensible along known seams.** New capabilities are tools
+  (`apps/server/src/agents/think/tools/`) or MCP servers; new messengers follow
+  `integrations/telegram/`; new clients go in `apps/` against
+  `@cot/shared`. Prefer extending a seam over special-casing.
+- **Works with no extra keys.** Workers AI is the default model; features that
+  need a third-party key or service must degrade gracefully without it.
+- **A clean example to learn from.** This is a starting point people read and
+  copy, so the strict rules below matter more than usual.
 
 ## Repository layout
 
-npm workspaces monorepo. Deployables live in `apps/`, reusable code in
+Bun workspaces monorepo. Deployables live in `apps/`, reusable code in
 `packages/`.
 
 ```
@@ -35,33 +62,37 @@ one.
 
 Run from the repository root.
 
-| Command                | What it does                                              |
-| ---------------------- | --------------------------------------------------------- |
-| `npm install`          | Install every workspace (also installs the git hooks)     |
-| `npm run dev`          | Web app + Worker in workerd at http://localhost:5173      |
-| `npm run check`        | Format check + type-aware lint + typecheck (what CI runs) |
-| `npm run format`       | Format everything with oxfmt                              |
-| `npm run lint`         | oxlint, type-aware; any warning fails                     |
-| `npm run lint:fix`     | Apply safe lint fixes                                     |
-| `npm run typecheck`    | `tsc` in every workspace                                  |
-| `npm run build`        | Production build of client + Worker                       |
-| `npm run types`        | Regenerate `apps/server/env.d.ts` from `wrangler.jsonc`   |
-| `npm run deploy`       | Build and deploy to Cloudflare                            |
-| `npm run <s> -w <pkg>` | Run a script in one workspace, e.g. `-w @cot/server`      |
+| Command                      | What it does                                               |
+| ---------------------------- | ---------------------------------------------------------- |
+| `bun install`                | Install every workspace (also installs the git hooks)      |
+| `bun run dev`                | Web app + Worker in workerd at http://localhost:5173       |
+| `bun run check`              | Format, lint, typecheck and dead-code check (what CI runs) |
+| `bun run format`             | Format everything with oxfmt                               |
+| `bun run lint`               | oxlint, type-aware; any warning fails                      |
+| `bun run lint:fix`           | Apply safe lint fixes                                      |
+| `bun run typecheck`          | `tsc` in every workspace                                   |
+| `bun run knip`               | Find unused files, exports and dependencies                |
+| `bun run build`              | Production build of client + Worker                        |
+| `bun run types`              | Regenerate `apps/server/env.d.ts` from `wrangler.jsonc`    |
+| `bun run deploy`             | Build and deploy to Cloudflare                             |
+| `bun run --filter <pkg> <s>` | Run a script in one workspace, e.g. `--filter @cot/server` |
 
 There is no test suite yet. When adding one, use Vitest
 (`@cloudflare/vitest-pool-workers` for the server) and wire it into
-`npm run check` and CI.
+`bun run check` and CI.
 
 ## Definition of done
 
 Before you commit, all of these must pass. CI runs the same steps and blocks
 the merge otherwise:
 
-1. `npm run check` — no format diffs, **zero** lint warnings, no type errors.
-2. `npm run build` succeeds.
+1. `bun run check` — no format diffs, **zero** lint warnings, no type errors,
+   no dead code (knip: unused files, exports, types or dependencies). Delete
+   dead code rather than ignoring it; a genuine exception goes in
+   `knip.jsonc` with a comment saying why.
+2. `bun run build` succeeds.
 3. If you changed `apps/server/wrangler.jsonc` or renamed/moved an exported
-   Durable Object class, run `npm run types` and commit `env.d.ts`
+   Durable Object class, run `bun run types` and commit `env.d.ts`
    (CI checks it with `wrangler types --check`).
 
 A pre-commit hook (husky + lint-staged) formats and lints staged files.
@@ -93,7 +124,7 @@ work around them with relative paths.
 
 Formatting is fully automated (oxfmt: 80 columns, 2 spaces, double quotes,
 semicolons, no trailing commas, sorted imports, sorted Tailwind classes,
-sorted `package.json`). Never hand-format; run `npm run format`.
+sorted `package.json`). Never hand-format; run `bun run format`.
 
 TypeScript runs with `strict`, `noUncheckedIndexedAccess`,
 `noImplicitOverride`, `noUnusedLocals/Parameters` and
@@ -136,15 +167,15 @@ responsibility, not by line count:
 
 ## Local setup and secrets
 
-- Secrets for `npm run dev` go in `apps/server/.dev.vars` (copy
+- Secrets for `bun run dev` go in `apps/server/.dev.vars` (copy
   `apps/server/.dev.vars.example`). Never commit `.dev.vars`.
-- Production secrets are set with `npx wrangler secret put <NAME>` from
+- Production secrets are set with `bunx wrangler secret put <NAME>` from
   `apps/server` and survive deploys.
-- `npm run dev` starts the sandbox container, which needs Docker. Without
+- `bun run dev` starts the sandbox container, which needs Docker. Without
   Docker, set `"dev": { "enable_containers": false }` in a local copy of the
   config, or expect the sandbox tools to fail.
 - Workers AI, AI Search and Browser Rendering bindings are remote; run
-  `npx wrangler login` once.
+  `bunx wrangler login` once.
 
 ## Git
 

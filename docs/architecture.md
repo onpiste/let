@@ -21,7 +21,7 @@
 ```
 apps/web ──────┐
 apps/extension ├──► packages/shared ◄─── apps/server
-apps/ios ┄┄┄┄┄┄┘  (mirrors the contract; not an npm workspace)
+apps/ios ┄┄┄┄┄┄┘  (mirrors the contract; not a workspace)
 ```
 
 - **`packages/shared`** is the contract: route paths, harness names, the
@@ -65,7 +65,7 @@ source layout has to change.
    `@cot/server` and `cloudflare:*`, like the `apps/web/src/**` one.
 4. Add an `AGENTS.md` for the workspace and a row to the layout table in the
    root `AGENTS.md`.
-5. Add its build to CI (`npm run build -w @cot/<name>`).
+5. Add its build to CI (`bun run --filter @cot/<name> build`).
 
 ### Browser extension (`apps/extension`)
 
@@ -82,7 +82,7 @@ source layout has to change.
 ### iOS (`apps/ios`)
 
 - A native Swift/SwiftUI project. It lives in `apps/ios` for discoverability
-  but is **not** an npm workspace (no `package.json`), so npm tooling ignores
+  but is **not** a workspace (no `package.json`), so Bun tooling ignores
   it. Use SwiftFormat/SwiftLint with configs in that folder and a separate CI
   job on a macOS runner.
 - It cannot import `@cot/shared`; mirror its types in Swift `Codable`

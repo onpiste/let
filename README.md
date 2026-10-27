@@ -1,13 +1,36 @@
-# Cot — personal AI assistant
+# Cot — your own AI assistant, in an afternoon
 
-An OpenClaw-style personal assistant built on the [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/). The same assistant runs on two agent harnesses, switchable from the header:
+Cot is a **template for building a personal AI assistant** in the spirit of
+Muse and [OpenClaw](https://github.com/openclaw/openclaw):
+an assistant that knows you, remembers what matters, reminds you of things and
+meets you where you already are (web, Telegram, …). Fork it, give it a name and
+a domain, and deploy it for yourself, your family or a small business.
+
+It runs entirely on Cloudflare (one Worker plus Durable Objects), so there are
+no servers to operate, the free tier goes a long way, and every signed-in
+account gets its own isolated assistant with its own chat history, memory,
+reminders and settings.
+
+**Who it is for**
+
+- **Individuals** who want a private assistant they own, with their data in
+  their own Cloudflare account and their choice of model.
+- **Small and medium businesses** that want a branded assistant for their team
+  (or a handful of customers): allow-list who can sign in, add the company's
+  own tools and MCP servers, and connect the channels people already use.
+- **Developers** who want a clean, strict, well-structured starting point for
+  an agent product instead of a demo script.
+
+**What you get out of the box**
+
+The same assistant runs on two agent harnesses, switchable from the header:
 
 - **Think** ([`@cloudflare/think`](https://github.com/cloudflare/agents/tree/main/docs/think)), which runs the agentic loop, stores the conversation and resumes interrupted turns
 - **Pi** ([`@mariozechner/pi-agent-core`](https://www.npmjs.com/package/@mariozechner/pi-agent-core)), wrapped in an `AIChatAgent` for the chat protocol and persistence
 
 Each harness keeps its own chat history; long-term memory is shared.
 
-MVP features:
+Features:
 
 - **Chat** with streaming replies (Workers AI, no third-party API key)
 - **Sign in with Google**: each account gets its own Durable Object (chat history, memory, reminders). Only emails in `ALLOWED_EMAILS` can sign in, and the Worker — not the browser — picks which assistant a request reaches
@@ -20,6 +43,33 @@ MVP features:
   - **MCP servers**: add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
   - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
 - A calm, minimal chat UI with light and dark mode that works on mobile
+
+## Make it yours
+
+Cot is meant to be forked and changed. The usual first steps:
+
+1. **Name and brand.** Change the default assistant name in
+   `packages/shared/src/settings.ts` (`DEFAULT_SETTINGS`), the page title in
+   `apps/web/index.html`, and the theme in `apps/web/src/styles/`. The default
+   persona lives in `apps/server/src/agents/common/prompt.ts`.
+2. **Domain and Worker name.** Set `name` and `routes` in
+   `apps/server/wrangler.jsonc` (this repo uses `runlet.us`), then run
+   `npm run types`. Update the Google OAuth redirect URIs to match.
+3. **Who can sign in.** `ALLOWED_EMAILS` is the allow-list: just you, your
+   family, or your team.
+4. **Model.** Workers AI works with no extra key; each user can switch to
+   OpenAI, Anthropic or Google with their own key in **Settings → Model**.
+5. **Skills.** Add a tool group in `apps/server/src/agents/think/tools/`, or
+   connect an existing MCP server from **Settings → MCP servers** without
+   writing code. Business-specific knowledge can go into the `cot-knowledge`
+   AI Search instance that the knowledge tool searches.
+6. **Channels.** Telegram is the reference integration
+   (`apps/server/src/integrations/telegram/`); new messengers follow the same
+   shape. New clients (browser extension, mobile) go in `apps/`, see
+   [docs/architecture.md](docs/architecture.md#adding-a-client).
+
+Before committing, read [AGENTS.md](AGENTS.md): `npm run check` and
+`npm run build` must pass, and AI coding agents follow the same rules.
 
 ## Google sign-in setup
 
@@ -44,10 +94,10 @@ Telegram only delivers webhooks to public `https://` URLs, so a bot connected fr
 ## Run locally
 
 ```bash
-npm install               # all workspaces; also installs the pre-commit hook
-npx wrangler login        # or set CLOUDFLARE_API_TOKEN (Workers AI has no local simulator)
-npm run dev               # http://localhost:5173
-npm run check             # format + type-aware lint + typecheck, as in CI
+bun install               # all workspaces; also installs the pre-commit hook
+bunx wrangler login        # or set CLOUDFLARE_API_TOKEN (Workers AI has no local simulator)
+bun run dev               # http://localhost:5173
+bun run check             # format + lint + typecheck + knip (dead code), as in CI
 ```
 
 ## Deploy
@@ -56,18 +106,18 @@ Secrets are read from `apps/server/wrangler.jsonc`, so set them from there:
 
 ```bash
 cd apps/server
-npx wrangler secret put GOOGLE_CLIENT_ID
-npx wrangler secret put GOOGLE_CLIENT_SECRET
-npx wrangler secret put SESSION_SECRET
-npx wrangler secret put ALLOWED_EMAILS
-npx wrangler secret put CLOUDFLARE_API_KEY
+bunx wrangler secret put GOOGLE_CLIENT_ID
+bunx wrangler secret put GOOGLE_CLIENT_SECRET
+bunx wrangler secret put SESSION_SECRET
+bunx wrangler secret put ALLOWED_EMAILS
+bunx wrangler secret put CLOUDFLARE_API_KEY
 cd ../..
-npm run deploy            # → https://runlet.us (also runs on every push to main)
+bun run deploy            # → https://runlet.us (also runs on every push to main)
 ```
 
 ## Structure
 
-An npm-workspaces monorepo. See [AGENTS.md](AGENTS.md) for conventions and
+A Bun-workspaces monorepo. See [AGENTS.md](AGENTS.md) for conventions and
 [docs/architecture.md](docs/architecture.md) for boundaries and how to add a
 client (browser extension, iOS).
 

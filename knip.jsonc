@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // Knip finds dead code: unused files, exports, types and dependencies.
+  // Entry points come from its plugins (Vite, Wrangler, TypeScript), so only
+  // exceptions belong here. Explain every ignore.
+  "ignoreDependencies": [
+    // Workers runtime modules (`cloudflare:workers`), not an npm package.
+    "cloudflare"
+  ],
+  "workspaces": {
+    ".": {
+      // The root tsconfig lists `vite/client` for editors; vite is installed
+      // in apps/web.
+      "ignoreUnresolved": ["vite/client"]
+    },
+    "apps/server": {
+      "ignoreDependencies": [
+        // Optional peer of @mistralai/mistralai (via pi-ai). The Worker build
+        // fails with MISSING_EXPORT errors when it isn't installed.
+        "@opentelemetry/api"
+      ]
+    },
+    "apps/web": {
+      "ignoreDependencies": [
+        // Loaded by the `agents/vite` plugin to compile decorators.
+        "@babel/plugin-proposal-decorators",
+        // Build-only: the Cloudflare Vite plugin bundles the server Worker
+        // (see docs/adr/0001-monorepo-layout.md). Source imports are banned.
+        "@cot/server"
+      ]
+    }
+  }
+}
