@@ -25,6 +25,8 @@
         // Native halves of the Capacitor plugins the web app imports:
         // `cap sync` links them into the Xcode project from this package's
         // dependencies; no TypeScript here imports them.
+        "@capacitor/app",
+        "@capacitor/browser",
         "@capacitor/haptics",
         "@capacitor/local-notifications"
       ]

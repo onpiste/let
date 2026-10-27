@@ -78,7 +78,7 @@ Cot is meant to be forked and changed. The usual first steps:
    AI Search instance that the knowledge tool searches.
 6. **Channels.** Telegram is the reference integration
    (`apps/server/src/integrations/telegram/`); new messengers follow the same
-   shape. The iOS app (`apps/mobile`) wraps the web app; set its bundle id,
+   shape. The iOS and Android apps (`apps/mobile`) wrap the web app; set their app id,
    domain and URL scheme as in [apps/mobile/README.md](apps/mobile/README.md).
    New clients go in `apps/`, see
    [docs/architecture.md](docs/architecture.md#adding-a-client).
@@ -106,14 +106,15 @@ Each user brings their own bot; the deployment needs no Telegram configuration.
 
 Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant; the Pi assistant is web-only. `TELEGRAM_API_BASE_URL` in `apps/server/wrangler.jsonc` can point at a self-hosted Bot API server.
 
-## iOS app
+## iOS and Android apps
 
-`apps/mobile` is a Capacitor app that runs the deployed web app with native
-sign-in, reminder notifications and haptics. On a Mac with Xcode:
+`apps/mobile` holds Capacitor apps that run the deployed web app with native
+sign-in, reminder notifications and haptics:
 
 ```bash
-bun run --filter @cot/mobile sync   # then:
-bun run --filter @cot/mobile open   # build and run from Xcode
+bun run --filter @cot/mobile sync           # then one of:
+bun run --filter @cot/mobile open:ios       # Xcode (macOS)
+bun run --filter @cot/mobile open:android   # Android Studio
 ```
 
 Details, and how to add device capabilities, in
@@ -147,7 +148,7 @@ bun run deploy            # → https://runlet.us (also runs on every push to ma
 
 A Bun-workspaces monorepo. See [AGENTS.md](AGENTS.md) for conventions and
 [docs/architecture.md](docs/architecture.md) for boundaries and how to add a
-client (browser extension, iOS).
+client (browser extension, mobile).
 
 ```
 apps/server/               # @cot/server — Cloudflare Worker
@@ -160,9 +161,10 @@ apps/server/               # @cot/server — Cloudflare Worker
   src/integrations/telegram/ # per-user Telegram bots
   src/tools/               #   sandbox (Container), code runner, knowledge search, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
-apps/mobile/               # @cot/mobile — Capacitor iOS shell around the web app
+apps/mobile/               # @cot/mobile — Capacitor iOS/Android shells around the web app
   capacitor.config.ts      #   app id, server URL
   ios/App/                 #   Xcode project; App/WebAuthPlugin.swift does native sign-in
+  android/                 #   Gradle project; the cot:// deep link is in AndroidManifest.xml
 apps/web/                  # @cot/web — React client (its Vite build also bundles the Worker)
   src/app.tsx              #   session state and page switching
   src/pages/chat/          #   chat page and its components

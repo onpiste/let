@@ -46,7 +46,7 @@ Bun workspaces monorepo. Deployables live in `apps/`, reusable code in
 apps/
   server/     @cot/server  Cloudflare Worker: HTTP router, auth, Durable Object agents, tools
   web/        @cot/web     React SPA; its Vite build also bundles the server Worker and deploys both
-  mobile/     @cot/mobile  Capacitor iOS app: a native shell around the deployed web app
+  mobile/     @cot/mobile  Capacitor iOS and Android apps: native shells around the deployed web app
 packages/
   shared/     @cot/shared  Runtime-agnostic contract: types, route constants, RPC interface, pure logic
   tsconfig/   @cot/tsconfig Strict TypeScript presets (base / react / worker)

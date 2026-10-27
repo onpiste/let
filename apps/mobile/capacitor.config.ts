@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 /**
- * The iOS app is a native shell around the deployed web app: the WebView
+ * The iOS and Android apps are native shells around the deployed web app: the WebView
  * loads the Worker's own origin, so the session cookie, /auth/* and the agent
  * WebSockets work exactly as in a browser, and Capacitor injects its bridge
  * so the page can call device APIs (see apps/web/src/lib/native.ts).
@@ -17,12 +17,13 @@ const config: CapacitorConfig = {
   webDir: "www",
   server: {
     url: "https://runlet.us",
-    // Google sign-in runs in the system browser (SFSafariViewController),
-    // never in the WebView, which Google blocks.
+    // Google sign-in runs in the system browser (iOS web authentication
+    // sheet, Android Custom Tab), never in the WebView, which Google blocks.
     allowNavigation: ["runlet.us"]
   },
   // The `cot://` URL scheme native sign-in returns to is registered in
-  // ios/App/App/Info.plist (CFBundleURLTypes).
+  // ios/App/App/Info.plist (CFBundleURLTypes) and
+  // android/app/src/main/AndroidManifest.xml (intent-filter).
   ios: { contentInset: "automatic" },
   plugins: {
     LocalNotifications: { presentationOptions: ["banner", "sound"] }

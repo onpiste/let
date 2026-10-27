@@ -19,7 +19,7 @@
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
   // TELEGRAM_API_BASE_URL points the bot at a self-hosted Bot API server;
   // empty means https://api.telegram.org.
-  // NATIVE_REDIRECT_URI is where native sign-in returns to the iOS app (its
+  // NATIVE_REDIRECT_URI is where native sign-in returns to the mobile apps (their
   // URL scheme, see apps/mobile/README.md); empty disables native sign-in.
   // EMAIL_DOMAIN is where each assistant gets its own address; Email Routing
   // must send that domain's mail to this Worker (catch-all rule). Empty
