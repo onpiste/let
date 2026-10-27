@@ -24,11 +24,16 @@
   // EMAIL_DOMAIN is where each assistant gets its own address; Email Routing
   // must send that domain's mail to this Worker (catch-all rule). Empty
   // turns the email feature off.
+  // Usage limits per account ("0" turns one off). Messages count across the
+  // Think and Pi assistants; turns on a user's own API key don't count.
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e",
     "NATIVE_REDIRECT_URI": "cot://auth/callback",
     "TELEGRAM_API_BASE_URL": "",
-    "EMAIL_DOMAIN": "runlet.us"
+    "EMAIL_DOMAIN": "runlet.us",
+    "DAILY_MESSAGE_LIMIT": "500",
+    "MINUTE_MESSAGE_LIMIT": "20",
+    "MAX_REMINDERS": "50"
   },
   // The client is built by apps/web (its Vite config points the Cloudflare
   // plugin at this file), so there is no assets directory here.

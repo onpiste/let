@@ -1,4 +1,4 @@
-import { Think, type TurnContext } from "@cloudflare/think";
+import { Think, type TurnConfig, type TurnContext } from "@cloudflare/think";
 import type { ThinkMessengers } from "@cloudflare/think/messengers";
 import { callable, getCurrentAgent } from "agents";
 import type { LanguageModel, ToolSet } from "ai";
@@ -24,7 +24,9 @@ import {
 } from "../../integrations/telegram/channel";
 import { buildPersona } from "../common/prompt";
 import { broadcastReminder } from "../common/reminders";
-import { modelFor } from "./model";
+import { takeTurn, usageLimits } from "../common/usage";
+import { cannedReply } from "./canned-reply";
+import { modelFor, paidByUser } from "./model";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
 import { assistantTools, NEEDS_APPROVAL } from "./tools";
@@ -121,7 +123,16 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return this.systemPrompt(true);
   }
 
-  override beforeTurn(ctx: TurnContext) {
+  override beforeTurn(ctx: TurnContext): TurnConfig | void {
+    // Continuations and recoveries finish a turn that was already counted.
+    const newTurn =
+      ctx.trigger !== undefined &&
+      !ctx.continuation &&
+      !ctx.trigger.startsWith("recovery");
+    if (newTurn) {
+      const refusal = this.countTurn(paidByUser(this.store.getSettings()));
+      if (refusal) return { model: cannedReply(refusal), activeTools: [] };
+    }
     if (!ctx.messenger) return;
     return {
       activeTools: Object.keys(ctx.tools).filter(
@@ -290,6 +301,22 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   async removeMemory(id: number) {
     this.store.removeMemory(id);
+  }
+
+  /**
+   * Counts a turn against the account's message limits, which both harnesses
+   * share. Turns on the user's own API key are free to the deployment, so
+   * they aren't limited. Returns a refusal to show instead of answering.
+   */
+  countTurn(paid: boolean) {
+    if (paid) return null;
+    this.store.ensureTables();
+    const { record, refusal } = takeTurn(
+      this.store.getUsage(),
+      usageLimits(this.env)
+    );
+    this.store.saveUsage(record);
+    return refusal;
   }
 
   // ── Scheduled reminders fire here ───────────────────────────────────
