@@ -7,6 +7,11 @@
   "ai": { "binding": "AI", "remote": true },
   "browser": { "binding": "BROWSER" },
   "observability": { "enabled": true },
+  // Knowledge base for the searchKnowledge tool. Create the instance named in
+  // src/server.ts (KNOWLEDGE_INSTANCE) in the Cloudflare dashboard first.
+  "ai_search_namespaces": [
+    { "binding": "AI_SEARCH", "namespace": "default", "remote": true }
+  ],
   "routes": [{ "pattern": "runlet.us", "custom_domain": true }],
   // The Pi assistant calls Workers AI over REST, so it needs the account id
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).

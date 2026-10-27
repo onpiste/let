@@ -54,6 +54,9 @@ export { TelegramRoutes } from "./telegram";
 // Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.
 export { ThinkMessengerStateAgent };
 
+/** The AI Search instance (in the default namespace) holding the knowledge base. */
+const KNOWLEDGE_INSTANCE = "cot-knowledge";
+
 /** Where MCP servers send the user back after OAuth; routed like /chat. */
 const MCP_CALLBACK_PATH = "chat/mcp-callback";
 
@@ -374,7 +377,7 @@ ${getSchedulePrompt({ date: new Date() })}
 
 When the user asks to be reminded of something, use the scheduleTask tool.
 
-You have a Linux sandbox that keeps files between turns (working directory /workspace). Use runCommand to run shell commands, and writeSandboxFile / readSandboxFile for files. Use browseWeb to open a web page and read its text.`;
+You have a Linux sandbox that keeps files between turns (working directory /workspace). Use runCommand to run shell commands, and writeSandboxFile / readSandboxFile for files. Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.`;
   }
 
   getTools(): ToolSet {
@@ -488,6 +491,25 @@ You have a Linux sandbox that keeps files between turns (working directory /work
           path: z.string().describe("File path to read")
         }),
         execute: async ({ path }) => sandbox.readFile(path)
+      }),
+
+      searchKnowledge: tool({
+        description:
+          "Search the user's knowledge base (documents uploaded to AI Search) for passages relevant to a question. Use it before answering questions about the user's own documents or notes.",
+        inputSchema: z.object({
+          query: z.string().describe("What to look for, in natural language")
+        }),
+        execute: async ({ query }) => {
+          try {
+            const instance = this.env.AI_SEARCH.get(KNOWLEDGE_INSTANCE);
+            const results = await instance.search({
+              messages: [{ role: "user", content: query }]
+            });
+            return JSON.stringify(results).slice(0, 8000);
+          } catch (error) {
+            return `Error searching the knowledge base: ${error}`;
+          }
+        }
       }),
 
       browseWeb: tool({
