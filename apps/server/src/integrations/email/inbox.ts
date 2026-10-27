@@ -2,9 +2,6 @@ import type { Agent } from "agents";
 
 import type { ParsedEmail } from "./parse";
 
-/** Older emails are deleted once the inbox holds this many. */
-const MAX_EMAILS = 200;
-
 export type InboxSummary = {
   id: number;
   receivedAt: string;
@@ -36,6 +33,8 @@ export class Inbox {
       body TEXT NOT NULL,
       attachments TEXT NOT NULL
     )`;
+    this.db.sql`CREATE INDEX IF NOT EXISTS emails_by_trust_and_time
+      ON emails (trusted, received_at)`;
   }
 
   add(email: ParsedEmail, trusted: boolean) {
@@ -43,14 +42,21 @@ export class Inbox {
         (sender, trusted, subject, sent_at, body, attachments)
       VALUES (${email.from}, ${trusted ? 1 : 0}, ${email.subject},
         ${email.date}, ${email.body}, ${JSON.stringify(email.attachments)})`;
-    this.db.sql`DELETE FROM emails WHERE id <= (
-      SELECT id FROM emails ORDER BY id DESC LIMIT 1 OFFSET ${MAX_EMAILS})`;
   }
 
-  list(limit: number): InboxSummary[] {
+  /** Strangers' emails received since `window`, e.g. `-1 hour`. */
+  countStrangersSince(window: string) {
+    const [row] = this.db.sql<{ count: number }>`
+      SELECT count(*) AS count FROM emails
+      WHERE trusted = 0 AND received_at > datetime('now', ${window})`;
+    return row?.count ?? 0;
+  }
+
+  /** Newest first; `offset` pages back through older mail. */
+  list(limit: number, offset: number): InboxSummary[] {
     const rows = this.db.sql<SummaryRow>`
       SELECT id, received_at AS receivedAt, sender AS "from", trusted, subject
-      FROM emails ORDER BY id DESC LIMIT ${limit}`;
+      FROM emails ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
     return rows.map((row) => ({
       id: row.id,
       receivedAt: row.receivedAt,

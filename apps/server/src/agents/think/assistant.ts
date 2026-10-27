@@ -70,6 +70,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       store: this.store,
       inbox: () => new Inbox(this),
       owner: () => this.allowedOwner(),
+      ownerName: () => this.store.getOwnerName(),
       onEmail: (email, trusted, preview) =>
         this.announceEmail(email, trusted, preview)
     });
@@ -230,8 +231,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   @callable()
-  async newEmailAddress() {
-    return this.email.newAddress();
+  async setEmailAlias(alias: string) {
+    return this.email.setAlias(alias);
   }
 
   @callable()
@@ -268,10 +269,10 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   // ── RPC for the Worker and the Pi assistant ─────────────────────────
 
-  /** The owner's email, recorded by the Worker on every web connection. */
-  async setOwnerEmail(email: string) {
+  /** The owner's email and name, recorded by the Worker on every web connection. */
+  async setOwner(email: string, name: string) {
     this.store.ensureTables();
-    this.store.setOwnerEmail(email);
+    this.store.setOwner(email, name);
   }
 
   /** The persona text, also used by the Pi assistant. */

@@ -1,8 +1,5 @@
 import PostalMime from "postal-mime";
 
-/** Enough of a long email for the model; the rest is dropped. */
-const MAX_BODY_CHARS = 20_000;
-
 export type ParsedEmail = {
   /** The From header, as `Name <address>`. */
   from: string;
@@ -45,10 +42,7 @@ export async function parseEmail(raw: Uint8Array): Promise<ParsedEmail> {
     subject: email.subject?.trim() || "(no subject)",
     date: email.date ?? null,
     messageId: email.messageId ?? null,
-    body:
-      body.length > MAX_BODY_CHARS
-        ? `${body.slice(0, MAX_BODY_CHARS)}\n…(truncated)`
-        : body,
+    body,
     attachments: email.attachments.map(
       (a) => a.filename ?? `(unnamed ${a.mimeType})`
     )

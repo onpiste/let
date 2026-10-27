@@ -3,9 +3,6 @@ import { getAgentByName } from "agents";
 import { addresses } from "./addresses";
 import { aliasFor } from "./config";
 
-/** Larger emails bounce; the assistant only keeps their text anyway. */
-const MAX_RAW_BYTES = 10 * 1024 * 1024;
-
 /**
  * The Worker's `email` handler, for mail Email Routing delivers to
  * `<alias>@EMAIL_DOMAIN`. The Worker maps the alias to an account, so the
@@ -23,15 +20,18 @@ export async function handleIncomingEmail(
     message.setReject("Unknown recipient");
     return;
   }
-  if (message.rawSize > MAX_RAW_BYTES) {
-    message.setReject("Message too large");
-    return;
-  }
 
   const raw = new Uint8Array(await new Response(message.raw).arrayBuffer());
   const assistant = await getAgentByName(env.Assistant, `google:${userId}`);
   const result = await assistant.receiveEmail(message.from, raw);
-  if (result === "rejected") {
-    message.setReject("This mailbox does not accept mail from you");
+  switch (result) {
+    case "accepted":
+      return;
+    case "rejected":
+      message.setReject("This mailbox does not accept mail from you");
+      return;
+    case "rate-limited":
+      message.setReject("Too much mail to this mailbox; try again later");
+      return;
   }
 }

@@ -2,8 +2,8 @@ import { DurableObject } from "cloudflare:workers";
 
 /**
  * A single global Durable Object mapping address aliases (the part before
- * the @) to accounts. The alias is random, so an address reveals nothing
- * about the account and can't be guessed from another one.
+ * the @) to accounts. Aliases are first come, first served; one Durable
+ * Object runs one call at a time, so a claim can't race another.
  */
 export class EmailAddresses extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
@@ -14,7 +14,14 @@ export class EmailAddresses extends DurableObject<Env> {
     )`);
   }
 
-  set(alias: string, userId: string) {
+  /**
+   * Gives `alias` to the account, releasing its previous one. False when
+   * another account holds it.
+   */
+  claim(alias: string, userId: string) {
+    const owner = this.userFor(alias);
+    if (owner === userId) return true;
+    if (owner) return false;
     const sql = this.ctx.storage.sql;
     sql.exec("DELETE FROM addresses WHERE user_id = ?", userId);
     sql.exec(
@@ -22,6 +29,12 @@ export class EmailAddresses extends DurableObject<Env> {
       alias,
       userId
     );
+    return true;
+  }
+
+  /** The first alias in `candidates` still free, claimed; else null. */
+  claimFirst(candidates: string[], userId: string) {
+    return candidates.find((alias) => this.claim(alias, userId)) ?? null;
   }
 
   userFor(alias: string) {

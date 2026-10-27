@@ -6,7 +6,12 @@ import type { EmailConfig } from "../../integrations/email/config";
 import type { TelegramConfig } from "../../integrations/telegram/config";
 import type { Memory } from "../common/prompt";
 
-type SettingsKey = "settings" | "owner_email" | "telegram" | "email";
+type SettingsKey =
+  | "settings"
+  | "owner_email"
+  | "owner_name"
+  | "telegram"
+  | "email";
 
 /**
  * The Think assistant's own SQLite tables: `memories`, and a key/value
@@ -62,8 +67,13 @@ export class AssistantStore {
     return this.read("owner_email");
   }
 
-  setOwnerEmail(email: string) {
+  getOwnerName() {
+    return this.read("owner_name");
+  }
+
+  setOwner(email: string, name: string) {
     this.write("owner_email", email);
+    this.write("owner_name", name);
   }
 
   getTelegramConfig(): TelegramConfig | null {

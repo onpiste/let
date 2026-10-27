@@ -15,6 +15,7 @@ export function EmailSettings({
   epoch: number;
 }) {
   const [status, setStatus] = useState<EmailStatus | null>(null);
+  const [alias, setAlias] = useState("");
   const [senders, setSenders] = useState("");
   const [anyone, setAnyone] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -24,6 +25,7 @@ export function EmailSettings({
   const show = useCallback((next: EmailStatus) => {
     setStatus(next);
     if (!next.enabled) return;
+    setAlias(next.alias);
     setSenders(next.trustedSenders.join("\n"));
     setAnyone(next.acceptFromAnyone);
   }, []);
@@ -56,11 +58,12 @@ export function EmailSettings({
     );
   };
 
-  const replace = () => {
-    if (!confirm("Get a new address? Mail to the current one will bounce.")) {
-      return;
-    }
-    void run(() => api(agent).newEmailAddress());
+  const rename = (e: FormEvent) => {
+    e.preventDefault();
+    const warning =
+      "Change the address? Mail to the current one will bounce, and its name becomes free for anyone to take.";
+    if (!confirm(warning)) return;
+    void run(() => api(agent).setEmailAlias(alias));
   };
 
   const copy = async (address: string) => {
@@ -97,6 +100,24 @@ export function EmailSettings({
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>
+            <form className="flex items-center gap-2" onSubmit={rename}>
+              <input
+                required
+                aria-label="Address name"
+                autoComplete="off"
+                spellCheck={false}
+                value={alias}
+                onChange={(e) => setAlias(e.target.value)}
+              />
+              <span className="muted">@{status.domain}</span>
+              <button
+                type="submit"
+                className="primary-btn"
+                disabled={busy || alias.trim().toLowerCase() === status.alias}
+              >
+                Change
+              </button>
+            </form>
             <p className="muted small">
               To pass on Gmail: Settings → Forwarding → add this address. The
               confirmation link arrives here and on Telegram; then add a filter
@@ -135,17 +156,9 @@ export function EmailSettings({
                 placeholder="one address per line"
                 onChange={(e) => setSenders(e.target.value)}
               />
-              <div className="flex items-center gap-3">
+              <div>
                 <button type="submit" className="primary-btn" disabled={busy}>
                   Save
-                </button>
-                <button
-                  type="button"
-                  className="link-btn"
-                  disabled={busy}
-                  onClick={replace}
-                >
-                  New address
                 </button>
               </div>
             </form>

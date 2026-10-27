@@ -23,7 +23,7 @@ export interface AssistantRpc {
   newTelegramClaimLink(): Promise<TelegramStatus>;
   disconnectTelegram(): Promise<TelegramStatus>;
   getEmailStatus(): Promise<EmailStatus>;
-  newEmailAddress(): Promise<EmailStatus>;
+  setEmailAlias(alias: string): Promise<EmailStatus>;
   updateEmailPolicy(policy: EmailPolicy): Promise<EmailStatus>;
 }
 
