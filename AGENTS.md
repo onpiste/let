@@ -6,9 +6,36 @@ directory.
 
 ## What this is
 
-Cot is a personal AI assistant on the Cloudflare Agents SDK. One Cloudflare
-Worker serves the web app and the API; each signed-in account gets its own
-Durable Object agents (chat history, memory, reminders, settings).
+Cot is a **template for a personal AI assistant**, in the spirit of Muse and
+OpenClaw, that an individual or a small/medium business can fork, brand and
+deploy quickly. It is built on the Cloudflare Agents SDK: one Cloudflare
+Worker serves the web app and the API, and each signed-in account gets its
+own Durable Object agents (chat history, memory, reminders, settings).
+
+## Product goals
+
+Keep these in mind when deciding how to build something:
+
+- **Forkable first.** Someone who clones this should get a working assistant
+  after setting secrets, a name and a domain. Keep deployment-specific values
+  (domain, names, allow-lists, API bases) in `wrangler.jsonc`, secrets or
+  `DEFAULT_SETTINGS`, not scattered through code. If you add a new one,
+  document it in the README's "Make it yours" or setup sections.
+- **Per-user by default.** Everything a user configures (model and keys,
+  persona, MCP servers, bots) is stored in their own Durable Object and set
+  from the settings page, not in deployment config. One deployment must serve
+  a person, a family or a small team without code changes.
+- **Private and owned.** Data stays in the deployer's Cloudflare account.
+  Secrets never go back to the browser in full; the Worker, not the client,
+  decides which assistant a request reaches.
+- **Extensible along known seams.** New capabilities are tools
+  (`apps/server/src/agents/think/tools/`) or MCP servers; new messengers follow
+  `integrations/telegram/`; new clients go in `apps/` against
+  `@cot/shared`. Prefer extending a seam over special-casing.
+- **Works with no extra keys.** Workers AI is the default model; features that
+  need a third-party key or service must degrade gracefully without it.
+- **A clean example to learn from.** This is a starting point people read and
+  copy, so the strict rules below matter more than usual.
 
 ## Repository layout
 
