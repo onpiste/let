@@ -22,7 +22,6 @@
       "/chat/*",
       "/pi",
       "/pi/*",
-      "/telegram/*",
       "/messengers/*"
     ]
   },
@@ -37,8 +36,8 @@
         "name": "PiAssistant"
       },
       {
-        "class_name": "TelegramLinks",
-        "name": "TelegramLinks"
+        "class_name": "TelegramRoutes",
+        "name": "TelegramRoutes"
       }
     ]
   },
@@ -48,10 +47,7 @@
       "GOOGLE_CLIENT_SECRET",
       "SESSION_SECRET",
       "ALLOWED_EMAILS",
-      "CLOUDFLARE_API_KEY",
-      "TELEGRAM_BOT_TOKEN",
-      "TELEGRAM_BOT_USERNAME",
-      "TELEGRAM_WEBHOOK_SECRET_TOKEN"
+      "CLOUDFLARE_API_KEY"
     ]
   },
   "migrations": [
@@ -64,7 +60,7 @@
       "tag": "v2"
     },
     {
-      "new_sqlite_classes": ["TelegramLinks"],
+      "new_sqlite_classes": ["TelegramRoutes"],
       "tag": "v3"
     }
   ]

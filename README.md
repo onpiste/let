@@ -12,8 +12,13 @@ MVP features:
 - **Chat** with streaming replies (Workers AI, no third-party API key)
 - **Sign in with Google**: each account gets its own Durable Object (chat history, memory, reminders). Only emails in `ALLOWED_EMAILS` can sign in, and the Worker — not the browser — picks which assistant a request reaches
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant; the Pi assistant reads and writes them over RPC
-- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification and, if linked, a Telegram message
-- **Telegram**: link your Telegram account from the web app and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only linked accounts in one-to-one chats reach an assistant
+- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification and, if you connected a bot, a Telegram message
+- **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
+- **Settings page** (gear icon, `/settings`), saved per account:
+  - **Assistant**: name, reply language and custom instructions, used by both harnesses
+  - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. Applies to the Think assistant and Telegram; the Pi assistant stays on Workers AI
+  - **MCP servers**: add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
+  - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
 - A calm, minimal chat UI with light and dark mode that works on mobile
 
 ## Google sign-in setup
@@ -28,11 +33,13 @@ The Pi assistant calls Workers AI over REST, so it also needs `CLOUDFLARE_API_KE
 
 ## Telegram setup
 
-1. Create a bot with [@BotFather](https://t.me/BotFather) and note its token and username.
-2. Set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and a random `TELEGRAM_WEBHOOK_SECRET_TOKEN` (`openssl rand -hex 32`).
-3. Sign in to the deployed app and click the paper-plane button, then press **Start** in Telegram. The first link also points the bot's webhook at `https://<your-worker>/messengers/telegram/webhook`.
+Each user brings their own bot; the deployment needs no Telegram configuration.
 
-Telegram only delivers webhooks to public `https://` URLs, so on `localhost` the button still creates a link but does not register the webhook; use the deployed Worker or a tunnel. Telegram talks to the Think assistant; the Pi assistant is web-only.
+1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot` and copy the token.
+2. In the deployed app, open **Settings → Integrations → Telegram**, paste the token and click **Connect**. Your assistant stores the token, generates a webhook secret and points the bot at `https://<your-worker>/messengers/telegram/<random id>/webhook`.
+3. Click **Open @your_bot and press Start**. The Telegram account that presses Start with that link becomes the bot's owner; everyone else gets "This is a private assistant."
+
+Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant; the Pi assistant is web-only. `TELEGRAM_API_BASE_URL` in `wrangler.jsonc` can point at a self-hosted Bot API server.
 
 ## Run locally
 
@@ -50,9 +57,6 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ALLOWED_EMAILS
 npx wrangler secret put CLOUDFLARE_API_KEY
-npx wrangler secret put TELEGRAM_BOT_TOKEN
-npx wrangler secret put TELEGRAM_BOT_USERNAME
-npx wrangler secret put TELEGRAM_WEBHOOK_SECRET_TOKEN
 npm run deploy            # → https://cot-assistant.<your-subdomain>.workers.dev
 ```
 
@@ -63,8 +67,10 @@ src/server.ts     # Think assistant (model, prompt, memory and reminder tools) +
 src/pi.ts         # Pi assistant
 src/reminders.ts  # Reminder logic shared by both
 src/prompt.ts     # Shared persona and memory formatting
-src/telegram.ts   # Telegram webhook, account linking and Bot API calls
+src/telegram.ts   # Per-user Telegram bots: webhook routing, owner gate, Bot API calls
+src/settings.ts   # Settings type, defaults, validation and persona (shared with the client)
 src/auth.ts       # Google sign-in and signed session cookie
 src/app.tsx       # Sign-in screen, harness switch and chat UI
+src/settings-page.tsx # Settings page
 src/styles.css    # Theme
 ```

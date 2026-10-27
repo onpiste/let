@@ -14,9 +14,3 @@ ALLOWED_EMAILS=you@gmail.com
 
 # API token with Workers AI access, for the Pi assistant.
 CLOUDFLARE_API_KEY=
-
-# Telegram bot from @BotFather. The secret token is any random string
-# (openssl rand -hex 32); Telegram sends it with every webhook call.
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_BOT_USERNAME=your_bot_username
-TELEGRAM_WEBHOOK_SECRET_TOKEN=
