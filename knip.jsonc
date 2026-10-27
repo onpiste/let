@@ -20,6 +20,15 @@
         "@opentelemetry/api"
       ]
     },
+    "apps/mobile": {
+      "ignoreDependencies": [
+        // Native halves of the Capacitor plugins the web app imports:
+        // `cap sync` links them into the Xcode project from this package's
+        // dependencies; no TypeScript here imports them.
+        "@capacitor/haptics",
+        "@capacitor/local-notifications"
+      ]
+    },
     "apps/web": {
       "ignoreDependencies": [
         // Loaded by the `agents/vite` plugin to compile decorators.

@@ -19,8 +19,11 @@
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
   // TELEGRAM_API_BASE_URL points the bot at a self-hosted Bot API server;
   // empty means https://api.telegram.org.
+  // NATIVE_REDIRECT_URI is where native sign-in returns to the iOS app (its
+  // URL scheme, see apps/ios/README.md); empty disables native sign-in.
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e",
+    "NATIVE_REDIRECT_URI": "cot://auth/callback",
     "TELEGRAM_API_BASE_URL": ""
   },
   // The client is built by apps/web (its Vite config points the Cloudflare

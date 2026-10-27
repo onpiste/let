@@ -58,9 +58,9 @@ export default function App() {
     setUser(null);
   };
 
-  if (error) return <SignInPage message={error} />;
+  if (error) return <SignInPage message={error} onSignedIn={refresh} />;
   if (user === undefined) return <div className="app" />;
-  if (user === null) return <SignInPage />;
+  if (user === null) return <SignInPage onSignedIn={refresh} />;
   if (page === "settings") {
     return <SettingsPage user={user} onBack={() => navigate("chat")} />;
   }

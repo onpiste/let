@@ -65,7 +65,9 @@ Cot is meant to be forked and changed. The usual first steps:
    AI Search instance that the knowledge tool searches.
 6. **Channels.** Telegram is the reference integration
    (`apps/server/src/integrations/telegram/`); new messengers follow the same
-   shape. New clients (browser extension, mobile) go in `apps/`, see
+   shape. The iOS app (`apps/mobile`) wraps the web app; set its bundle id,
+   domain and URL scheme as in [apps/mobile/README.md](apps/mobile/README.md).
+   New clients go in `apps/`, see
    [docs/architecture.md](docs/architecture.md#adding-a-client).
 
 Before committing, read [AGENTS.md](AGENTS.md): `npm run check` and
@@ -90,6 +92,19 @@ Each user brings their own bot; the deployment needs no Telegram configuration.
 3. Click **Open @your_bot and press Start**. The Telegram account that presses Start with that link becomes the bot's owner; everyone else gets "This is a private assistant."
 
 Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant; the Pi assistant is web-only. `TELEGRAM_API_BASE_URL` in `apps/server/wrangler.jsonc` can point at a self-hosted Bot API server.
+
+## iOS app
+
+`apps/mobile` is a Capacitor app that runs the deployed web app with native
+sign-in, reminder notifications and haptics. On a Mac with Xcode:
+
+```bash
+bun run --filter @cot/mobile sync   # then:
+bun run --filter @cot/mobile open   # build and run from Xcode
+```
+
+Details, and how to add device capabilities, in
+[apps/mobile/README.md](apps/mobile/README.md).
 
 ## Run locally
 
@@ -125,13 +140,16 @@ client (browser extension, iOS).
 apps/server/               # @cot/server — Cloudflare Worker
   src/index.ts             #   entry: router + Durable Object exports
   src/http/                #   routes each request to the signed-in user's agent
-  src/auth/                #   Google sign-in and signed session cookie
+  src/auth/                #   Google sign-in, signed session cookie, native-app tokens
   src/agents/think/        #   Think assistant: DO class, store, model, prompt, tools/
   src/agents/pi/           #   Pi assistant: DO class, model, prompt, tools, stream bridge
   src/agents/common/       #   persona/memory prompt and reminders shared by both
   src/integrations/telegram/ # per-user Telegram bots
   src/tools/               #   sandbox (Container), code runner, knowledge search, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
+apps/mobile/               # @cot/mobile — Capacitor iOS shell around the web app
+  capacitor.config.ts      #   app id, server URL
+  ios/App/                 #   Xcode project; App/WebAuthPlugin.swift does native sign-in
 apps/web/                  # @cot/web — React client (its Vite build also bundles the Worker)
   src/app.tsx              #   session state and page switching
   src/pages/chat/          #   chat page and its components

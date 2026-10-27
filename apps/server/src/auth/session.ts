@@ -1,11 +1,13 @@
 import type { User } from "@cot/shared";
 
 import { buildCookie, getCookie } from "./cookies";
+import { sign, verify } from "./signing";
 
 /**
  * The session is the user's profile plus an expiry, signed with
- * SESSION_SECRET (HMAC-SHA256) and kept in an HttpOnly cookie. Nothing is
- * stored server-side, so signing out only clears the cookie.
+ * SESSION_SECRET (HMAC-SHA256). Browsers keep it in an HttpOnly cookie;
+ * native apps send the same value as `Authorization: Bearer`. Nothing is
+ * stored server-side, so signing out only forgets the value.
  */
 
 const SESSION_COOKIE = "cot_session";
@@ -13,84 +15,32 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 type Session = User & { exp: number };
 
-const encoder = new TextEncoder();
-
-function toBase64Url(bytes: Uint8Array) {
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-function fromBase64Url(value: string) {
-  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
-  const binary = atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4));
-  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
-}
-
-function getSecret(env: Env) {
-  if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) {
-    throw new Error("SESSION_SECRET must be set to at least 32 characters.");
-  }
-  return env.SESSION_SECRET;
-}
-
-async function hmacKey(secret: string) {
-  return crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign", "verify"]
-  );
-}
-
-async function createSessionValue(user: User, env: Env) {
-  const session: Session = {
-    ...user,
-    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS
-  };
-  const payload = toBase64Url(encoder.encode(JSON.stringify(session)));
-  const key = await hmacKey(getSecret(env));
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    encoder.encode(payload)
-  );
-  return `${payload}.${toBase64Url(new Uint8Array(signature))}`;
+/** A signed session value and when it expires (unix seconds). */
+export async function createSession(user: User, env: Env) {
+  const exp = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
+  const session: Session = { ...user, exp };
+  return { value: await sign(session, env), exp };
 }
 
 async function readSessionValue(value: string, env: Env): Promise<User | null> {
-  const [payload, signature] = value.split(".");
-  if (!payload || !signature) return null;
-  try {
-    const key = await hmacKey(getSecret(env));
-    const valid = await crypto.subtle.verify(
-      "HMAC",
-      key,
-      fromBase64Url(signature),
-      encoder.encode(payload)
-    );
-    if (!valid) return null;
-    const session = JSON.parse(
-      new TextDecoder().decode(fromBase64Url(payload))
-    ) as Session;
-    if (session.exp < Date.now() / 1000) return null;
-    return {
-      id: session.id,
-      email: session.email,
-      name: session.name,
-      picture: session.picture
-    };
-  } catch {
-    return null;
-  }
+  const session = await verify<Session>(value, env);
+  if (!session) return null;
+  return {
+    id: session.id,
+    email: session.email,
+    name: session.name,
+    picture: session.picture
+  };
+}
+
+function bearerToken(request: Request) {
+  const header = request.headers.get("Authorization");
+  const match = header?.match(/^Bearer\s+(\S+)$/i);
+  return match?.[1] ?? null;
 }
 
 export async function getUserFromRequest(request: Request, env: Env) {
-  const value = getCookie(request, SESSION_COOKIE);
+  const value = bearerToken(request) ?? getCookie(request, SESSION_COOKIE);
   const user = value ? await readSessionValue(value, env) : null;
   // Re-check so removing an email from ALLOWED_EMAILS takes effect at once.
   return user && isAllowed(user.email, env) ? user : null;
@@ -104,9 +54,8 @@ export function isAllowed(email: string, env: Env) {
   return allowed.includes(email.toLowerCase());
 }
 
-/** A Set-Cookie value that stores a new session. */
-export async function sessionCookie(request: Request, user: User, env: Env) {
-  const value = await createSessionValue(user, env);
+/** A Set-Cookie value that stores a session from `createSession`. */
+export function sessionCookie(request: Request, value: string) {
   return buildCookie(request, SESSION_COOKIE, value, SESSION_TTL_SECONDS);
 }
 

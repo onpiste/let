@@ -18,9 +18,9 @@
 ## Layers and dependency direction
 
 ```
-apps/web ──────┐
-apps/extension ├──► packages/shared ◄─── apps/server
-apps/ios ┄┄┄┄┄┄┘  (mirrors the contract; not a workspace)
+apps/web ──────┬──► packages/shared ◄─── apps/server
+apps/extension ┘
+apps/mobile ──► loads the deployed apps/web in a WebView
 ```
 
 - **`packages/shared`** is the contract: route paths, harness names, the
@@ -78,20 +78,20 @@ source layout has to change.
 - Add new server paths it needs to `@cot/shared/routes.ts` and to
   `assets.run_worker_first`.
 
-### iOS (`apps/ios`)
+### iOS (`apps/mobile`)
 
-- A native Swift/SwiftUI project. It lives in `apps/ios` for discoverability
-  but is **not** a workspace (no `package.json`), so Bun tooling ignores
-  it. Use SwiftFormat/SwiftLint with configs in that folder and a separate CI
-  job on a macOS runner.
-- It cannot import `@cot/shared`; mirror its types in Swift `Codable`
-  structs. If drift becomes a problem, generate JSON Schema from the shared
-  types and codegen Swift models from it in CI.
-- **Server work needed first:** native apps can't rely on the browser
-  cookie flow. Add a token endpoint (OAuth with PKCE via
-  `ASWebAuthenticationSession`, returning a signed bearer token) and teach
-  `getUserFromRequest` to accept `Authorization: Bearer`. Keep the Worker as
-  the only place that maps a user to an agent instance.
+- A Capacitor shell: its WebView loads the deployed Worker origin, so the
+  web app, session cookie and agent WebSockets work unchanged, and the page
+  reaches device APIs through Capacitor plugins (`apps/web/src/lib/native.ts`).
+  See [apps/mobile/README.md](../apps/mobile/README.md).
+- Sign-in is the one native-specific flow, because Google blocks embedded
+  WebViews: `ASWebAuthenticationSession` → `/auth/login` with a PKCE
+  challenge → `cot://auth/callback?code=…` → `POST /auth/token`, which returns
+  a bearer token and sets the session cookie (`NATIVE_AUTH_PARAMS` in
+  `@cot/shared`, `apps/server/src/auth/native.ts`).
+- A fully native client later (SwiftUI) can reuse that flow: send the token
+  as `Authorization: Bearer` on HTTP and on the WebSocket upgrade;
+  `getUserFromRequest` already accepts it.
 
 ## Adding server capabilities
 
