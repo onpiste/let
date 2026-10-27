@@ -26,10 +26,10 @@ MVP features:
 1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an **OAuth client ID** of type **Web application** (configure the OAuth consent screen first if asked).
 2. Add these **Authorized redirect URIs**:
    - `http://localhost:5173/auth/callback`
-   - `https://runlet.us/auth/callback` (the custom domain in `wrangler.jsonc`)
-3. Copy `.dev.vars.example` to `.dev.vars` and fill in the client ID and secret, a random `SESSION_SECRET` (`openssl rand -base64 32`) and your email in `ALLOWED_EMAILS`.
+   - `https://runlet.us/auth/callback` (the custom domain in `apps/server/wrangler.jsonc`)
+3. Copy `apps/server/.dev.vars.example` to `apps/server/.dev.vars` and fill in the client ID and secret, a random `SESSION_SECRET` (`openssl rand -base64 32`) and your email in `ALLOWED_EMAILS`.
 
-The Pi assistant calls Workers AI over REST, so it also needs `CLOUDFLARE_API_KEY` (an API token with Workers AI access) and your account id in `vars.CLOUDFLARE_ACCOUNT_ID` in `wrangler.jsonc`.
+The Pi assistant calls Workers AI over REST, so it also needs `CLOUDFLARE_API_KEY` (an API token with Workers AI access) and your account id in `vars.CLOUDFLARE_ACCOUNT_ID` in `apps/server/wrangler.jsonc`.
 
 ## Telegram setup
 
@@ -39,41 +39,55 @@ Each user brings their own bot; the deployment needs no Telegram configuration.
 2. In the deployed app, open **Settings → Integrations → Telegram**, paste the token and click **Connect**. Your assistant stores the token, generates a webhook secret and points the bot at `https://<your-worker>/messengers/telegram/<random id>/webhook`.
 3. Click **Open @your_bot and press Start**. The Telegram account that presses Start with that link becomes the bot's owner; everyone else gets "This is a private assistant."
 
-Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant; the Pi assistant is web-only. `TELEGRAM_API_BASE_URL` in `wrangler.jsonc` can point at a self-hosted Bot API server.
+Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant; the Pi assistant is web-only. `TELEGRAM_API_BASE_URL` in `apps/server/wrangler.jsonc` can point at a self-hosted Bot API server.
 
 ## Run locally
 
 ```bash
-npm install
+npm install               # all workspaces; also installs the pre-commit hook
 npx wrangler login        # or set CLOUDFLARE_API_TOKEN (Workers AI has no local simulator)
 npm run dev               # http://localhost:5173
+npm run check             # format + type-aware lint + typecheck, as in CI
 ```
 
 ## Deploy
 
+Secrets are read from `apps/server/wrangler.jsonc`, so set them from there:
+
 ```bash
+cd apps/server
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put SESSION_SECRET
 npx wrangler secret put ALLOWED_EMAILS
 npx wrangler secret put CLOUDFLARE_API_KEY
-npm run deploy            # → https://runlet.us
+cd ../..
+npm run deploy            # → https://runlet.us (also runs on every push to main)
 ```
 
 ## Structure
 
+An npm-workspaces monorepo. See [AGENTS.md](AGENTS.md) for conventions and
+[docs/architecture.md](docs/architecture.md) for boundaries and how to add a
+client (browser extension, iOS).
+
 ```
-src/server.ts     # Think assistant (model, prompt, memory and reminder tools) + Worker routes
-src/pi.ts         # Pi assistant
-src/reminders.ts  # Reminder logic shared by both
-src/sandbox.ts    # Per-account Linux sandbox (Container, Cloudflare's managed image)
-src/code-runner.ts # runCode: snippets in a fresh Dynamic Worker, no network
-src/browser.ts    # browseWeb: Browser Rendering
-src/prompt.ts     # Shared persona and memory formatting
-src/telegram.ts   # Per-user Telegram bots: webhook routing, owner gate, Bot API calls
-src/settings.ts   # Settings type, defaults, validation and persona (shared with the client)
-src/auth.ts       # Google sign-in and signed session cookie
-src/app.tsx       # Sign-in screen, harness switch and chat UI
-src/settings-page.tsx # Settings page
-src/styles.css    # Theme
+apps/server/               # @cot/server — Cloudflare Worker
+  src/index.ts             #   entry: router + Durable Object exports
+  src/http/router.ts       #   routes each request to the signed-in user's agent
+  src/auth/google.ts       #   Google sign-in and signed session cookie
+  src/agents/assistant.ts  #   Think assistant (model, prompt, memory, reminders, tools)
+  src/agents/pi.ts         #   Pi assistant
+  src/agents/reminders.ts  #   reminder logic shared by both
+  src/agents/prompt.ts     #   persona and memory formatting
+  src/integrations/telegram.ts # per-user Telegram bots
+  src/tools/               #   sandbox (Container), code runner (Dynamic Workers), browser
+  wrangler.jsonc           #   bindings, Durable Objects, migrations
+apps/web/                  # @cot/web — React client (its Vite build also bundles the Worker)
+  src/app.tsx              #   sign-in screen, harness switch and chat UI
+  src/pages/settings-page.tsx
+  src/lib/                 #   client-side API calls
+  src/styles.css           #   theme
+packages/shared/           # @cot/shared — contract: routes, AssistantRpc, settings, types
+packages/tsconfig/         # @cot/tsconfig — strict TypeScript presets
 ```

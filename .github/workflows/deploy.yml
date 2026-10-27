@@ -25,14 +25,15 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci
       - run: npm run check
 
-      # vite build && wrangler deploy. The sandbox uses Cloudflare's managed
-      # image, so no Docker is needed here.
+      # apps/web: vite build (client + the apps/server Worker) && wrangler
+      # deploy. The sandbox uses Cloudflare's managed image, so no Docker is
+      # needed here.
       - run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
