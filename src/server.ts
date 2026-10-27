@@ -464,6 +464,8 @@ You have a Linux sandbox that keeps files between turns (working directory /work
             .optional()
             .describe("Give up after this many seconds (default 60)")
         }),
+        // Runs only after the user approves it in the chat.
+        needsApproval: true,
         execute: async ({ command, timeoutSeconds }) =>
           sandbox.runCommand(command, (timeoutSeconds ?? 60) * 1000)
       }),
@@ -475,6 +477,7 @@ You have a Linux sandbox that keeps files between turns (working directory /work
           path: z.string().describe("File path, e.g. notes/todo.md"),
           content: z.string().describe("The full file content")
         }),
+        needsApproval: true,
         execute: async ({ path, content }) => sandbox.writeFile(path, content)
       }),
 
