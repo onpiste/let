@@ -1,7 +1,7 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
-import { Think } from "@cloudflare/think";
+import { Think, type TurnContext } from "@cloudflare/think";
 import {
   ThinkMessengerStateAgent,
   type ThinkMessengers
@@ -53,6 +53,12 @@ export { Sandbox } from "./sandbox";
 export { TelegramRoutes } from "./telegram";
 // Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.
 export { ThinkMessengerStateAgent };
+
+/**
+ * Tools that wait for the user to approve them in the chat. Telegram has no
+ * approval buttons, so these are withheld from Telegram turns.
+ */
+const NEEDS_APPROVAL = ["runCommand", "writeSandboxFile"];
 
 /** The AI Search instance (in the default namespace) holding the knowledge base. */
 const KNOWLEDGE_INSTANCE = "cot-knowledge";
@@ -359,6 +365,15 @@ export class Assistant extends Think<Env> {
       case "google":
         return createGoogleGenerativeAI({ apiKey: apiKeys.google })(model);
     }
+  }
+
+  beforeTurn(ctx: TurnContext) {
+    if (!ctx.messenger) return;
+    return {
+      activeTools: Object.keys(ctx.tools).filter(
+        (name) => !NEEDS_APPROVAL.includes(name)
+      )
+    };
   }
 
   // Called every turn (no context blocks are configured), so the memory list
