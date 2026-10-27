@@ -1,7 +1,9 @@
 import type { ToolSet } from "ai";
 
+import type { Inbox } from "../../../integrations/email/inbox";
 import type { Sandbox } from "../../../tools/sandbox";
 import type { ReminderAgent } from "../../common/reminders";
+import { emailTools } from "./email";
 import { memoryTools, type MemoryWriter } from "./memory";
 import { reminderTools } from "./reminders";
 import { researchTools } from "./research";
@@ -18,17 +20,21 @@ export function assistantTools({
   env,
   agent,
   memory,
-  sandbox
+  sandbox,
+  inbox
 }: {
   env: Env;
   agent: ReminderAgent;
   memory: MemoryWriter;
   sandbox: DurableObjectStub<Sandbox>;
+  /** The assistant's inbox, when it has an email address. */
+  inbox: (() => Inbox) | null;
 }): ToolSet {
   return {
     ...memoryTools(memory),
     ...reminderTools(agent),
     ...sandboxTools(sandbox),
-    ...researchTools(env)
+    ...researchTools(env),
+    ...(inbox ? emailTools(inbox) : {})
   };
 }

@@ -14,8 +14,8 @@ src/
   pages/
     sign-in-page.tsx
     chat/                 chat-page (state + agent socket), message-list, composer,
-                          empty-state, tool-chip, thinking, harness-switch, reminder-toast
-    settings/             settings-page + one file per card (assistant, mcp, integrations)
+                          empty-state, tool-chip, thinking, harness-switch, notice-toast
+    settings/             settings-page + one file per card (assistant, mcp, integrations, email)
   lib/                    Non-UI code: auth, assistant RPC, harness storage, notifications
   styles/                 index.css imports tokens, base, topbar, layout, chat, settings in order
 vite.config.ts            Builds this client *and* the apps/server Worker (Cloudflare plugin)
