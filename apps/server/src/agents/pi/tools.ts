@@ -22,7 +22,8 @@ function text(value: string) {
 /** The Pi assistant's tools, in Pi's (TypeBox) tool format. */
 export function piTools(
   agent: ReminderAgent,
-  memory: MemoryStore
+  memory: MemoryStore,
+  env: Env
 ): AgentTool[] {
   const tool = <P extends TSchema>(t: AgentTool<P>) =>
     t as unknown as AgentTool;
@@ -77,7 +78,7 @@ export function piTools(
         if (when === undefined) {
           throw new Error("Give one of date, delayInSeconds or cron");
         }
-        return text(await setReminder(agent, when, description));
+        return text(await setReminder(agent, env, when, description));
       }
     }),
     tool({

@@ -9,6 +9,9 @@ const MAX_OUTPUT = 8000;
  */
 const IMAGE = "cloudflare/debian-trixie";
 
+/** Stop the container after this long without a command, so it isn't billed idle. */
+const IDLE_MS = 15 * 60_000;
+
 /**
  * Each script starts in /workspace (created on first use) and takes the
  * command or path as "$1", so nothing from the model is spliced into it.
@@ -31,7 +34,7 @@ function clip(text: string) {
  * A Linux sandbox that belongs to one account. The Assistant reaches it over
  * RPC, so it has no access to the assistant's memory, settings or keys.
  * Container state (installed packages, files) is kept until the container
- * sleeps after inactivity, which is when /workspace is lost.
+ * stops after IDLE_MS without a command, which is when /workspace is lost.
  */
 export class Sandbox extends DurableObject<Env> {
   private ensureRunning() {
@@ -54,6 +57,7 @@ export class Sandbox extends DurableObject<Env> {
     options: { stdin?: ReadableStream; timeoutMs?: number } = {}
   ): Promise<CommandResult> {
     const container = this.ensureRunning();
+    await this.ctx.storage.setAlarm(Date.now() + IDLE_MS);
     const process = await container.exec(
       ["sh", "-c", IN_WORKSPACE + script, "sh", arg],
       {
@@ -68,6 +72,11 @@ export class Sandbox extends DurableObject<Env> {
       stdout: decoder.decode(stdout),
       stderr: decoder.decode(stderr)
     };
+  }
+
+  override async alarm() {
+    const container = this.ctx.container;
+    if (container?.running) await container.destroy();
   }
 
   async runCommand(

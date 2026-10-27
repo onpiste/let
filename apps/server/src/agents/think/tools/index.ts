@@ -32,7 +32,7 @@ export function assistantTools({
 }): ToolSet {
   return {
     ...memoryTools(memory),
-    ...reminderTools(agent),
+    ...reminderTools(agent, env),
     ...sandboxTools(sandbox),
     ...researchTools(env),
     ...(inbox ? emailTools(inbox) : {})

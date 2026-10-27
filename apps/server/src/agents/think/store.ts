@@ -5,18 +5,20 @@ import { DEFAULT_SETTINGS, type Settings } from "@cot/shared";
 import type { EmailConfig } from "../../integrations/email/config";
 import type { TelegramConfig } from "../../integrations/telegram/config";
 import type { Memory } from "../common/prompt";
+import type { UsageRecord } from "../common/usage";
 
 type SettingsKey =
   | "settings"
   | "owner_email"
   | "owner_name"
   | "telegram"
-  | "email";
+  | "email"
+  | "usage";
 
 /**
  * The Think assistant's own SQLite tables: `memories`, and a key/value
  * `settings` table for the user's settings, owner email, Telegram bot and
- * email address.
+ * email address, and message usage (shared with the Pi assistant).
  */
 export class AssistantStore {
   constructor(private readonly db: Pick<Agent<Env>, "sql">) {}
@@ -93,6 +95,15 @@ export class AssistantStore {
 
   saveEmailConfig(config: EmailConfig) {
     this.write("email", JSON.stringify(config));
+  }
+
+  getUsage(): UsageRecord | null {
+    const value = this.read("usage");
+    return value ? (JSON.parse(value) as UsageRecord) : null;
+  }
+
+  saveUsage(usage: UsageRecord) {
+    this.write("usage", JSON.stringify(usage));
   }
 
   // ── Memories ────────────────────────────────────────────────────────
