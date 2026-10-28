@@ -2,8 +2,9 @@ name: TestFlight
 
 # Archives the iOS app on a macOS runner, signs it with Xcode's automatic
 # (cloud-managed) signing and uploads it to TestFlight, so no local Mac is
-# needed. Run it by hand from the Actions tab; web changes reach the app on
-# deploy and don't need a new build.
+# needed. Runs on pushes to main that change the native shell, or by hand from
+# the Actions tab; web changes reach the app on deploy and don't need a new
+# build.
 #
 # Needs these repository secrets (see apps/mobile/README.md):
 #   APPLE_TEAM_ID                 10-character Team ID from developer.apple.com
@@ -11,6 +12,12 @@ name: TestFlight
 #   APP_STORE_CONNECT_ISSUER_ID   Issuer ID shown above the API keys list
 #   APP_STORE_CONNECT_KEY         Contents of the AuthKey_<KEY_ID>.p8 file
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/testflight.yml"
   workflow_dispatch:
 
 concurrency:
