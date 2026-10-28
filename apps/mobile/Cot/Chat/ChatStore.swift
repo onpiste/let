@@ -149,12 +149,11 @@ final class ChatStore {
     }
 
     func respond(toApproval approvalID: String, approved: Bool) {
-        guard let index = messages.lastIndex(where: { message in
-                  message.parts.contains { $0["approval"]?["id"]?.string == approvalID }
-              }),
-              let partIndex = messages[index].parts.firstIndex(where: {
-                  $0["approval"]?["id"]?.string == approvalID
-              }),
+        let isTarget: (JSONValue) -> Bool = {
+            $0["approval"]?["id"]?.string == approvalID
+        }
+        guard let index = messages.lastIndex(where: { $0.parts.contains(where: isTarget) }),
+              let partIndex = messages[index].parts.firstIndex(where: isTarget),
               let callID = messages[index].parts[partIndex]["toolCallId"]?.string
         else { return }
         messages[index].parts[partIndex].set("state", .string("approval-responded"))
