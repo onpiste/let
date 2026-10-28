@@ -28,6 +28,9 @@ const config: CapacitorConfig = {
   // screen (stray scrollbar) and clips the notch area.
   ios: { contentInset: "never" },
   plugins: {
+    // Shrink the WebView above the keyboard so the page isn't scrolled up
+    // under the notch and no native background shows below the composer.
+    Keyboard: { resize: "native" },
     LocalNotifications: { presentationOptions: ["banner", "sound"] }
   }
 };

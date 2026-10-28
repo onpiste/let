@@ -26,6 +26,7 @@
         // `cap sync` links them into the Xcode project from this package's
         // dependencies; no TypeScript here imports them.
         "@capacitor/haptics",
+        "@capacitor/keyboard",
         "@capacitor/local-notifications"
       ]
     },

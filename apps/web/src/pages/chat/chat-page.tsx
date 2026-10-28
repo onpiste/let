@@ -21,6 +21,7 @@ import { HarnessSwitch } from "./harness-switch";
 import { MessageList } from "./message-list";
 import { NoticeToast, type Notice } from "./notice-toast";
 import { mcpToolLabels } from "./tool-chip";
+import { useReconnectOnResume } from "./use-reconnect";
 
 export function ChatPage({
   user,
@@ -46,6 +47,10 @@ export function ChatPage({
   const agent = useAgent({
     agent: HARNESSES[harness].agent,
     basePath: HARNESSES[harness].basePath,
+    // A cold Durable Object can take longer than the default timeout to
+    // accept the first socket; retry quickly instead of backing off.
+    connectionTimeout: 10_000,
+    maxReconnectionDelay: 3_000,
     onOpen: useCallback(() => setConnected(true), []),
     onMcpUpdate: useCallback(
       (state: MCPServersState) => setMcpLabels(mcpToolLabels(state)),
@@ -74,6 +79,8 @@ export function ChatPage({
       }
     }, [])
   });
+
+  useReconnectOnResume(agent);
 
   const {
     messages,
