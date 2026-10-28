@@ -162,10 +162,18 @@ final class ChatStore {
                 present(Notice(icon: "⏰", title: "Reminder", text: text))
             }
         case "email":
-            if let subject = frame["subject"]?.string {
+            // Spam the assistant sorted out stays in the inbox without a banner.
+            let category = frame["category"]?.string
+            if let subject = frame["subject"]?.string, category != "ignore" {
                 let from = frame["from"]?.string ?? "Someone"
                 let sender = frame["trusted"]?.bool == false ? "\(from) (unknown sender)" : from
-                present(Notice(icon: "📧", title: "New email", text: "\(sender): \(subject)"))
+                let detail = frame["summary"]?.string ?? subject
+                let action = category == "action"
+                present(Notice(
+                    icon: action ? "⚠️" : "📧",
+                    title: action ? "Email needs action" : "New email",
+                    text: "\(sender): \(detail)"
+                ))
             }
         default:
             break

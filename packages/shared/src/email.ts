@@ -1,4 +1,10 @@
 /** Who may email the assistant. */
+/**
+ * How the assistant sorted a new email: `action` needs the owner to do
+ * something, `notify` is worth knowing about, `ignore` is spam or bulk mail.
+ */
+export type EmailCategory = "action" | "notify" | "ignore";
+
 export type EmailPolicy = {
   /** Accept mail from strangers too, marked as from an unknown sender. */
   acceptFromAnyone: boolean;

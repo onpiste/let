@@ -1,5 +1,5 @@
 import type { ChatSummary } from "./chats";
-import type { EmailPolicy, EmailStatus } from "./email";
+import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { ScheduledTask } from "./tasks";
 import type { TelegramStatus } from "./telegram";
@@ -50,5 +50,8 @@ export type ServerEvent =
       subject: string;
       /** False for mail from a stranger. */
       trusted: boolean;
+      /** Set once the assistant has read the mail; absent if it couldn't. */
+      category?: EmailCategory;
+      summary?: string;
       timestamp: string;
     };

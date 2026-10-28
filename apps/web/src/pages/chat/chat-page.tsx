@@ -73,11 +73,23 @@ export function ChatPage({
           setToast({ icon: "⏰", title: "Reminder", text: data.description });
           notify("Cot reminder", data.description);
         }
-        if (data.type === "email" && data.subject) {
+        // Spam the assistant sorted out stays in the inbox without a toast.
+        if (
+          data.type === "email" &&
+          data.subject &&
+          data.category !== "ignore"
+        ) {
           const from = data.from ?? "Someone";
-          const text = `${data.trusted === false ? `${from} (unknown sender)` : from}: ${data.subject}`;
-          setToast({ icon: "📧", title: "New email", text });
-          notify("Cot: new email", text);
+          const sender =
+            data.trusted === false ? `${from} (unknown sender)` : from;
+          const text = `${sender}: ${data.summary ?? data.subject}`;
+          const action = data.category === "action";
+          setToast({
+            icon: action ? "⚠️" : "📧",
+            title: action ? "Email needs action" : "New email",
+            text
+          });
+          notify(action ? "Cot: email needs action" : "Cot: new email", text);
         }
       } catch {
         // Not JSON — ignore.

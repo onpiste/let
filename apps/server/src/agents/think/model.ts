@@ -2,6 +2,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
+import { createWorkersAI } from "workers-ai-provider";
 
 import type { Settings } from "@cot/shared";
 
@@ -29,4 +30,12 @@ export function modelFor({
 /** Whether turns run on the user's own API key rather than the deployment's. */
 export function paidByUser({ provider, apiKeys }: Settings) {
   return provider !== "workers-ai" && Boolean(apiKeys[provider]);
+}
+
+/** Like modelFor, but a model object even for Workers AI, for direct calls. */
+export function languageModelFor(settings: Settings, env: Env): LanguageModel {
+  const model = modelFor(settings);
+  return typeof model === "string"
+    ? createWorkersAI({ binding: env.AI })(model)
+    : model;
 }

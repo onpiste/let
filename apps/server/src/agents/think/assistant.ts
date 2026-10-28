@@ -9,7 +9,6 @@ import {
   toPublicSettings,
   type AssistantRpc,
   type EmailPolicy,
-  type ServerEvent,
   type SettingsPatch
 } from "@cot/shared";
 
@@ -17,7 +16,9 @@ import { isAllowed } from "../../auth/session";
 import { EmailChannel } from "../../integrations/email/channel";
 import { toEmailStatus } from "../../integrations/email/config";
 import { Inbox } from "../../integrations/email/inbox";
+import { emailNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
+import { triageEmail, type Triage } from "../../integrations/email/triage";
 import {
   TelegramChannel,
   type TelegramUpdateResult
@@ -26,7 +27,7 @@ import { broadcastReminder } from "../common/reminders";
 import { takeTurn, usageLimits } from "../common/usage";
 import { cannedReply } from "./canned-reply";
 import { ChatHistory } from "./history";
-import { modelFor, paidByUser } from "./model";
+import { languageModelFor, modelFor, paidByUser } from "./model";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
 import { Tasks } from "./tasks";
@@ -73,8 +74,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       inbox: () => new Inbox(this),
       owner: () => this.allowedOwner(),
       ownerName: () => this.store.getOwnerName(),
-      onEmail: (email, trusted, preview) =>
-        this.announceEmail(email, trusted, preview)
+      onEmail: (id, email, trusted, preview) =>
+        this.onEmail(id, email, trusted, preview)
     });
   }
 
@@ -309,25 +310,50 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return this.email.receive(envelopeFrom, raw);
   }
 
-  private async announceEmail(
+  private async onEmail(
+    id: number,
     email: ParsedEmail,
     trusted: boolean,
     preview: string | null
   ) {
+    // Gmail's forwarding confirmation is passed on as is: the owner needs its
+    // link now. Everything else is read by the model first.
+    if (preview !== null)
+      return this.announceEmail(email, trusted, null, preview);
+    await this.schedule(1, "triageNewEmail", id);
+  }
+
+  /** Reads a new email and tells the owner what it is, without being asked. */
+  async triageNewEmail(id: number) {
+    this.store.ensureTables();
+    const inbox = new Inbox(this);
+    const email = inbox.get(id);
+    if (!email) return;
+    let triage: Triage | null = null;
+    try {
+      triage = await triageEmail(
+        languageModelFor(this.store.getSettings(), this.env),
+        email
+      );
+      inbox.setTriage(id, triage.category, triage.summary);
+    } catch (error) {
+      // Still tell the owner, just without the summary.
+      console.error(`Email triage failed: ${String(error)}`);
+    }
+    await this.announceEmail(email, email.trusted, triage, null);
+  }
+
+  private async announceEmail(
+    email: Pick<ParsedEmail, "from" | "subject">,
+    trusted: boolean,
+    triage: Triage | null,
+    preview: string | null
+  ) {
     // Like reminders, a broadcast rather than a chat message, so new mail
     // never starts a model turn on its own.
-    const event: ServerEvent = {
-      type: "email",
-      from: email.from,
-      subject: email.subject,
-      trusted,
-      timestamp: new Date().toISOString()
-    };
+    const { event, push } = emailNotice({ ...email, trusted, triage, preview });
     this.broadcast(JSON.stringify(event));
-    const sender = trusted ? email.from : `${email.from} (unknown sender)`;
-    await this.telegram.notify(
-      `📧 New email from ${sender}\n${email.subject}${preview ? `\n\n${preview}` : ""}`
-    );
+    if (push) await this.telegram.notify(push);
   }
 
   // ── RPC for the Worker ─────────────────────────────────────────

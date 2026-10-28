@@ -51,6 +51,7 @@ export class EmailChannel {
       ownerName: () => string | null;
       /** Tells the owner about a new email (web and Telegram). */
       onEmail: (
+        id: number,
         email: ParsedEmail,
         trusted: boolean,
         preview: string | null
@@ -142,14 +143,22 @@ export class EmailChannel {
         if (!decision.trusted && this.strangerLimitReached()) {
           return "rate-limited";
         }
-        this.options.inbox().add(email, decision.trusted);
-        await this.options.onEmail(email, decision.trusted, null);
+        await this.options.onEmail(
+          this.options.inbox().add(email, decision.trusted),
+          email,
+          decision.trusted,
+          null
+        );
         return "accepted";
       case "forwarding-confirmation":
         // The owner needs the code or link in it to finish setting up
         // Gmail forwarding, so pass the text on directly.
-        this.options.inbox().add(email, false);
-        await this.options.onEmail(email, false, email.body.slice(0, 600));
+        await this.options.onEmail(
+          this.options.inbox().add(email, false),
+          email,
+          false,
+          email.body.slice(0, 600)
+        );
         return "accepted";
     }
   }

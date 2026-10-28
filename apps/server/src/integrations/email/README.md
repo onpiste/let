@@ -4,9 +4,12 @@ Each assistant gets its own address, `<alias>@EMAIL_DOMAIN`. The alias
 defaults to the owner's Google name (`Shixin Guo` → `shixin.guo`), then
 their email's local part, then either with a number; the owner can rename
 it on the settings page. Aliases are first come, first served. Anyone (or a Gmail forwarding rule) can send mail there; the
-assistant files it in an inbox and tells the owner. The model reads it only
-when the owner asks, through the `listEmails` / `readEmail` tools, and
-never starts a turn because mail arrived.
+assistant files it in an inbox and tells the owner. New mail is read
+by the model once, with no tools (`triage.ts`), and sorted into `action`,
+`notify` or `ignore` with a one-line summary, so the owner hears about
+what matters without asking. The chat model still reads full messages only
+on request, through `listEmails` / `readEmail`, and mail never starts a chat
+turn.
 
 1. The settings page calls `getEmailStatus`. `EmailChannel.status` claims
    the first free candidate alias on first use in the global
@@ -24,7 +27,9 @@ never starts a turn because mail arrived.
 4. Accepted mail goes into the `emails` table, with no cap on how many or
    how long. Strangers are rate limited instead: past 30 emails an hour or
    200 a day (`STRANGER_LIMITS` in `channel.ts`) their mail bounces until
-   the window clears. The owner gets a web toast and a Telegram message. Untrusted mail is
+   the window clears. The owner gets a web toast and a Telegram message with the summary
+   (`action` mail is flagged; `ignore` mail is filed silently; if triage
+   fails the plain notice goes out). Untrusted mail is
    labelled "unknown sender" in both, and in what `readEmail` returns; the
    system prompt tells the model to treat it as possible spam or phishing.
    Every body is fenced as untrusted content either way.
@@ -56,3 +61,5 @@ with the owner as envelope sender, so it passes the gate.
 | `gate.ts`      | Who may reach the assistant by email                      |
 | `inbox.ts`     | The `emails` table                                        |
 | `channel.ts`   | Address lifecycle and receiving for one assistant         |
+| `triage.ts`    | One tool-less model call: category and summary            |
+| `notice.ts`    | The web event and Telegram text for a new email           |
