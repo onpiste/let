@@ -108,13 +108,6 @@ Each user brings their own bot; the deployment needs no Telegram configuration.
 
 Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant, which can hand coding jobs to Pi (these need approval in the app, so Telegram turns skip them). `TELEGRAM_API_BASE_URL` in `apps/server/wrangler.jsonc` can point at a self-hosted Bot API server.
 
-## Use your own computer
-
-Run [`apps/bridge`](apps/bridge/README.md) on a laptop or server, expose it
-with a Cloudflare Tunnel and add its URL under **Settings → MCP servers**. The
-assistant can then run commands, edit files and start local Claude Code, Codex
-or Pi, from the web app, iOS or Telegram. No deployment change is needed.
-
 ## iOS app
 
 `apps/mobile` is a native SwiftUI app (iOS 17+): system Google sign-in,
