@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import {
+  APPROVAL_MODES,
   PROVIDERS,
+  type ApprovalMode,
   type KeyedProvider,
   type ProviderId,
   type PublicSettings,
@@ -79,6 +81,7 @@ export function AssistantSettings({ agent }: { agent: AgentHandle }) {
       language: draft.language,
       provider: draft.provider,
       model: draft.model,
+      approvalMode: draft.approvalMode,
       apiKeys: newKeys
     };
     try {
@@ -132,6 +135,24 @@ export function AssistantSettings({ agent }: { agent: AgentHandle }) {
           onChange={(e) => set("instructions", e.target.value)}
         />
       </label>
+
+      <h2>Approvals</h2>
+      <label>
+        <span>Commands and file writes</span>
+        <select
+          value={draft.approvalMode}
+          onChange={(e) => set("approvalMode", e.target.value as ApprovalMode)}
+        >
+          {(Object.keys(APPROVAL_MODES) as ApprovalMode[]).map((m) => (
+            <option key={m} value={m}>
+              {APPROVAL_MODES[m].label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className={draft.approvalMode === "yolo" ? "error" : "muted"}>
+        {APPROVAL_MODES[draft.approvalMode].hint}
+      </p>
 
       <h2>Model</h2>
       <p className="muted">

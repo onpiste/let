@@ -1,5 +1,7 @@
 import type { ToolSet } from "ai";
 
+import type { ApprovalMode } from "@cot/shared";
+
 import type { Inbox } from "../../../integrations/email/inbox";
 import type { Sandbox } from "../../../tools/sandbox";
 import type { ReminderAgent } from "../../common/reminders";
@@ -26,7 +28,8 @@ export function assistantTools({
   agent,
   memory,
   sandbox,
-  inbox
+  inbox,
+  approvalMode
 }: {
   env: Env;
   agent: ReminderAgent;
@@ -34,12 +37,13 @@ export function assistantTools({
   sandbox: DurableObjectStub<Sandbox>;
   /** The assistant's inbox, when it has an email address. */
   inbox: (() => Inbox) | null;
+  approvalMode: () => ApprovalMode;
 }): ToolSet {
   return {
     ...memoryTools(memory),
     ...reminderTools(agent, env),
-    ...sandboxTools(sandbox),
-    ...codeTools(env, sandbox),
+    ...sandboxTools(sandbox, approvalMode),
+    ...codeTools(env, sandbox, approvalMode),
     ...researchTools(env),
     ...(inbox ? emailTools(inbox) : {})
   };

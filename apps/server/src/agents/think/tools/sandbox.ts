@@ -1,10 +1,15 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { requiresApproval, type ApprovalMode } from "@cot/shared";
+
 import type { Sandbox } from "../../../tools/sandbox";
 
 /** Shell and file tools for the user's persistent Linux sandbox. */
-export function sandboxTools(sandbox: DurableObjectStub<Sandbox>) {
+export function sandboxTools(
+  sandbox: DurableObjectStub<Sandbox>,
+  approvalMode: () => ApprovalMode
+) {
   return {
     runCommand: tool({
       description:
@@ -19,8 +24,9 @@ export function sandboxTools(sandbox: DurableObjectStub<Sandbox>) {
           .optional()
           .describe("Give up after this many seconds (default 60)")
       }),
-      // Runs only after the user approves it in the chat.
-      needsApproval: true,
+      // Read per call, so a settings change applies without a restart.
+      needsApproval: ({ command }) =>
+        requiresApproval(approvalMode(), "runCommand", { command }),
       execute: async ({ command, timeoutSeconds }) =>
         sandbox.runCommand(command, (timeoutSeconds ?? 60) * 1000)
     }),
@@ -32,7 +38,8 @@ export function sandboxTools(sandbox: DurableObjectStub<Sandbox>) {
         path: z.string().describe("File path, e.g. notes/todo.md"),
         content: z.string().describe("The full file content")
       }),
-      needsApproval: true,
+      needsApproval: ({ path }) =>
+        requiresApproval(approvalMode(), "writeSandboxFile", { path }),
       execute: async ({ path, content }) => sandbox.writeFile(path, content)
     }),
 

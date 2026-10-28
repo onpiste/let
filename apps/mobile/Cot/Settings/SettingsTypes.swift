@@ -51,6 +51,7 @@ struct PublicSettings: Decodable, Equatable {
     var language: String
     var provider: String
     var model: String
+    var approvalMode: String
     var apiKeys: [String: KeyInfo]
 }
 

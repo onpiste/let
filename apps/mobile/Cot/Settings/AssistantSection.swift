@@ -10,6 +10,7 @@ struct AssistantSection: View {
     @State private var instructions = ""
     @State private var provider = "workers-ai"
     @State private var modelName = ""
+    @State private var approvalMode = "ask"
     @State private var keys: [String: String] = [:]
     @State private var loaded = false
 
@@ -22,6 +23,17 @@ struct AssistantSection: View {
                 Text("Instructions").font(.footnote).foregroundStyle(.secondary)
                 TextEditor(text: $instructions).frame(minHeight: 90)
             }
+        }
+        Section {
+            Picker("Commands and file writes", selection: $approvalMode) {
+                Text("Ask every time").tag("ask")
+                Text("Auto").tag("auto")
+                Text("Never ask").tag("yolo")
+            }
+        } header: {
+            Text("Approvals")
+        } footer: {
+            Text(Self.approvalHint(approvalMode))
         }
         Section("Model") {
             Picker("Provider", selection: $provider) {
@@ -62,6 +74,15 @@ struct AssistantSection: View {
         .onAppear(perform: load)
     }
 
+    /// Mirrors APPROVAL_MODES in @cot/shared.
+    private static func approvalHint(_ mode: String) -> String {
+        switch mode {
+        case "auto": "Routine sandbox work runs on its own; risky commands still ask."
+        case "yolo": "Everything runs without approval. Prompt injection from web pages or email could drive commands."
+        default: "Approve each command and file write."
+        }
+    }
+
     private func binding(for provider: String) -> Binding<String> {
         Binding(get: { keys[provider] ?? "" }, set: { keys[provider] = $0 })
     }
@@ -74,6 +95,7 @@ struct AssistantSection: View {
         instructions = settings.instructions
         provider = settings.provider
         modelName = settings.model
+        approvalMode = settings.approvalMode
     }
 
     /// Only changed fields are sent; a typed key replaces the stored one.
@@ -84,6 +106,7 @@ struct AssistantSection: View {
             "language": .string(language),
             "provider": .string(provider),
             "model": .string(modelName),
+            "approvalMode": .string(approvalMode),
         ]
         let typed = keys.filter { !$0.value.isEmpty }
         if !typed.isEmpty {
