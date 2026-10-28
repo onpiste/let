@@ -1,8 +1,8 @@
 import PhotosUI
 import SwiftUI
 
-/// The message box. Return adds a line; the button sends, or stops the turn
-/// while the assistant is replying. The paperclip attaches files or photos.
+/// The message box. Return adds a line; the button sends (queues while the
+/// assistant is replying), or stops the turn when the box is empty. The paperclip attaches files or photos.
 struct ComposerView: View {
     @Binding var text: String
     @Binding var attachments: [Attachment]
@@ -18,6 +18,10 @@ struct ComposerView: View {
     private var canSend: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty
     }
+
+    /// While replying, the button stops the turn only when there is nothing
+    /// to queue.
+    private var stopping: Bool { busy && !canSend }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -60,14 +64,14 @@ struct ComposerView: View {
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
 
                 Button {
-                    if busy { onStop() } else if canSend { onSend() }
+                    if canSend { onSend() } else if busy { onStop() }
                 } label: {
-                    Image(systemName: busy ? "stop.circle.fill" : "arrow.up.circle.fill")
+                    Image(systemName: stopping ? "stop.circle.fill" : "arrow.up.circle.fill")
                         .font(.system(size: 34))
                         .symbolRenderingMode(.hierarchical)
                 }
                 .disabled(!busy && !canSend)
-                .accessibilityLabel(busy ? "Stop" : "Send")
+                .accessibilityLabel(stopping ? "Stop" : busy ? "Queue message" : "Send")
             }
         }
         .padding(.horizontal, 12)

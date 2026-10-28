@@ -8,9 +8,12 @@ import { errorText } from "../../lib/errors";
 /** Saved conversations: open one, delete one, or start a new one. */
 export function HistoryPanel({
   agent,
+  onSwitch,
   onClose
 }: {
   agent: AgentHandle;
+  /** The open conversation changed (opened or new). */
+  onSwitch: () => void;
   onClose: () => void;
 }) {
   const [chats, setChats] = useState<ChatSummary[] | null>(null);
@@ -26,7 +29,10 @@ export function HistoryPanel({
   const run = async (action: Promise<ChatSummary[]>, close: boolean) => {
     try {
       setChats(await action);
-      if (close) onClose();
+      if (close) {
+        onSwitch();
+        onClose();
+      }
     } catch (e) {
       setError(errorText(e));
     }

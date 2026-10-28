@@ -51,10 +51,13 @@ struct ChatView: View {
                 .onChange(of: waiting) { scrollToEnd(proxy) }
             }
             .safeAreaInset(edge: .bottom) {
-                ComposerView(
-                    text: $input, attachments: $attachments, busy: store.busy,
-                    onError: { store.report($0) },
-                    onSend: { send(input) }, onStop: store.stopTurn)
+                VStack(spacing: 0) {
+                    QueuedView(queue: store.queue, onRemove: store.removeQueued)
+                    ComposerView(
+                        text: $input, attachments: $attachments, busy: store.busy,
+                        onError: { store.report($0) },
+                        onSend: { send(input) }, onStop: store.stopTurn)
+                }
             }
             .overlay(alignment: .top) {
                 if let notice = store.notice {

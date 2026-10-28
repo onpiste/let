@@ -22,8 +22,10 @@ import { EmptyState } from "./empty-state";
 import { HistoryPanel } from "./history-panel";
 import { MessageList } from "./message-list";
 import { NoticeToast, type Notice } from "./notice-toast";
+import { QueuedList } from "./queued-list";
 import { mcpToolLabels } from "./tool-chip";
 import { useReconnectOnResume } from "./use-reconnect";
+import { useSendQueue } from "./use-send-queue";
 
 export function ChatPage({
   user,
@@ -109,6 +111,9 @@ export function ChatPage({
   const last = messages[messages.length - 1];
   const waiting = busy && (!last || last.role === "user");
   const empty = messages.length === 0;
+  const queued = useSendQueue(busy, (parts) => {
+    void sendMessage({ role: "user", parts });
+  });
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -129,13 +134,14 @@ export function ChatPage({
 
   const send = (text = input) => {
     const t = text.trim();
-    if ((!t && attachments.length === 0) || busy) return;
+    if (!t && attachments.length === 0) return;
     requestNotificationPermission();
     const parts: UIMessage["parts"] = attachments.map((a) => a.part);
     if (t) parts.push({ type: "text", text: t });
     setInput("");
     setAttachments([]);
-    void sendMessage({ role: "user", parts });
+    if (busy) queued.enqueue(parts);
+    else void sendMessage({ role: "user", parts });
   };
 
   return (
@@ -162,6 +168,7 @@ export function ChatPage({
               onClick={() =>
                 void api(agent)
                   .newChat()
+                  .then(queued.clear)
                   .catch((e: unknown) =>
                     setToast({
                       icon: "⚠️",
@@ -205,7 +212,11 @@ export function ChatPage({
       </header>
 
       {historyOpen && (
-        <HistoryPanel agent={agent} onClose={() => setHistoryOpen(false)} />
+        <HistoryPanel
+          agent={agent}
+          onSwitch={queued.clear}
+          onClose={() => setHistoryOpen(false)}
+        />
       )}
 
       <main className="scroll">
@@ -227,6 +238,7 @@ export function ChatPage({
         </div>
       </main>
 
+      <QueuedList queue={queued.queue} onRemove={queued.remove} />
       <Composer
         value={input}
         busy={busy}

@@ -17,7 +17,16 @@ final class ChatStore {
         let text: String
     }
 
+    /// A message written while the assistant was still answering; sent when
+    /// the turn ends.
+    struct Queued: Identifiable, Equatable {
+        let id = UUID()
+        let text: String
+        let attachments: [Attachment]
+    }
+
     private(set) var messages: [ChatMessage] = []
+    private(set) var queue: [Queued] = []
     private(set) var status: Status = .ready
     private(set) var connected = false
     private(set) var mcp: McpState?
@@ -50,7 +59,17 @@ final class ChatStore {
 
     func send(_ text: String, attachments: [Attachment] = []) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty || !attachments.isEmpty, !busy else { return }
+        guard !trimmed.isEmpty || !attachments.isEmpty else { return }
+        if busy {
+            queue.append(Queued(text: trimmed, attachments: attachments))
+            return
+        }
+        dispatch(trimmed, attachments)
+    }
+
+    func removeQueued(_ id: Queued.ID) { queue.removeAll { $0.id == id } }
+
+    private func dispatch(_ trimmed: String, _ attachments: [Attachment]) {
         errorText = nil
         messages.append(.user(text: trimmed, attachments: attachments))
         let id = randomID(length: 8)
@@ -83,8 +102,14 @@ final class ChatStore {
     /// The server swaps the conversation and broadcasts the new messages (or
     /// a clear), which `handle` applies like any other update.
     func chats() async throws -> [ChatSummary] { try await history("listChats") }
-    func newChat() async throws -> [ChatSummary] { try await history("newChat") }
-    func openChat(_ id: String) async throws -> [ChatSummary] { try await history("openChat", id) }
+    func newChat() async throws -> [ChatSummary] {
+        queue = []
+        return try await history("newChat")
+    }
+    func openChat(_ id: String) async throws -> [ChatSummary] {
+        queue = []
+        return try await history("openChat", id)
+    }
     func deleteChat(_ id: String) async throws -> [ChatSummary] { try await history("deleteChat", id) }
 
     private func history(_ method: String, _ id: String? = nil) async throws -> [ChatSummary] {
@@ -274,5 +299,9 @@ final class ChatStore {
         status = .ready
         streamingMessageID = nil
         requestID = nil
+        if !queue.isEmpty {
+            let next = queue.removeFirst()
+            dispatch(next.text, next.attachments)
+        }
     }
 }

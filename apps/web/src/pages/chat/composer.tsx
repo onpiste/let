@@ -111,7 +111,7 @@ export function Composer({
             }
           }}
         />
-        {busy ? (
+        {busy && !value.trim() && attachments.length === 0 ? (
           <button
             type="button"
             className="send-btn"

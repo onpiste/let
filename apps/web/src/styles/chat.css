@@ -369,3 +369,13 @@
 .history-item small {
   color: var(--muted);
 }
+
+.queued {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  opacity: 0.75;
+}
