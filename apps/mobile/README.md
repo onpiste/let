@@ -1,42 +1,52 @@
-# Cot for iOS (`@cot/mobile`)
+# Cot for iOS (`apps/mobile`)
 
-A [Capacitor](https://capacitorjs.com) shell: a native iOS app whose WebView
-loads the deployed web app (`server.url` in `capacitor.config.ts`) and gives
-it device APIs. There is no separate UI to maintain; changes to `apps/web`
-reach the app on the next deploy without an App Store release.
+A native SwiftUI client for the same assistant the web app talks to. It speaks
+the server's own protocols (HTTP auth, the Agents SDK WebSocket) directly, so
+there is no WebView: native text, keyboard, haptics and system sign-in.
 
-## What's native
+| Feature                                             | Where                                                |
+| --------------------------------------------------- | ---------------------------------------------------- |
+| Google sign-in (system sheet, PKCE, bearer token)   | `Cot/Core/AuthModel.swift`                           |
+| Reconnecting agent WebSocket + `AssistantRpc` calls | `Cot/Core/AgentSocket.swift`                         |
+| Chat: streaming, reasoning, tools, approvals        | `Cot/Chat/` (`ChatStore`, `ChunkReducer`, views)     |
+| Think / Pi harness switch                           | `Cot/Chat/Harness.swift`, toolbar menu               |
+| Settings: model and keys, MCP, Telegram, email      | `Cot/Settings/`                                      |
+| Reminder and mail notices                           | in-app banner; system notification when backgrounded |
 
-| Capability             | Where                                                                                              |
-| ---------------------- | -------------------------------------------------------------------------------------------------- |
-| Google sign-in         | `ios/App/App/WebAuthPlugin.swift` (ASWebAuthenticationSession) + `apps/web/src/lib/native-auth.ts` |
-| Reminder notifications | `@capacitor/local-notifications`, from `apps/web/src/lib/notifications.ts`                         |
-| Haptics                | `@capacitor/haptics`, from `apps/web/src/lib/native.ts`                                            |
+Requires iOS 17 and Xcode 16+.
 
-Google blocks sign-in inside embedded WebViews, so the app signs in through
-the system's web authentication sheet. The Worker redirects to
-`cot://auth/callback?code=…`, and the page exchanges the code (with its PKCE
-verifier) at `/auth/token`, which sets the WebView's session cookie. See
-`NATIVE_AUTH_PARAMS` in `@cot/shared` and `apps/server/src/auth/native.ts`.
+## How it connects
+
+Sign-in is the native flow from `NATIVE_AUTH_PARAMS` in `@cot/shared`:
+`ASWebAuthenticationSession` → `/auth/login` with a PKCE challenge →
+`cot://auth/callback?code=…` → `POST /auth/token`, which returns a bearer
+token. The token is kept in the Keychain and sent as `Authorization: Bearer`
+on `/auth/me` and on the WebSocket upgrade to `/chat` or `/pi`.
+
+Chat uses the Agents SDK frames (`cf_agent_use_chat_request`, `…_response`,
+`…_chat_messages`, tool approval, stream resume); the settings page calls the
+`AssistantRpc` methods as `{type:"rpc"}` frames. `ChatStore` is the single
+place that interprets them.
 
 ## Build and run (macOS)
 
-Needs Xcode 16+.
-
 ```bash
-bun install                            # from the repo root
-bun run --filter @cot/mobile sync      # generates the gitignored native files
-bun run --filter @cot/mobile open      # opens ios/App/App.xcodeproj in Xcode
+brew install xcodegen
+cd apps/mobile
+xcodegen generate        # writes Cot.xcodeproj from project.yml
+open Cot.xcodeproj
 ```
 
-In Xcode, pick your team under **Signing & Capabilities**, choose a simulator
-or device and press Run. Run `sync` again after adding or upgrading a
-Capacitor plugin.
+Pick your team under **Signing & Capabilities**, choose a simulator or device
+and press Run. Run `xcodegen generate` again after editing `project.yml`.
+⌘U runs the unit tests (`CotTests`), which cover the stream reducer, the
+message round trip and the Markdown reader.
 
-The app loads the production Worker, so the server changes it relies on
-(`/auth/token`, `NATIVE_REDIRECT_URI`) must be deployed first. To point it at
-`bun run dev` instead, temporarily set `server.url` to
-`http://<your-mac-LAN-ip>:5173` with `cleartext: true`, and run `sync`.
+The app talks to the production Worker by default. To use `bun run dev`
+instead, set `CotServerURL` in `project.yml` to `http://<your-mac-LAN-ip>:5173`
+(and allow cleartext HTTP for that host in an `NSAppTransportSecurity`
+exception). The server needs `NATIVE_REDIRECT_URI` set (it is in
+`apps/server/wrangler.jsonc`).
 
 ## TestFlight without a Mac
 
@@ -45,7 +55,7 @@ signs and uploads the app from a GitHub macOS runner. Install it on your
 phone with the TestFlight app. One-time setup:
 
 1. In [App Store Connect](https://appstoreconnect.apple.com), create an app
-   with your bundle id (`appId` in `capacitor.config.ts`).
+   with your bundle id (`PRODUCT_BUNDLE_IDENTIFIER` in `project.yml`).
 2. Under **Users and Access → Integrations → App Store Connect API**, create a
    team key with the **Admin** role (cloud-managed signing needs it) and
    download the `.p8` file; it can only be downloaded once.
@@ -56,28 +66,25 @@ phone with the TestFlight app. One-time setup:
    processed the build, add yourself under **TestFlight → Internal Testing**.
 
 The build number is the workflow's run number; bump `MARKETING_VERSION` in
-Xcode for a new version. Each run's runner creates a fresh Apple Development
-certificate; revoke old ones on developer.apple.com if they pile up.
+`project.yml` for a new version. Each run's runner creates a fresh Apple
+Development certificate; revoke old ones on developer.apple.com if they pile up.
 
 ## Make it yours
 
-- `appId` and `appName` in `capacitor.config.ts`, and the bundle id in Xcode.
-- `server.url` / `allowNavigation`: your domain (`routes` in
+All in `project.yml`:
+
+- `PRODUCT_BUNDLE_IDENTIFIER`, `CFBundleDisplayName`.
+- `CotServerURL`: your Worker's origin (the `routes` pattern in
   `apps/server/wrangler.jsonc`).
-- URL scheme: `CFBundleURLSchemes` in `ios/App/App/Info.plist`,
-  `NATIVE_REDIRECT_URI` in `apps/server/wrangler.jsonc` and `REDIRECT_URI` in
-  `apps/web/src/lib/native-auth.ts` must all agree.
-- Icon and splash: `ios/App/App/Assets.xcassets`.
+- `CotRedirectURI` and the `CFBundleURLSchemes` entry: the URL scheme sign-in
+  returns to. It must equal `NATIVE_REDIRECT_URI` in
+  `apps/server/wrangler.jsonc`.
+- Icon: `Cot/Assets.xcassets/AppIcon.appiconset`.
 
-## Adding a device capability
+## Limitations
 
-1. `bun add @capacitor/<plugin>` in **both** `apps/web` (the JS API the page
-   calls) and `apps/mobile` (so `cap sync` links its native code), and list
-   it under `apps/mobile` in `knip.jsonc`.
-2. Call it from `apps/web/src/lib/`, behind `isNativeApp` with a browser
-   fallback.
-3. Add any usage description it needs (camera, location, …) to `Info.plist`,
-   then `sync`.
-
-Plugins written for this app only go in `ios/App/App/` and are registered in
-`BridgeViewController.swift`, like `WebAuthPlugin`.
+- Notices arrive over the WebSocket, so a reminder reaches the phone only
+  while the app is running or recently backgrounded. Reliable background
+  delivery needs APNs and a server-side push; not built yet.
+- MCP servers that need OAuth must be authorized once in the web app: the
+  OAuth callback is a web page that needs the browser's session cookie.

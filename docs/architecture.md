@@ -21,7 +21,7 @@
 ```
 apps/web ──────┬──► packages/shared ◄─── apps/server
 apps/extension ┘
-apps/mobile ──► loads the deployed apps/web in a WebView
+apps/mobile ──► native Swift client; speaks the same HTTP/WebSocket contract
 ```
 
 - **`packages/shared`** is the contract: route paths, harness names, the
@@ -81,18 +81,19 @@ source layout has to change.
 
 ### iOS (`apps/mobile`)
 
-- A Capacitor shell: its WebView loads the deployed Worker origin, so the
-  web app, session cookie and agent WebSockets work unchanged, and the page
-  reaches device APIs through Capacitor plugins (`apps/web/src/lib/native.ts`).
-  See [apps/mobile/README.md](../apps/mobile/README.md).
-- Sign-in is the one native-specific flow, because Google blocks embedded
-  WebViews: `ASWebAuthenticationSession` → `/auth/login` with a PKCE
-  challenge → `cot://auth/callback?code=…` → `POST /auth/token`, which returns
-  a bearer token and sets the session cookie (`NATIVE_AUTH_PARAMS` in
-  `@cot/shared`, `apps/server/src/auth/native.ts`).
-- A fully native client later (SwiftUI) can reuse that flow: send the token
-  as `Authorization: Bearer` on HTTP and on the WebSocket upgrade;
-  `getUserFromRequest` already accepts it.
+- A native SwiftUI app, not a Bun workspace: it can't import `@cot/shared`,
+  so the few types it needs (`User`, settings, the harness list) are mirrored
+  by hand in Swift and must change together with the contract. It reaches the
+  server only over HTTP and the agent WebSocket, like the web client.
+- Sign-in is the native flow: `ASWebAuthenticationSession` → `/auth/login`
+  with a PKCE challenge → `cot://auth/callback?code=…` → `POST /auth/token`,
+  which returns a bearer token (`NATIVE_AUTH_PARAMS` in `@cot/shared`,
+  `apps/server/src/auth/native.ts`). The token is sent as
+  `Authorization: Bearer` on HTTP and on the WebSocket upgrade;
+  `getUserFromRequest` accepts it.
+- Chat and settings use the Agents SDK WebSocket protocol directly
+  (`cf_agent_*` chat frames, `{type:"rpc"}` for `AssistantRpc`). See
+  [apps/mobile/README.md](../apps/mobile/README.md).
 
 ## Adding server capabilities
 

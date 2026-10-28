@@ -1,0 +1,135 @@
+import Foundation
+
+/// An AI SDK `UIMessage`. The parts stay as raw JSON (see `JSONValue`) so the
+/// whole conversation can be sent back to the server unchanged; the accessors
+/// below read what the UI needs.
+struct ChatMessage: Identifiable, Equatable, Sendable {
+    var id: String
+    var role: String
+    var parts: [JSONValue]
+    /// Fields besides id/role/parts (e.g. metadata), kept for the round trip.
+    var extra: [String: JSONValue] = [:]
+
+    init(id: String, role: String, parts: [JSONValue], extra: [String: JSONValue] = [:]) {
+        self.id = id
+        self.role = role
+        self.parts = parts
+        self.extra = extra
+    }
+
+    init?(json: JSONValue) {
+        guard let object = json.object, let id = object["id"]?.string,
+            let role = object["role"]?.string
+        else { return nil }
+        self.id = id
+        self.role = role
+        self.parts = object["parts"]?.array ?? []
+        var extra = object
+        for key in ["id", "role", "parts"] { extra[key] = nil }
+        self.extra = extra
+    }
+
+    var json: JSONValue {
+        var object = extra
+        object["id"] = .string(id)
+        object["role"] = .string(role)
+        object["parts"] = .array(parts)
+        return .object(object)
+    }
+
+    static func user(text: String) -> ChatMessage {
+        ChatMessage(
+            id: randomID(),
+            role: "user",
+            parts: [.object(["type": .string("text"), "text": .string(text)])])
+    }
+
+    var isUser: Bool { role == "user" }
+
+    /// The text of a user message.
+    var plainText: String {
+        parts.compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }.joined()
+    }
+
+    var items: [MessageItem] {
+        parts.enumerated().compactMap { (index, part) -> MessageItem? in
+            guard let type = part["type"]?.string else { return nil }
+            let id = "\(self.id)#\(index)"
+            switch type {
+            case "text":
+                return .text(id: id, part["text"]?.string ?? "")
+            case "reasoning":
+                return .reasoning(
+                    id: id, text: part["text"]?.string ?? "",
+                    streaming: part["state"]?.string == "streaming")
+            case "dynamic-tool":
+                return ToolCall(part: part, name: part["toolName"]?.string ?? "tool").map {
+                    .tool(id: id, $0)
+                }
+            case _ where type.hasPrefix("tool-"):
+                return ToolCall(part: part, name: String(type.dropFirst(5))).map { .tool(id: id, $0) }
+            default:
+                return nil
+            }
+        }
+    }
+
+    func partIndex(toolCallID: String) -> Int? {
+        parts.firstIndex { $0["toolCallId"]?.string == toolCallID }
+    }
+}
+
+enum MessageItem: Identifiable {
+    case text(id: String, String)
+    case reasoning(id: String, text: String, streaming: Bool)
+    case tool(id: String, ToolCall)
+
+    var id: String {
+        switch self {
+        case .text(let id, _), .reasoning(let id, _, _), .tool(let id, _): id
+        }
+    }
+}
+
+struct ToolCall: Equatable {
+    enum State: String {
+        case inputStreaming = "input-streaming"
+        case inputAvailable = "input-available"
+        case approvalRequested = "approval-requested"
+        case approvalResponded = "approval-responded"
+        case outputAvailable = "output-available"
+        case outputError = "output-error"
+        case outputDenied = "output-denied"
+    }
+
+    let callID: String
+    let name: String
+    let state: State
+    let input: JSONValue?
+    let approvalID: String?
+
+    init?(part: JSONValue, name: String) {
+        guard let callID = part["toolCallId"]?.string else { return nil }
+        self.callID = callID
+        self.name = name
+        self.state = part["state"]?.string.flatMap(State.init(rawValue:)) ?? .inputAvailable
+        self.input = part["input"]
+        self.approvalID = part["approval"]?["id"]?.string
+    }
+
+    var isDone: Bool { state == .outputAvailable }
+    var awaitsApproval: Bool { state == .approvalRequested && approvalID != nil }
+
+    /// The first argument worth showing next to the tool's name.
+    var detail: String {
+        for key in ["command", "path", "content", "description"] {
+            if let text = input?[key]?.string, !text.isEmpty { return text }
+        }
+        return ""
+    }
+}
+
+func randomID(length: Int = 16) -> String {
+    let alphabet = Array("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+    return String((0..<length).compactMap { _ in alphabet.randomElement() })
+}

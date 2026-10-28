@@ -2,9 +2,8 @@ name: TestFlight
 
 # Archives the iOS app on a macOS runner, signs it with Xcode's automatic
 # (cloud-managed) signing and uploads it to TestFlight, so no local Mac is
-# needed. Runs on pushes to main that change the native shell, or by hand from
-# the Actions tab; web changes reach the app on deploy and don't need a new
-# build.
+# needed. Runs on pushes to main that change the iOS app, or by hand from
+# the Actions tab.
 #
 # Needs these repository secrets (see apps/mobile/README.md):
 #   APPLE_TEAM_ID                 10-character Team ID from developer.apple.com
@@ -45,14 +44,11 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - run: brew install xcodegen
 
-      - run: bun install --frozen-lockfile
-
-      - name: Generate native files
-        run: bun run --filter @cot/mobile sync
+      - name: Generate the Xcode project
+        working-directory: apps/mobile
+        run: xcodegen generate
 
       - name: Write the App Store Connect API key
         env:
@@ -77,11 +73,11 @@ jobs:
 
       # The build number must grow with every upload; the run number does.
       - name: Archive
-        working-directory: apps/mobile/ios/App
+        working-directory: apps/mobile
         run: >
           xcodebuild archive
-          -project App.xcodeproj
-          -scheme App
+          -project Cot.xcodeproj
+          -scheme Cot
           -configuration Release
           -destination "generic/platform=iOS"
           -archivePath "$RUNNER_TEMP/App.xcarchive"

@@ -1,21 +1,17 @@
 name: iOS
 
-# Builds the Capacitor iOS shell for the simulator (unsigned). Swift can't be
-# built on the Linux runners CI uses for everything else.
+# Builds the native iOS app for the simulator (unsigned) and runs its unit
+# tests. Swift can't be built on the Linux runners CI uses for everything else.
 on:
   push:
     branches:
       - main
     paths:
       - "apps/mobile/**"
-      - "apps/web/package.json"
-      - "bun.lock"
       - ".github/workflows/ios.yml"
   pull_request:
     paths:
       - "apps/mobile/**"
-      - "apps/web/package.json"
-      - "bun.lock"
       - ".github/workflows/ios.yml"
 
 concurrency:
@@ -31,21 +27,18 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
+      - run: brew install xcodegen
 
-      - run: bun install --frozen-lockfile
+      - name: Generate the Xcode project
+        working-directory: apps/mobile
+        run: xcodegen generate
 
-      - name: Generate native files
-        run: bun run --filter @cot/mobile sync
-
-      - name: Build for the simulator
-        working-directory: apps/mobile/ios/App
-        run: >
-          xcodebuild build
-          -project App.xcodeproj
-          -scheme App
-          -configuration Debug
-          -destination "generic/platform=iOS Simulator"
-          CODE_SIGNING_ALLOWED=NO
+      - name: Test on a simulator
+        working-directory: apps/mobile
+        run: |
+          device=$(xcrun simctl list devices available iPhone | grep -m1 -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}')
+          xcodebuild test \
+            -project Cot.xcodeproj \
+            -scheme Cot \
+            -destination "id=$device" \
+            CODE_SIGNING_ALLOWED=NO
