@@ -336,6 +336,9 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   async setOwner(email: string, name: string) {
     this.store.ensureTables();
     this.store.setOwner(email, name);
+    // The inbox tools and the prompt's email section only exist once the
+    // address is allocated, so don't wait for the settings page to do it.
+    await this.email.status();
   }
 
   async addMemory(content: string) {
