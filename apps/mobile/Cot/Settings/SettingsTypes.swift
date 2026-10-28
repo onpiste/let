@@ -16,7 +16,20 @@ enum Providers {
     static let all: [ProviderInfo] = [
         ProviderInfo(
             id: "workers-ai", label: "Workers AI", defaultModel: "@cf/moonshotai/kimi-k2.7-code",
-            suggestions: ["@cf/moonshotai/kimi-k2.7-code"]),
+            suggestions: [
+                "@cf/moonshotai/kimi-k2.7-code",
+                "@cf/moonshotai/kimi-k2.6",
+                "@cf/openai/gpt-oss-120b",
+                "@cf/openai/gpt-oss-20b",
+                "@cf/zai-org/glm-4.7-flash",
+                "@cf/meta/llama-4-scout-17b-16e-instruct",
+                "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+                "@cf/mistralai/mistral-small-3.1-24b-instruct",
+                "@cf/google/gemma-4-26b-a4b-it",
+                "@cf/qwen/qwen3-30b-a3b-fp8",
+                "@cf/nvidia/nemotron-3-120b-a12b",
+                "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+            ]),
         ProviderInfo(id: "openai", label: "OpenAI", defaultModel: "gpt-5.5", suggestions: ["gpt-5.5"]),
         ProviderInfo(
             id: "anthropic", label: "Anthropic", defaultModel: "claude-sonnet-5-5",

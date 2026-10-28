@@ -13,9 +13,8 @@ apply; see [README.md](README.md) for what it does and how to build it.
 - **Deployment values live in `project.yml`** (`CotServerURL`,
   `CotRedirectURI`, bundle id), read through `Cot/Core/Config.swift`. Never
   hard-code a domain in Swift.
-- **The contract is `@cot/shared`.** The Swift types in `Cot/Settings/
-SettingsTypes.swift`, `Cot/Core/User.swift` and `Cot/Chat/Harness.swift`
-  mirror it by hand. When you change `packages/shared` (a route, an
+- **The contract is `@cot/shared`.** The Swift types in `Cot/Settings/SettingsTypes.swift`
+  and `Cot/Core/User.swift` mirror it by hand. When you change `packages/shared` (a route, an
   `AssistantRpc` method, a settings field), update them in the same change.
 - **Layout.** `Core/` is networking and auth (no SwiftUI), `Chat/` the chat
   protocol, reducer and views, `Settings/` the settings sheet. Views stay

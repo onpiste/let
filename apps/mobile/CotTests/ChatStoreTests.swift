@@ -18,7 +18,7 @@ final class ChatStoreTests: XCTestCase {
     }
 
     func testStreamedReplyBecomesAnAssistantMessage() {
-        let store = ChatStore(harness: .think, token: { nil })
+        let store = ChatStore(token: { nil })
         store.handle(frame(#"{"type":"cf_agent_chat_messages","messages":[{"id":"u","role":"user","parts":[{"type":"text","text":"hi"}]}]}"#))
         store.handle(response(id: "r", chunk: #"{"type":"start","messageId":"a"}"#))
         store.handle(response(id: "r", chunk: #"{"type":"text-start","id":"t"}"#))
@@ -32,7 +32,7 @@ final class ChatStoreTests: XCTestCase {
     }
 
     func testServerListKeepsTheReplyThatIsStillStreaming() {
-        let store = ChatStore(harness: .think, token: { nil })
+        let store = ChatStore(token: { nil })
         store.handle(response(id: "r", chunk: #"{"type":"start","messageId":"a"}"#))
         store.handle(response(id: "r", chunk: #"{"type":"text-start","id":"t"}"#))
         store.handle(response(id: "r", chunk: #"{"type":"text-delta","id":"t","delta":"Hi"}"#))
@@ -40,5 +40,26 @@ final class ChatStoreTests: XCTestCase {
 
         XCTAssertEqual(store.messages.map(\.id), ["u", "a"])
         XCTAssertEqual(store.messages[1].parts[0]["text"]?.string, "Hi")
+    }
+}
+
+final class AttachmentTests: XCTestCase {
+    func testTextFileIsInlinedAndShownAsAChip() throws {
+        let attachment = try Attachment.make(name: "notes.csv", data: Data("a,b\n1,2".utf8))
+        let message = ChatMessage.user(text: "Summarise", attachments: [attachment])
+
+        XCTAssertEqual(message.plainText, "Summarise")
+        XCTAssertEqual(message.attachmentNames, ["notes.csv"])
+        XCTAssertTrue(message.parts[0]["text"]?.string?.contains("a,b\n1,2") == true)
+    }
+
+    func testUnsupportedFileIsRejected() {
+        XCTAssertThrowsError(try Attachment.make(name: "archive.zip", data: Data([0, 1])))
+    }
+
+    func testTotalSizeIsCapped() throws {
+        let big = Data(repeating: 0x61, count: Attachment.maxTotalBytes + 1)
+        let attachment = try Attachment.make(name: "big.txt", data: big)
+        XCTAssertThrowsError(try Attachment.check([attachment]))
     }
 }

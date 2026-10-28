@@ -1,23 +1,20 @@
 import SwiftUI
 
-/// The chat screen for one harness. Changing the harness rebuilds it (see
-/// `SignedInView`), so each harness has its own socket and history.
+/// The chat screen.
 struct ChatView: View {
     let user: User
     let auth: AuthModel
-    @Binding var harness: Harness
 
     @State private var store: ChatStore
     @State private var input = ""
+    @State private var attachments: [Attachment] = []
     @State private var showSettings = false
     @Environment(\.scenePhase) private var scenePhase
 
-    init(user: User, auth: AuthModel, harness: Binding<Harness>) {
+    init(user: User, auth: AuthModel) {
         self.user = user
         self.auth = auth
-        _harness = harness
-        _store = State(
-            initialValue: ChatStore(harness: harness.wrappedValue, token: { auth.token }))
+        _store = State(initialValue: ChatStore(token: { auth.token }))
     }
 
     private var waiting: Bool {
@@ -53,7 +50,8 @@ struct ChatView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 ComposerView(
-                    text: $input, busy: store.busy,
+                    text: $input, attachments: $attachments, busy: store.busy,
+                    onError: { store.report($0) },
                     onSend: { send(input) }, onStop: store.stopTurn)
             }
             .overlay(alignment: .top) {
@@ -89,15 +87,6 @@ struct ChatView: View {
                     .accessibilityLabel(store.connected ? "Connected" : "Reconnecting")
             }
         }
-        ToolbarItem(placement: .topBarLeading) {
-            Menu {
-                Picker("Assistant", selection: $harness) {
-                    ForEach(Harness.allCases) { Text($0.label).tag($0) }
-                }
-            } label: {
-                Label(harness.label, systemImage: "cpu")
-            }
-        }
         ToolbarItemGroup(placement: .topBarTrailing) {
             if !store.messages.isEmpty {
                 Button("New chat", systemImage: "square.and.pencil", action: store.clear)
@@ -109,8 +98,9 @@ struct ChatView: View {
     private func send(_ text: String) {
         Reminders.requestPermission()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        store.send(text)
+        store.send(text, attachments: attachments)
         input = ""
+        attachments = []
     }
 
     private func scrollToEnd(_ proxy: ScrollViewProxy) {

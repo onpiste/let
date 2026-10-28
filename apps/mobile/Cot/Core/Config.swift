@@ -22,7 +22,7 @@ enum Config {
         serverURL.appendingPathComponent(path)
     }
 
-    /// `wss://host/<basePath>` for an agent harness.
+    /// `wss://host/<basePath>` for an agent.
     static func socketURL(basePath: String) -> URL {
         var components = URLComponents(
             url: url(basePath), resolvingAgainstBaseURL: false)!

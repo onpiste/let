@@ -9,7 +9,7 @@ there is no WebView: native text, keyboard, haptics and system sign-in.
 | Google sign-in (system sheet, PKCE, bearer token)   | `Cot/Core/AuthModel.swift`                           |
 | Reconnecting agent WebSocket + `AssistantRpc` calls | `Cot/Core/AgentSocket.swift`                         |
 | Chat: streaming, reasoning, tools, approvals        | `Cot/Chat/` (`ChatStore`, `ChunkReducer`, views)     |
-| Think / Pi harness switch                           | `Cot/Chat/Harness.swift`, toolbar menu               |
+| Attach files and photos (text inline, images/PDF)   | `Cot/Chat/Attachment.swift`, `ComposerView.swift`    |
 | Settings: model and keys, MCP, Telegram, email      | `Cot/Settings/`                                      |
 | Reminder and mail notices                           | in-app banner; system notification when backgrounded |
 
@@ -21,7 +21,7 @@ Sign-in is the native flow from `NATIVE_AUTH_PARAMS` in `@cot/shared`:
 `ASWebAuthenticationSession` → `/auth/login` with a PKCE challenge →
 `cot://auth/callback?code=…` → `POST /auth/token`, which returns a bearer
 token. The token is kept in the Keychain and sent as `Authorization: Bearer`
-on `/auth/me` and on the WebSocket upgrade to `/chat` or `/pi`.
+on `/auth/me` and on the WebSocket upgrade to `/chat`.
 
 Chat uses the Agents SDK frames (`cf_agent_use_chat_request`, `…_response`,
 `…_chat_messages`, tool approval, stream resume); the settings page calls the

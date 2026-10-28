@@ -8,15 +8,26 @@ struct MessageRow: View {
 
     var body: some View {
         if message.isUser {
-            HStack {
-                Spacer(minLength: 48)
-                Text(message.plainText)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .foregroundStyle(.white)
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .textSelection(.enabled)
+            VStack(alignment: .trailing, spacing: 4) {
+                ForEach(Array(message.attachmentNames.enumerated()), id: \.offset) { _, name in
+                    Label(name, systemImage: "paperclip")
+                        .font(.footnote)
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color(.secondarySystemBackground), in: Capsule())
+                }
+                if !message.plainText.isEmpty {
+                    Text(message.plainText)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .foregroundStyle(.white)
+                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .textSelection(.enabled)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.leading, 48)
         } else {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(message.items) { item in

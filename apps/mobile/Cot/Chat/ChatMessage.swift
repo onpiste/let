@@ -37,18 +37,40 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
         return .object(object)
     }
 
-    static func user(text: String) -> ChatMessage {
-        ChatMessage(
-            id: randomID(),
-            role: "user",
-            parts: [.object(["type": .string("text"), "text": .string(text)])])
+    static func user(text: String, attachments: [Attachment]) -> ChatMessage {
+        var parts = attachments.map(\.part)
+        if !text.isEmpty {
+            parts.append(.object(["type": .string("text"), "text": .string(text)]))
+        }
+        return ChatMessage(id: randomID(), role: "user", parts: parts)
     }
 
     var isUser: Bool { role == "user" }
 
-    /// The text of a user message.
-    var plainText: String {
+    private static let inlineFile = try! NSRegularExpression(
+        pattern: "<file name=\"([^\"]*)\">\\n[\\s\\S]*?\\n</file>\\n?")
+
+    private var rawText: String {
         parts.compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }.joined()
+    }
+
+    /// The text a user typed, without the files inlined into it.
+    var plainText: String {
+        let text = rawText
+        let range = NSRange(text.startIndex..., in: text)
+        return Self.inlineFile.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Names of the files attached to a user message.
+    var attachmentNames: [String] {
+        let text = rawText
+        let inline = Self.inlineFile.matches(in: text, range: NSRange(text.startIndex..., in: text))
+            .compactMap { Range($0.range(at: 1), in: text).map { String(text[$0]) } }
+        let files = parts.compactMap {
+            $0["type"]?.string == "file" ? ($0["filename"]?.string ?? "file") : nil
+        }
+        return files + inline
     }
 
     var items: [MessageItem] {

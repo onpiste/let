@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import UIKit
 
-/// The chat with one assistant harness: the message list, the turn in
+/// The chat with the assistant: the message list, the turn in
 /// flight and the push notices, driven by the agent socket's frames. The
 /// frame types are the Agents SDK chat protocol (`cf_agent_*`).
 @MainActor
@@ -24,7 +24,6 @@ final class ChatStore {
     private(set) var errorText: String?
     var notice: Notice?
 
-    let harness: Harness
     let socket: AgentSocket
     var onConnectionLost: (() -> Void)?
 
@@ -36,9 +35,8 @@ final class ChatStore {
 
     var busy: Bool { status != .ready }
 
-    init(harness: Harness, token: @escaping () -> String?) {
-        self.harness = harness
-        socket = AgentSocket(url: Config.socketURL(basePath: harness.basePath), token: token)
+    init(token: @escaping () -> String?) {
+        socket = AgentSocket(url: Config.socketURL(basePath: "chat"), token: token)
         socket.onFrame = { [weak self] in self?.handle($0) }
         socket.onOpen = { [weak self] in self?.opened() }
         socket.onClose = { [weak self] in self?.closed() }
@@ -50,11 +48,11 @@ final class ChatStore {
 
     // MARK: Actions
 
-    func send(_ text: String) {
+    func send(_ text: String, attachments: [Attachment] = []) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, !busy else { return }
+        guard !trimmed.isEmpty || !attachments.isEmpty, !busy else { return }
         errorText = nil
-        messages.append(.user(text: trimmed))
+        messages.append(.user(text: trimmed, attachments: attachments))
         let id = randomID(length: 8)
         requestID = id
         status = .submitted
@@ -69,6 +67,9 @@ final class ChatStore {
                 "init": .object(["method": .string("POST"), "body": .string(body.serialized())]),
             ]))
     }
+
+    /// Shows a problem (e.g. a file that can't be attached) under the chat.
+    func report(_ message: String) { errorText = message }
 
     func stopTurn() {
         guard let requestID else { return }

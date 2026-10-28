@@ -12,6 +12,7 @@ private let toolTitles: [String: String] = [
     "browseWeb": "Opened web page",
     "searchKnowledge": "Searched knowledge base",
     "runCode": "Ran code",
+    "codeTask": "Coding agent",
 ]
 
 /// A tool call as a chip, with Approve / Reject when the tool asks first.

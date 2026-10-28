@@ -32,9 +32,18 @@ struct AssistantSection: View {
                     modelName = Providers.info(provider).defaultModel
                 }
             }
-            TextField("Model", text: $modelName)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
+            if provider == "workers-ai" {
+                Picker("Model", selection: $modelName) {
+                    // Keep a custom id saved from the web app selectable.
+                    ForEach(Array(Set([modelName] + Providers.info(provider).suggestions)).sorted(), id: \.self) {
+                        Text($0)
+                    }
+                }
+            } else {
+                TextField("Model", text: $modelName)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
             ForEach(Providers.all.filter(\.needsKey)) { info in
                 HStack {
                     Text("\(info.label) key")
