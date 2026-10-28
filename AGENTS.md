@@ -182,4 +182,6 @@ responsibility, not by line count:
 
 - Small, focused commits with an imperative subject ("Add …", "Fix …").
 - Don't commit build output (`dist/`, `.wrangler/`) or `node_modules/`.
-- Pushing to `main` deploys to production (`.github/workflows/deploy.yml`).
+- Commit and push straight to `main`; don't create feature branches or PRs
+  unless asked. Run the definition-of-done checks first, because a push to
+  `main` deploys to production (`.github/workflows/deploy.yml`).
