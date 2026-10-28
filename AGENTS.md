@@ -99,6 +99,15 @@ the merge otherwise:
 A pre-commit hook (husky + lint-staged) formats and lints staged files.
 Don't bypass it with `--no-verify`.
 
+## Web and iOS parity
+
+The web app (`apps/web`) and the iOS app (`apps/mobile`) are first-class
+clients and must offer the same features. A user-facing change (chat
+behavior, attachments, settings, model choices, tool UI) ships for both in
+the same change; don't land it on one and leave the other behind. If the
+other client genuinely can't support it yet, say so in the commit message and
+in `apps/mobile/README.md`, and note the gap rather than hiding it.
+
 ## Architecture rules
 
 These are enforced by `no-restricted-imports` in `.oxlintrc.json`; don't
