@@ -38,6 +38,27 @@ The app loads the production Worker, so the server changes it relies on
 `bun run dev` instead, temporarily set `server.url` to
 `http://<your-mac-LAN-ip>:5173` with `cleartext: true`, and run `sync`.
 
+## TestFlight without a Mac
+
+The **TestFlight** workflow (`.github/workflows/testflight.yml`) archives,
+signs and uploads the app from a GitHub macOS runner. Install it on your
+phone with the TestFlight app. One-time setup:
+
+1. In [App Store Connect](https://appstoreconnect.apple.com), create an app
+   with your bundle id (`appId` in `capacitor.config.ts`).
+2. Under **Users and Access → Integrations → App Store Connect API**, create a
+   team key with the **Admin** role (cloud-managed signing needs it) and
+   download the `.p8` file; it can only be downloaded once.
+3. Add the repository secrets `APPLE_TEAM_ID` (from developer.apple.com →
+   Membership), `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID` and
+   `APP_STORE_CONNECT_KEY` (the `.p8` file's contents).
+4. Run the workflow from the **Actions** tab. Once App Store Connect has
+   processed the build, add yourself under **TestFlight → Internal Testing**.
+
+The build number is the workflow's run number; bump `MARKETING_VERSION` in
+Xcode for a new version. Each run's runner creates a fresh Apple Development
+certificate; revoke old ones on developer.apple.com if they pile up.
+
 ## Make it yours
 
 - `appId` and `appName` in `capacitor.config.ts`, and the bundle id in Xcode.
