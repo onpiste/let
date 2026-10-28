@@ -149,7 +149,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       agent: this,
       memory: this,
       sandbox: this.env.SANDBOX.getByName(this.name),
-      inbox: this.emailAddress() ? () => new Inbox(this) : null
+      inbox: this.emailAddress() ? () => new Inbox(this) : null,
+      approvalMode: () => this.store.getSettings().approvalMode
     });
   }
 

@@ -4,6 +4,8 @@
  * runtime-specific APIs and no server-only dependencies.
  */
 
+import { APPROVAL_MODES, type ApprovalMode } from "./approval";
+
 export type ProviderId = "workers-ai" | "openai" | "anthropic" | "google";
 export type KeyedProvider = Exclude<ProviderId, "workers-ai">;
 
@@ -57,6 +59,8 @@ export type Settings = {
   language: string;
   provider: ProviderId;
   model: string;
+  /** Whether sandbox commands and file writes wait for the user's approval. */
+  approvalMode: ApprovalMode;
   apiKeys: Partial<Record<KeyedProvider, string>>;
 };
 
@@ -79,6 +83,7 @@ export const DEFAULT_SETTINGS: Settings = {
   language: "auto",
   provider: "workers-ai",
   model: PROVIDERS["workers-ai"].defaultModel,
+  approvalMode: "ask",
   apiKeys: {}
 };
 
@@ -122,6 +127,9 @@ export function applySettingsPatch(
   }
   if (!(next.provider in PROVIDERS)) {
     throw new Error(`Unknown provider: ${next.provider}`);
+  }
+  if (!(next.approvalMode in APPROVAL_MODES)) {
+    throw new Error(`Unknown approval mode: ${next.approvalMode}`);
   }
   if (!next.model) throw new Error("Choose a model.");
   if (next.provider !== "workers-ai" && !next.apiKeys[next.provider]) {

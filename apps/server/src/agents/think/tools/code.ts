@@ -1,11 +1,17 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { requiresApproval, type ApprovalMode } from "@cot/shared";
+
 import type { Sandbox } from "../../../tools/sandbox";
 import { runCodeTask } from "../../pi/code-agent";
 
 /** Hands multi-step programming work to the Pi coding agent. */
-export function codeTools(env: Env, sandbox: DurableObjectStub<Sandbox>) {
+export function codeTools(
+  env: Env,
+  sandbox: DurableObjectStub<Sandbox>,
+  approvalMode: () => ApprovalMode
+) {
   return {
     codeTask: tool({
       description:
@@ -16,7 +22,7 @@ export function codeTools(env: Env, sandbox: DurableObjectStub<Sandbox>) {
           .describe("A self-contained description of what to build or do")
       }),
       // The agent runs commands on its own, so the user approves up front.
-      needsApproval: true,
+      needsApproval: () => requiresApproval(approvalMode(), "codeTask", {}),
       execute: async ({ task }, { abortSignal }) => {
         try {
           return await runCodeTask({
