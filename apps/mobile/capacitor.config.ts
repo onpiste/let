@@ -12,7 +12,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
  */
 const config: CapacitorConfig = {
   appId: "runlet.GoodMenu",
-  appName: "Cot",
+  appName: "CotBot",
   // Shown only if the server can't be reached; the app itself is remote.
   webDir: "www",
   server: {
