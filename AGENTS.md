@@ -73,14 +73,15 @@ Run from the repository root.
 | `bun run lint:fix`           | Apply safe lint fixes                                      |
 | `bun run typecheck`          | `tsc` in every workspace                                   |
 | `bun run knip`               | Find unused files, exports and dependencies                |
+| `bun run test`               | Vitest unit tests (`@cot/shared` pure logic)               |
 | `bun run build`              | Production build of client + Worker                        |
 | `bun run types`              | Regenerate `apps/server/env.d.ts` from `wrangler.jsonc`    |
 | `bun run deploy`             | Build and deploy to Cloudflare                             |
 | `bun run --filter <pkg> <s>` | Run a script in one workspace, e.g. `--filter @cot/server` |
 
-There is no test suite yet. When adding one, use Vitest
-(`@cloudflare/vitest-pool-workers` for the server) and wire it into
-`bun run check` and CI.
+Tests use Vitest and run as part of `bun run check`. Only `@cot/shared` has
+them so far (pure logic, e.g. `approval.test.ts`); add
+`@cloudflare/vitest-pool-workers` when the server needs its own.
 
 ## Definition of done
 
@@ -88,7 +89,7 @@ Before you commit, all of these must pass. CI runs the same steps and blocks
 the merge otherwise:
 
 1. `bun run check` — no format diffs, **zero** lint warnings, no type errors,
-   no dead code (knip: unused files, exports, types or dependencies). Delete
+   passing tests, no dead code (knip: unused files, exports, types or dependencies). Delete
    dead code rather than ignoring it; a genuine exception goes in
    `knip.jsonc` with a comment saying why.
 2. `bun run build` succeeds.

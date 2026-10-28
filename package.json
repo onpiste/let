@@ -24,8 +24,9 @@
     "knip": "knip",
     "lint": "oxlint --type-aware --deny-warnings",
     "lint:fix": "oxlint --type-aware --fix",
+    "test": "bun run --filter @cot/shared test",
     "typecheck": "bun run --filter '*' typecheck",
-    "check": "bun run format:check && bun run lint && bun run typecheck && bun run knip",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run knip && bun run test",
     "prepare": "husky"
   },
   "devDependencies": {
