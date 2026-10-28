@@ -22,7 +22,9 @@ struct SignInView: View {
                 }
             } label: {
                 HStack {
-                    if working { ProgressView().tint(.white) }
+                    if working {
+                        ProgressView().tint(.white)
+                    }
                     Text("Sign in with Google")
                 }
                 .frame(maxWidth: .infinity)

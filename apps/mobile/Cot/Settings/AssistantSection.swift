@@ -35,7 +35,10 @@ struct AssistantSection: View {
             if provider == "workers-ai" {
                 Picker("Model", selection: $modelName) {
                     // Keep a custom id saved from the web app selectable.
-                    ForEach(Array(Set([modelName] + Providers.info(provider).suggestions)).sorted(), id: \.self) {
+                    ForEach(
+                        Array(Set([modelName] + Providers.info(provider).suggestions)).sorted(),
+                        id: \.self
+                    ) {
                         Text($0)
                     }
                 }
@@ -83,12 +86,14 @@ struct AssistantSection: View {
             "instructions": .string(instructions),
             "language": .string(language),
             "provider": .string(provider),
-            "model": .string(modelName),
+            "model": .string(modelName)
         ]
         let typed = keys.filter { !$0.value.isEmpty }
         if !typed.isEmpty {
             patch["apiKeys"] = .object(typed.mapValues(JSONValue.string))
         }
-        if await model.save(.object(patch)) { keys = [:] }
+        if await model.save(.object(patch)) {
+            keys = [:]
+        }
     }
 }

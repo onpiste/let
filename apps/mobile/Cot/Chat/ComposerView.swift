@@ -2,7 +2,8 @@ import PhotosUI
 import SwiftUI
 
 /// The message box. Return adds a line; the button sends (queues while the
-/// assistant is replying), or stops the turn when the box is empty. The paperclip attaches files or photos.
+/// assistant is replying), or stops the turn when the box is empty. The paperclip attaches files or
+/// photos.
 struct ComposerView: View {
     @Binding var text: String
     @Binding var attachments: [Attachment]
@@ -21,7 +22,9 @@ struct ComposerView: View {
 
     /// While replying, the button stops the turn only when there is nothing
     /// to queue.
-    private var stopping: Bool { busy && !canSend }
+    private var stopping: Bool {
+        busy && !canSend
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -57,14 +60,21 @@ struct ComposerView: View {
                 .accessibilityLabel("Attach files")
 
                 TextField("Message Cot…", text: $text, axis: .vertical)
-                    .lineLimit(1...6)
+                    .lineLimit(1 ... 6)
                     .focused($focused)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .background(
+                        Color(.secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    )
 
                 Button {
-                    if canSend { onSend() } else if busy { onStop() }
+                    if canSend {
+                        onSend()
+                    } else if busy {
+                        onStop()
+                    }
                 } label: {
                     Image(systemName: stopping ? "stop.circle.fill" : "arrow.up.circle.fill")
                         .font(.system(size: 34))
@@ -77,11 +87,14 @@ struct ComposerView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(.bar)
-        .fileImporter(isPresented: $pickingFile, allowedContentTypes: [.item], allowsMultipleSelection: true) {
-            result in
+        .fileImporter(
+            isPresented: $pickingFile,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true
+        ) { result in
             switch result {
-            case .success(let urls): add(urls.map(read))
-            case .failure(let error): onError(error.localizedDescription)
+            case let .success(urls): add(urls.map(read))
+            case let .failure(error): onError(error.localizedDescription)
             }
         }
         .photosPicker(isPresented: $pickingPhoto, selection: $photo, matching: .images)
@@ -102,7 +115,11 @@ struct ComposerView: View {
         Result {
             // Files outside the app's sandbox need security-scoped access.
             let scoped = url.startAccessingSecurityScopedResource()
-            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            defer {
+                if scoped {
+                    url.stopAccessingSecurityScopedResource()
+                }
+            }
             return try Attachment.make(name: url.lastPathComponent, data: Data(contentsOf: url))
         }
     }
@@ -111,8 +128,8 @@ struct ComposerView: View {
         var next = attachments
         for result in results {
             switch result {
-            case .success(let attachment): next.append(attachment)
-            case .failure(let error): onError(error.localizedDescription); return
+            case let .success(attachment): next.append(attachment)
+            case let .failure(error): onError(error.localizedDescription); return
             }
         }
         do {

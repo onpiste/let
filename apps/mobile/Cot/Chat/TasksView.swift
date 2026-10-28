@@ -47,7 +47,11 @@ struct TasksView: View {
                     }
                 }
             }
-            .overlay { if tasks == nil && error == nil { ProgressView() } }
+            .overlay {
+                if tasks == nil, error == nil {
+                    ProgressView()
+                }
+            }
             .navigationTitle("Tasks")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }

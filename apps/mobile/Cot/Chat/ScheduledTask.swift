@@ -39,7 +39,9 @@ struct ScheduledTask: Decodable, Identifiable, Equatable {
     }
 
     var statusText: String {
-        if paused { return scheduleText + " · Paused" }
+        if paused {
+            return scheduleText + " · Paused"
+        }
         guard let next = Self.date(nextRun) else { return scheduleText }
         return scheduleText + " · Next " + Self.format(next)
     }

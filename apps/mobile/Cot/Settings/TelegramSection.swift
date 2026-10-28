@@ -38,7 +38,9 @@ struct TelegramSection: View {
         } header: {
             Text("Telegram")
         } footer: {
-            Text("Talk to your assistant from Telegram with your own bot. The Telegram account that presses Start becomes its owner.")
+            Text(
+                "Talk to your assistant from Telegram with your own bot. The Telegram account that presses Start becomes its owner."
+            )
         }
     }
 }

@@ -30,9 +30,17 @@ final class SettingsModel {
         socket.onClose = { [weak self] in self?.connected = false }
     }
 
-    func start() { socket.start() }
-    func stop() { socket.stop() }
-    func reconnect() { socket.reconnectIfNeeded() }
+    func start() {
+        socket.start()
+    }
+
+    func stop() {
+        socket.stop()
+    }
+
+    func reconnect() {
+        socket.reconnectIfNeeded()
+    }
 
     func load() async {
         await run { [self] in
@@ -79,7 +87,7 @@ final class SettingsModel {
     func updateEmailPolicy(acceptFromAnyone: Bool, trustedSenders: [String]) async {
         let policy = JSONValue.object([
             "acceptFromAnyone": .bool(acceptFromAnyone),
-            "trustedSenders": .array(trustedSenders.map(JSONValue.string)),
+            "trustedSenders": .array(trustedSenders.map(JSONValue.string))
         ])
         await run { [self] in email = try await call("updateEmailPolicy", [policy]) }
     }

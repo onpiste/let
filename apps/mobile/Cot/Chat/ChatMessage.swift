@@ -19,13 +19,15 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
 
     init?(json: JSONValue) {
         guard let object = json.object, let id = object["id"]?.string,
-            let role = object["role"]?.string
+              let role = object["role"]?.string
         else { return nil }
         self.id = id
         self.role = role
-        self.parts = object["parts"]?.array ?? []
+        parts = object["parts"]?.array ?? []
         var extra = object
-        for key in ["id", "role", "parts"] { extra[key] = nil }
+        for key in ["id", "role", "parts"] {
+            extra[key] = nil
+        }
         self.extra = extra
     }
 
@@ -45,10 +47,15 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
         return ChatMessage(id: randomID(), role: "user", parts: parts)
     }
 
-    var isUser: Bool { role == "user" }
+    var isUser: Bool {
+        role == "user"
+    }
 
+    // The pattern is a constant, so compiling it cannot fail.
+    // swiftlint:disable:next force_try
     private static let inlineFile = try! NSRegularExpression(
-        pattern: "<file name=\"([^\"]*)\">\\n[\\s\\S]*?\\n</file>\\n?")
+        pattern: "<file name=\"([^\"]*)\">\\n[\\s\\S]*?\\n</file>\\n?"
+    )
 
     private var rawText: String {
         parts.compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }.joined()
@@ -74,22 +81,24 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
     }
 
     var items: [MessageItem] {
-        parts.enumerated().compactMap { (index, part) -> MessageItem? in
+        parts.enumerated().compactMap { index, part -> MessageItem? in
             guard let type = part["type"]?.string else { return nil }
-            let id = "\(self.id)#\(index)"
+            let id = "\(id)#\(index)"
             switch type {
             case "text":
                 return .text(id: id, part["text"]?.string ?? "")
             case "reasoning":
                 return .reasoning(
                     id: id, text: part["text"]?.string ?? "",
-                    streaming: part["state"]?.string == "streaming")
+                    streaming: part["state"]?.string == "streaming"
+                )
             case "dynamic-tool":
                 return ToolCall(part: part, name: part["toolName"]?.string ?? "tool").map {
                     .tool(id: id, $0)
                 }
             case _ where type.hasPrefix("tool-"):
-                return ToolCall(part: part, name: String(type.dropFirst(5))).map { .tool(id: id, $0) }
+                return ToolCall(part: part, name: String(type.dropFirst(5)))
+                    .map { .tool(id: id, $0) }
             default:
                 return nil
             }
@@ -108,7 +117,7 @@ enum MessageItem: Identifiable {
 
     var id: String {
         switch self {
-        case .text(let id, _), .reasoning(let id, _, _), .tool(let id, _): id
+        case let .text(id, _), let .reasoning(id, _, _), let .tool(id, _): id
         }
     }
 }
@@ -134,18 +143,25 @@ struct ToolCall: Equatable {
         guard let callID = part["toolCallId"]?.string else { return nil }
         self.callID = callID
         self.name = name
-        self.state = part["state"]?.string.flatMap(State.init(rawValue:)) ?? .inputAvailable
-        self.input = part["input"]
-        self.approvalID = part["approval"]?["id"]?.string
+        state = part["state"]?.string.flatMap(State.init(rawValue:)) ?? .inputAvailable
+        input = part["input"]
+        approvalID = part["approval"]?["id"]?.string
     }
 
-    var isDone: Bool { state == .outputAvailable }
-    var awaitsApproval: Bool { state == .approvalRequested && approvalID != nil }
+    var isDone: Bool {
+        state == .outputAvailable
+    }
+
+    var awaitsApproval: Bool {
+        state == .approvalRequested && approvalID != nil
+    }
 
     /// The first argument worth showing next to the tool's name.
     var detail: String {
         for key in ["command", "path", "content", "description"] {
-            if let text = input?[key]?.string, !text.isEmpty { return text }
+            if let text = input?[key]?.string, !text.isEmpty {
+                return text
+            }
         }
         return ""
     }
@@ -153,5 +169,5 @@ struct ToolCall: Equatable {
 
 func randomID(length: Int = 16) -> String {
     let alphabet = Array("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-    return String((0..<length).compactMap { _ in alphabet.randomElement() })
+    return String((0 ..< length).compactMap { _ in alphabet.randomElement() })
 }

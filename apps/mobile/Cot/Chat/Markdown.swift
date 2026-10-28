@@ -23,10 +23,18 @@ enum MarkdownParser {
         var quote: [String] = []
 
         func flush() {
-            if !paragraph.isEmpty { blocks.append(.paragraph(paragraph.joined(separator: "\n"))) }
-            if !bullets.isEmpty { blocks.append(.bullets(bullets)) }
-            if !numbered.isEmpty { blocks.append(.numbered(numbered)) }
-            if !quote.isEmpty { blocks.append(.quote(quote.joined(separator: "\n"))) }
+            if !paragraph.isEmpty {
+                blocks.append(.paragraph(paragraph.joined(separator: "\n")))
+            }
+            if !bullets.isEmpty {
+                blocks.append(.bullets(bullets))
+            }
+            if !numbered.isEmpty {
+                blocks.append(.numbered(numbered))
+            }
+            if !quote.isEmpty {
+                blocks.append(.quote(quote.joined(separator: "\n")))
+            }
             paragraph = []
             bullets = []
             numbered = []
@@ -41,29 +49,45 @@ enum MarkdownParser {
                 let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
                 var code: [String] = []
                 while let next = lines.popFirst() {
-                    if next.trimmingCharacters(in: .whitespaces).hasPrefix("```") { break }
+                    if next.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                        break
+                    }
                     code.append(next)
                 }
-                blocks.append(.code(language: language.isEmpty ? nil : language, text: code.joined(separator: "\n")))
+                blocks.append(.code(
+                    language: language.isEmpty ? nil : language,
+                    text: code.joined(separator: "\n")
+                ))
             } else if trimmed.isEmpty {
                 flush()
             } else if let level = headingLevel(trimmed) {
                 flush()
-                blocks.append(.heading(level: level, text: String(trimmed.drop(while: { $0 == "#" }).dropFirst())))
+                blocks.append(.heading(
+                    level: level,
+                    text: String(trimmed.drop(while: { $0 == "#" }).dropFirst())
+                ))
             } else if ["---", "***", "___"].contains(trimmed) {
                 flush()
                 blocks.append(.rule)
             } else if let item = bulletItem(trimmed) {
-                if bullets.isEmpty { flush() }
+                if bullets.isEmpty {
+                    flush()
+                }
                 bullets.append(item)
             } else if let item = numberedItem(trimmed) {
-                if numbered.isEmpty { flush() }
+                if numbered.isEmpty {
+                    flush()
+                }
                 numbered.append(item)
             } else if trimmed.hasPrefix(">") {
-                if quote.isEmpty { flush() }
+                if quote.isEmpty {
+                    flush()
+                }
                 quote.append(String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces))
             } else {
-                if !bullets.isEmpty || !numbered.isEmpty || !quote.isEmpty { flush() }
+                if !bullets.isEmpty || !numbered.isEmpty || !quote.isEmpty {
+                    flush()
+                }
                 paragraph.append(trimmed)
             }
         }
@@ -73,7 +97,7 @@ enum MarkdownParser {
 
     private static func headingLevel(_ line: String) -> Int? {
         let hashes = line.prefix { $0 == "#" }.count
-        guard (1...6).contains(hashes), line.dropFirst(hashes).first == " " else { return nil }
+        guard (1 ... 6).contains(hashes), line.dropFirst(hashes).first == " " else { return nil }
         return hashes
     }
 

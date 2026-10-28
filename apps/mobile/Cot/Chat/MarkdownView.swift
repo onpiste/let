@@ -17,24 +17,24 @@ struct MarkdownView: View {
     @ViewBuilder
     private func view(for block: MarkdownBlock) -> some View {
         switch block {
-        case .paragraph(let text):
+        case let .paragraph(text):
             Text(inline(text))
-        case .heading(let level, let text):
+        case let .heading(level, text):
             Text(inline(text))
                 .font(level == 1 ? .title2.bold() : level == 2 ? .title3.bold() : .headline)
                 .padding(.top, 4)
-        case .code(_, let text):
+        case let .code(_, text):
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(text)
                     .font(.system(.footnote, design: .monospaced))
                     .padding(12)
             }
             .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
-        case .bullets(let items):
+        case let .bullets(items):
             list(items) { _ in "•" }
-        case .numbered(let items):
+        case let .numbered(items):
             list(items) { "\($0 + 1)." }
-        case .quote(let text):
+        case let .quote(text):
             Text(inline(text))
                 .foregroundStyle(.secondary)
                 .padding(.leading, 10)
@@ -59,7 +59,8 @@ struct MarkdownView: View {
 
     private func inline(_ text: String) -> AttributedString {
         let options = AttributedString.MarkdownParsingOptions(
-            interpretedSyntax: .inlineOnlyPreservingWhitespace)
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        )
         return (try? AttributedString(markdown: text, options: options)) ?? AttributedString(text)
     }
 }

@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import Cot
+import XCTest
 
 final class MarkdownParserTests: XCTestCase {
     func testBlocks() {
@@ -20,7 +19,8 @@ final class MarkdownParserTests: XCTestCase {
             ```swift
             let x = 1
             ```
-            """)
+            """
+        )
         XCTAssertEqual(
             blocks,
             [
@@ -28,13 +28,15 @@ final class MarkdownParserTests: XCTestCase {
                 .paragraph("Some **bold** text\non two lines."),
                 .bullets(["one", "two"]),
                 .numbered(["first", "second"]),
-                .code(language: "swift", text: "let x = 1"),
-            ])
+                .code(language: "swift", text: "let x = 1")
+            ]
+        )
     }
 
     func testUnclosedFenceRunsToTheEnd() {
         XCTAssertEqual(
             MarkdownParser.parse("```\nlet x"),
-            [.code(language: nil, text: "let x")])
+            [.code(language: nil, text: "let x")]
+        )
     }
 }

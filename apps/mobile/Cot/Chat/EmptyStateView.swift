@@ -4,7 +4,7 @@ private let suggestions = [
     "帮我规划一下今天要做的事",
     "Remind me in 10 minutes to stretch",
     "我叫什么名字？你还记得我什么？",
-    "Help me write a polite follow-up email",
+    "Help me write a polite follow-up email"
 ]
 
 /// Time-of-day greeting for the empty chat and sign-in screens.

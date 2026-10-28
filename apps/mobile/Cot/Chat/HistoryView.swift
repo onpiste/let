@@ -18,7 +18,11 @@ struct HistoryView: View {
                 }
                 ForEach(chats ?? []) { chat in
                     Button {
-                        Task { if await run({ try await store.openChat(chat.id) }) { dismiss() } }
+                        Task {
+                            if await run({ try await store.openChat(chat.id) }) {
+                                dismiss()
+                            }
+                        }
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(chat.title).lineLimit(1)
@@ -35,13 +39,21 @@ struct HistoryView: View {
                     }
                 }
             }
-            .overlay { if chats == nil && error == nil { ProgressView() } }
+            .overlay {
+                if chats == nil, error == nil {
+                    ProgressView()
+                }
+            }
             .navigationTitle("History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("New chat", systemImage: "square.and.pencil") {
-                        Task { if await run({ try await store.newChat() }) { dismiss() } }
+                        Task {
+                            if await run({ try await store.newChat() }) {
+                                dismiss()
+                            }
+                        }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }

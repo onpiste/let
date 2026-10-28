@@ -28,8 +28,8 @@ final class AuthModel {
     /// Loads the stored token and checks it is still accepted.
     func restore() async {
         guard let stored = tokenItem.read(),
-            let expiry = expiryItem.read().flatMap(Double.init),
-            expiry > Date().timeIntervalSince1970
+              let expiry = expiryItem.read().flatMap(Double.init),
+              expiry > Date().timeIntervalSince1970
         else {
             clear()
             return
@@ -57,20 +57,24 @@ final class AuthModel {
             }
         } catch {
             if case .loading = state {
-                state = .signedOut(message: "Couldn't reach the server. \(error.localizedDescription)")
+                state =
+                    .signedOut(message: "Couldn't reach the server. \(error.localizedDescription)")
             }
         }
     }
 
     func signIn() async {
         do {
-            let verifier = Self.base64URL(Data((0..<32).map { _ in UInt8.random(in: 0...255) }))
+            let verifier = Self.base64URL(Data((0 ..< 32).map { _ in UInt8.random(in: 0 ... 255) }))
             let challenge = Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
 
-            var login = URLComponents(url: Config.url("auth/login"), resolvingAgainstBaseURL: false)!
+            var login = URLComponents(
+                url: Config.url("auth/login"),
+                resolvingAgainstBaseURL: false
+            )!
             login.queryItems = [
                 URLQueryItem(name: "redirect_uri", value: Config.redirectURI),
-                URLQueryItem(name: "code_challenge", value: challenge),
+                URLQueryItem(name: "code_challenge", value: challenge)
             ]
             let callback = try await authenticate(login.url!)
             guard let code = URLComponents(url: callback, resolvingAgainstBaseURL: false)?
@@ -81,11 +85,14 @@ final class AuthModel {
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(
-                NativeTokenRequest(code: code, codeVerifier: verifier))
+                NativeTokenRequest(code: code, codeVerifier: verifier)
+            )
             let (data, response) = try await URLSession.shared.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard status == 200 else {
-                throw AuthError.message(status == 403 ? "This account isn't allowed." : "Sign-in failed (\(status)).")
+                throw AuthError
+                    .message(status == 403 ? "This account isn't allowed." :
+                        "Sign-in failed (\(status)).")
             }
             let result = try JSONDecoder().decode(NativeTokenResponse.self, from: data)
             tokenItem.write(result.token)
@@ -122,7 +129,9 @@ final class AuthModel {
     }
 
     private static func describe(_ error: Error) -> String {
-        if case AuthError.message(let text) = error { return text }
+        if case let AuthError.message(text) = error {
+            return text
+        }
         return error.localizedDescription
     }
 
@@ -135,7 +144,7 @@ final class AuthModel {
                 if let callbackURL {
                     continuation.resume(returning: callbackURL)
                 } else if let error = error as? ASWebAuthenticationSessionError,
-                    error.code == .canceledLogin
+                          error.code == .canceledLogin
                 {
                     continuation.resume(throwing: AuthError.cancelled)
                 } else {

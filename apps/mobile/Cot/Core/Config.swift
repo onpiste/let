@@ -12,7 +12,7 @@ enum Config {
     /// Where native sign-in returns; matches NATIVE_REDIRECT_URI on the server.
     static let redirectURI: String =
         Bundle.main.object(forInfoDictionaryKey: "CotRedirectURI") as? String
-        ?? "cot://auth/callback"
+            ?? "cot://auth/callback"
 
     static var callbackScheme: String {
         URL(string: redirectURI)?.scheme ?? "cot"
@@ -25,7 +25,8 @@ enum Config {
     /// `wss://host/<basePath>` for an agent.
     static func socketURL(basePath: String) -> URL {
         var components = URLComponents(
-            url: url(basePath), resolvingAgainstBaseURL: false)!
+            url: url(basePath), resolvingAgainstBaseURL: false
+        )!
         components.scheme = components.scheme == "http" ? "ws" : "wss"
         return components.url!
     }

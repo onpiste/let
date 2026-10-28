@@ -22,7 +22,10 @@ struct MessageRow: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .foregroundStyle(.white)
-                        .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .background(
+                            Color.accentColor,
+                            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        )
                         .textSelection(.enabled)
                 }
             }
@@ -32,11 +35,11 @@ struct MessageRow: View {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(message.items) { item in
                     switch item {
-                    case .text(_, let text):
+                    case let .text(_, text):
                         MarkdownView(source: text)
-                    case .reasoning(_, let text, let streaming):
+                    case let .reasoning(_, text, streaming):
                         ReasoningView(text: text, streaming: streaming)
-                    case .tool(_, let call):
+                    case let .tool(_, call):
                         ToolChipView(call: call, labels: toolLabels, onApproval: onApproval)
                     }
                 }

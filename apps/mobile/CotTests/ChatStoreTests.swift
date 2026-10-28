@@ -1,6 +1,5 @@
-import XCTest
-
 @testable import Cot
+import XCTest
 
 @MainActor
 final class ChatStoreTests: XCTestCase {
@@ -13,13 +12,18 @@ final class ChatStoreTests: XCTestCase {
             "type": .string("cf_agent_use_chat_response"),
             "id": .string(id),
             "body": .string(chunk),
-            "done": .bool(done),
+            "done": .bool(done)
         ])
     }
 
     func testStreamedReplyBecomesAnAssistantMessage() {
         let store = ChatStore(token: { nil })
-        store.handle(frame(#"{"type":"cf_agent_chat_messages","messages":[{"id":"u","role":"user","parts":[{"type":"text","text":"hi"}]}]}"#))
+        store
+            .handle(
+                frame(
+                    #"{"type":"cf_agent_chat_messages","messages":[{"id":"u","role":"user","parts":[{"type":"text","text":"hi"}]}]}"#
+                )
+            )
         store.handle(response(id: "r", chunk: #"{"type":"start","messageId":"a"}"#))
         store.handle(response(id: "r", chunk: #"{"type":"text-start","id":"t"}"#))
         store.handle(response(id: "r", chunk: #"{"type":"text-delta","id":"t","delta":"Hello"}"#))
@@ -36,7 +40,12 @@ final class ChatStoreTests: XCTestCase {
         store.handle(response(id: "r", chunk: #"{"type":"start","messageId":"a"}"#))
         store.handle(response(id: "r", chunk: #"{"type":"text-start","id":"t"}"#))
         store.handle(response(id: "r", chunk: #"{"type":"text-delta","id":"t","delta":"Hi"}"#))
-        store.handle(frame(#"{"type":"cf_agent_chat_messages","messages":[{"id":"u","role":"user","parts":[]}]}"#))
+        store
+            .handle(
+                frame(
+                    #"{"type":"cf_agent_chat_messages","messages":[{"id":"u","role":"user","parts":[]}]}"#
+                )
+            )
 
         XCTAssertEqual(store.messages.map(\.id), ["u", "a"])
         XCTAssertEqual(store.messages[1].parts[0]["text"]?.string, "Hi")
@@ -67,7 +76,8 @@ final class AttachmentTests: XCTestCase {
 final class ChatSummaryTests: XCTestCase {
     func testDecodesTheServersList() throws {
         let json = JSONValue.parse(
-            #"[{"id":"a","title":"Hello","updatedAt":"2026-10-28T04:41:34.123Z","active":true}]"#)
+            #"[{"id":"a","title":"Hello","updatedAt":"2026-10-28T04:41:34.123Z","active":true}]"#
+        )
         let chats = try XCTUnwrap(json).decoded(as: [ChatSummary].self)
 
         XCTAssertEqual(chats.map(\.title), ["Hello"])
@@ -78,7 +88,8 @@ final class ChatSummaryTests: XCTestCase {
 final class ScheduledTaskTests: XCTestCase {
     func testDecodesAPausedRepeatingTask() throws {
         let json = JSONValue.parse(
-            #"[{"id":"t","description":"Report","schedule":{"kind":"cron","cron":"0 9 * * 1"},"nextRun":null,"paused":true}]"#)
+            #"[{"id":"t","description":"Report","schedule":{"kind":"cron","cron":"0 9 * * 1"},"nextRun":null,"paused":true}]"#
+        )
         let tasks = try XCTUnwrap(json).decoded(as: [ScheduledTask].self)
 
         XCTAssertEqual(tasks[0].statusText, "Repeats (0 9 * * 1) · Paused")

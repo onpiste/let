@@ -7,7 +7,9 @@ import Foundation
 final class AgentSocket {
     struct RPCError: LocalizedError {
         let message: String
-        var errorDescription: String? { message }
+        var errorDescription: String? {
+            message
+        }
     }
 
     var onOpen: (() -> Void)?
@@ -20,14 +22,15 @@ final class AgentSocket {
     private let token: () -> String?
     private let delegate = SocketDelegate()
     private lazy var session = URLSession(
-        configuration: .default, delegate: delegate, delegateQueue: nil)
+        configuration: .default, delegate: delegate, delegateQueue: nil
+    )
     private var task: URLSessionWebSocketTask?
     private var keepAlive: Task<Void, Never>?
     private var retry: Task<Void, Never>?
     private var failures = 0
     private var wantsConnection = false
     private var pending: [String: CheckedContinuation<JSONValue, Error>] = [:]
-    // RPCs issued while the socket is down go out once it opens.
+    /// RPCs issued while the socket is down go out once it opens.
     private var outbox: [String] = []
 
     init(url: URL, token: @escaping () -> String?) {
@@ -69,7 +72,7 @@ final class AgentSocket {
         let id = UUID().uuidString
         let frame = JSONValue.object([
             "type": .string("rpc"), "id": .string(id),
-            "method": .string(method), "args": .array(args),
+            "method": .string(method), "args": .array(args)
         ])
         guard wantsConnection else { throw RPCError(message: "Disconnected") }
         return try await withCheckedThrowingContinuation { continuation in
@@ -115,10 +118,10 @@ final class AgentSocket {
             while true {
                 do {
                     let message = try await socket.receive()
-                    guard let self, self.task === socket else { return }
+                    guard let self, task === socket else { return }
                     switch message {
-                    case .string(let text): self.handle(text)
-                    case .data(let data): self.handle(String(decoding: data, as: UTF8.self))
+                    case let .string(text): handle(text)
+                    case let .data(data): handle(String(decoding: data, as: UTF8.self))
                     @unknown default: break
                     }
                 } catch {
@@ -132,12 +135,13 @@ final class AgentSocket {
     private func handle(_ text: String) {
         guard let frame = JSONValue.parse(text) else { return }
         if frame["type"]?.string == "rpc", let id = frame["id"]?.string,
-            let continuation = pending[id]
+           let continuation = pending[id]
         {
             if frame["success"]?.bool == false {
                 pending[id] = nil
                 continuation.resume(
-                    throwing: RPCError(message: frame["error"]?.string ?? "Request failed"))
+                    throwing: RPCError(message: frame["error"]?.string ?? "Request failed")
+                )
             } else if frame["done"]?.bool != false {
                 // Streaming calls (done == false) aren't used by the app.
                 pending[id] = nil
@@ -152,7 +156,9 @@ final class AgentSocket {
         guard task === socket, !isOpen else { return }
         isOpen = true
         failures = 0
-        for frame in outbox { socket.send(.string(frame)) { _ in } }
+        for frame in outbox {
+            socket.send(.string(frame)) { _ in }
+        }
         outbox.removeAll()
         startKeepAlive(socket)
         onOpen?()
@@ -197,7 +203,9 @@ final class AgentSocket {
         let calls = pending
         pending.removeAll()
         outbox.removeAll()
-        for continuation in calls.values { continuation.resume(throwing: error) }
+        for continuation in calls.values {
+            continuation.resume(throwing: error)
+        }
     }
 }
 
@@ -222,6 +230,8 @@ private final class SocketDelegate: NSObject, URLSessionWebSocketDelegate, @unch
     }
 
     func urlSession(_: URLSession, task: URLSessionTask, didCompleteWithError _: Error?) {
-        if let socket = task as? URLSessionWebSocketTask { onClose?(socket) }
+        if let socket = task as? URLSessionWebSocketTask {
+            onClose?(socket)
+        }
     }
 }

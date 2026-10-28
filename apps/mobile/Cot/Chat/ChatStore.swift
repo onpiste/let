@@ -42,7 +42,9 @@ final class ChatStore {
     private var appliedSeq: [String: Int] = [:]
     private var lastAuthCheck = Date.distantPast
 
-    var busy: Bool { status != .ready }
+    var busy: Bool {
+        status != .ready
+    }
 
     init(token: @escaping () -> String?) {
         socket = AgentSocket(url: Config.socketURL(basePath: "chat"), token: token)
@@ -51,9 +53,17 @@ final class ChatStore {
         socket.onClose = { [weak self] in self?.closed() }
     }
 
-    func start() { socket.start() }
-    func disconnect() { socket.stop() }
-    func resume() { socket.reconnectIfNeeded() }
+    func start() {
+        socket.start()
+    }
+
+    func disconnect() {
+        socket.stop()
+    }
+
+    func resume() {
+        socket.reconnectIfNeeded()
+    }
 
     // MARK: Actions
 
@@ -67,7 +77,9 @@ final class ChatStore {
         dispatch(trimmed, attachments)
     }
 
-    func removeQueued(_ id: Queued.ID) { queue.removeAll { $0.id == id } }
+    func removeQueued(_ id: Queued.ID) {
+        queue.removeAll { $0.id == id }
+    }
 
     private func dispatch(_ trimmed: String, _ attachments: [Attachment]) {
         errorText = nil
@@ -77,23 +89,27 @@ final class ChatStore {
         status = .submitted
         let body = JSONValue.object([
             "messages": .array(messages.map(\.json)),
-            "trigger": .string("submit-message"),
+            "trigger": .string("submit-message")
         ])
         socket.send(
             .object([
                 "type": .string("cf_agent_use_chat_request"),
                 "id": .string(id),
-                "init": .object(["method": .string("POST"), "body": .string(body.serialized())]),
-            ]))
+                "init": .object(["method": .string("POST"), "body": .string(body.serialized())])
+            ])
+        )
     }
 
     /// Shows a problem (e.g. a file that can't be attached) under the chat.
-    func report(_ message: String) { errorText = message }
+    func report(_ message: String) {
+        errorText = message
+    }
 
     func stopTurn() {
         guard let requestID else { return }
         socket.send(
-            .object(["type": .string("cf_agent_chat_request_cancel"), "id": .string(requestID)]))
+            .object(["type": .string("cf_agent_chat_request_cancel"), "id": .string(requestID)])
+        )
         finishTurn()
     }
 
@@ -101,19 +117,29 @@ final class ChatStore {
 
     /// The server swaps the conversation and broadcasts the new messages (or
     /// a clear), which `handle` applies like any other update.
-    func chats() async throws -> [ChatSummary] { try await history("listChats") }
+    func chats() async throws -> [ChatSummary] {
+        try await history("listChats")
+    }
+
     func newChat() async throws -> [ChatSummary] {
         queue = []
         return try await history("newChat")
     }
+
     func openChat(_ id: String) async throws -> [ChatSummary] {
         queue = []
         return try await history("openChat", id)
     }
-    func deleteChat(_ id: String) async throws -> [ChatSummary] { try await history("deleteChat", id) }
+
+    func deleteChat(_ id: String) async throws
+        -> [ChatSummary]
+    {
+        try await history("deleteChat", id)
+    }
 
     private func history(_ method: String, _ id: String? = nil) async throws -> [ChatSummary] {
-        try await socket.call(method, id.map { [JSONValue.string($0)] } ?? []).decoded(as: [ChatSummary].self)
+        try await socket.call(method, id.map { [JSONValue.string($0)] } ?? [])
+            .decoded(as: [ChatSummary].self)
     }
 
     func startNewChat() {
@@ -124,12 +150,12 @@ final class ChatStore {
 
     func respond(toApproval approvalID: String, approved: Bool) {
         guard let index = messages.lastIndex(where: { message in
-            message.parts.contains { $0["approval"]?["id"]?.string == approvalID }
-        }),
-            let partIndex = messages[index].parts.firstIndex(where: {
-                $0["approval"]?["id"]?.string == approvalID
-            }),
-            let callID = messages[index].parts[partIndex]["toolCallId"]?.string
+                  message.parts.contains { $0["approval"]?["id"]?.string == approvalID }
+              }),
+              let partIndex = messages[index].parts.firstIndex(where: {
+                  $0["approval"]?["id"]?.string == approvalID
+              }),
+              let callID = messages[index].parts[partIndex]["toolCallId"]?.string
         else { return }
         messages[index].parts[partIndex].set("state", .string("approval-responded"))
         status = .submitted
@@ -138,8 +164,9 @@ final class ChatStore {
                 "type": .string("cf_agent_tool_approval"),
                 "toolCallId": .string(callID),
                 "approved": .bool(approved),
-                "autoContinue": .bool(true),
-            ]))
+                "autoContinue": .bool(true)
+            ])
+        )
     }
 
     // MARK: Socket events
@@ -149,8 +176,9 @@ final class ChatStore {
         socket.send(
             .object([
                 "type": .string("cf_agent_stream_resume_request"),
-                "probeId": .string(randomID(length: 8)),
-            ]))
+                "probeId": .string(randomID(length: 8))
+            ])
+        )
     }
 
     private func closed() {
@@ -171,12 +199,15 @@ final class ChatStore {
             messages = []
             finishTurn()
         case "cf_agent_message_updated":
-            if let message = frame["message"].flatMap(ChatMessage.init(json:)) { update(message) }
+            if let message = frame["message"].flatMap(ChatMessage.init(json:)) {
+                update(message)
+            }
         case "cf_agent_stream_resuming":
             if let id = frame["id"]?.string {
                 requestID = id
                 socket.send(
-                    .object(["type": .string("cf_agent_stream_resume_ack"), "id": .string(id)]))
+                    .object(["type": .string("cf_agent_stream_resume_ack"), "id": .string(id)])
+                )
             }
         case "cf_agent_use_chat_response":
             handleResponse(frame)
@@ -230,11 +261,11 @@ final class ChatStore {
         let toolIDs = Set(message.parts.compactMap { $0["toolCallId"]?.string })
         let index =
             messages.firstIndex { $0.id == message.id }
-            ?? messages.firstIndex { existing in
-                existing.parts.contains { part in
-                    part["toolCallId"]?.string.map(toolIDs.contains) ?? false
+                ?? messages.firstIndex { existing in
+                    existing.parts.contains { part in
+                        part["toolCallId"]?.string.map(toolIDs.contains) ?? false
+                    }
                 }
-            }
         guard let index else { return }
         var updated = message
         updated.id = messages[index].id
@@ -253,18 +284,23 @@ final class ChatStore {
             return
         }
         // A continuation replays chunks this client already applied.
-        let alreadyApplied = replay && continuation && seq.map { $0 <= (appliedSeq[id] ?? -1) } == true
+        let alreadyApplied = replay && continuation && seq
+            .map { $0 <= (appliedSeq[id] ?? -1) } == true
         if !alreadyApplied {
-            if let seq { appliedSeq[id] = max(seq, appliedSeq[id] ?? -1) }
+            if let seq {
+                appliedSeq[id] = max(seq, appliedSeq[id] ?? -1)
+            }
             if let body = frame["body"]?.string, !body.trimmingCharacters(in: .whitespaces).isEmpty,
-                let chunk = JSONValue.parse(body)
+               let chunk = JSONValue.parse(body)
             {
                 apply(chunk, replay: replay, continuation: continuation)
             }
         }
         if frame["done"]?.bool == true {
             appliedSeq[id] = nil
-            if status != .ready { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
+            if status != .ready {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             finishTurn()
         }
     }
@@ -272,13 +308,20 @@ final class ChatStore {
     private func apply(_ chunk: JSONValue, replay: Bool, continuation: Bool) {
         switch chunk["type"]?.string {
         case "start":
-            beginMessage(id: chunk["messageId"]?.string ?? randomID(), replay: replay, continuation: continuation)
+            beginMessage(
+                id: chunk["messageId"]?.string ?? randomID(),
+                replay: replay,
+                continuation: continuation
+            )
         case "error":
             errorText = chunk["errorText"]?.string
         default:
-            guard let id = streamingMessageID, let index = messages.firstIndex(where: { $0.id == id })
+            guard let id = streamingMessageID,
+                  let index = messages.firstIndex(where: { $0.id == id })
             else { return }
-            if status != .streaming { status = .streaming }
+            if status != .streaming {
+                status = .streaming
+            }
             reducer.apply(chunk, to: &messages[index])
         }
     }
@@ -289,7 +332,9 @@ final class ChatStore {
         status = .streaming
         if let index = messages.firstIndex(where: { $0.id == id }) {
             // A resumed stream replays from its first chunk; rebuild the reply.
-            if replay && !continuation { messages[index].parts = [] }
+            if replay, !continuation {
+                messages[index].parts = []
+            }
         } else {
             messages.append(ChatMessage(id: id, role: "assistant", parts: []))
         }

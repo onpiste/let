@@ -13,15 +13,16 @@ struct ChunkReducer {
             let kind = type == "text-start" ? "text" : "reasoning"
             message.parts.append(
                 .object([
-                    "type": .string(kind), "text": .string(""), "state": .string("streaming"),
-                ]))
+                    "type": .string(kind), "text": .string(""), "state": .string("streaming")
+                ])
+            )
             if let id = chunk["id"]?.string {
                 open["\(kind):\(id)"] = message.parts.count - 1
             }
         case "text-delta", "reasoning-delta":
             let kind = type == "text-delta" ? "text" : "reasoning"
             guard let id = chunk["id"]?.string, let index = open["\(kind):\(id)"],
-                let delta = chunk["delta"]?.string
+                  let delta = chunk["delta"]?.string
             else { return }
             let current = message.parts[index]["text"]?.string ?? ""
             message.parts[index].set("text", .string(current + delta))
@@ -50,14 +51,14 @@ struct ChunkReducer {
         case "tool-output-denied":
             update(chunk, in: &message) { $0.set("state", .string("output-denied")) }
         default:
-            break  // start/finish/step markers, sources, data parts
+            break // start/finish/step markers, sources, data parts
         }
     }
 
     private func upsertTool(_ chunk: JSONValue, type: String, in message: inout ChatMessage) {
         guard let callID = chunk["toolCallId"]?.string, let name = chunk["toolName"]?.string
         else { return }
-        let state: String =
+        let state =
             switch type {
             case "tool-input-start": "input-streaming"
             case "tool-input-available": "input-available"
@@ -66,13 +67,17 @@ struct ChunkReducer {
         let isDynamic = chunk["dynamic"]?.bool == true
         var part =
             message.partIndex(toolCallID: callID).map { message.parts[$0] }
-            ?? .object([
-                "type": .string(isDynamic ? "dynamic-tool" : "tool-\(name)"),
-                "toolCallId": .string(callID),
-            ])
-        if isDynamic { part.set("toolName", .string(name)) }
+                ?? .object([
+                    "type": .string(isDynamic ? "dynamic-tool" : "tool-\(name)"),
+                    "toolCallId": .string(callID)
+                ])
+        if isDynamic {
+            part.set("toolName", .string(name))
+        }
         part.set("state", .string(state))
-        if let input = chunk["input"] { part.set("input", input) }
+        if let input = chunk["input"] {
+            part.set("input", input)
+        }
         if type == "tool-input-error" {
             part.set("errorText", chunk["errorText"] ?? .string(""))
         }
@@ -86,7 +91,8 @@ struct ChunkReducer {
     private func update(
         _ chunk: JSONValue, in message: inout ChatMessage, _ change: (inout JSONValue) -> Void
     ) {
-        guard let callID = chunk["toolCallId"]?.string, let index = message.partIndex(toolCallID: callID)
+        guard let callID = chunk["toolCallId"]?.string,
+              let index = message.partIndex(toolCallID: callID)
         else { return }
         change(&message.parts[index])
     }

@@ -35,9 +35,12 @@ struct ChatView: View {
                             MessageRow(
                                 message: message,
                                 toolLabels: store.mcp?.toolLabels ?? [:],
-                                onApproval: store.respond(toApproval:approved:))
+                                onApproval: store.respond(toApproval:approved:)
+                            )
                         }
-                        if waiting { TypingDots() }
+                        if waiting {
+                            TypingDots()
+                        }
                         if let error = store.errorText {
                             Text(error).font(.footnote).foregroundStyle(.red)
                         }
@@ -56,7 +59,8 @@ struct ChatView: View {
                     ComposerView(
                         text: $input, attachments: $attachments, busy: store.busy,
                         onError: { store.report($0) },
-                        onSend: { send(input) }, onStop: store.stopTurn)
+                        onSend: { send(input) }, onStop: store.stopTurn
+                    )
                 }
             }
             .overlay(alignment: .top) {
@@ -83,7 +87,9 @@ struct ChatView: View {
         }
         .onDisappear { store.disconnect() }
         .onChange(of: scenePhase) {
-            if scenePhase == .active { store.resume() }
+            if scenePhase == .active {
+                store.resume()
+            }
         }
     }
 
@@ -125,7 +131,7 @@ struct ChatView: View {
 private struct TypingDots: View {
     var body: some View {
         HStack(spacing: 5) {
-            ForEach(0..<3, id: \.self) { index in
+            ForEach(0 ..< 3, id: \.self) { index in
                 Circle()
                     .fill(.secondary)
                     .frame(width: 7, height: 7)

@@ -12,7 +12,7 @@ struct Attachment: Identifiable, Equatable {
 
         var errorDescription: String? {
             switch self {
-            case .unsupported(let name): "\(name): only text, image and PDF files are supported."
+            case let .unsupported(name): "\(name): only text, image and PDF files are supported."
             case .tooLarge: "Attachments are limited to 1 MB per message."
             }
         }
@@ -34,8 +34,9 @@ struct Attachment: Identifiable, Equatable {
                 name: name, size: body.utf8.count,
                 part: .object([
                     "type": .string("text"),
-                    "text": .string("<file name=\"\(name)\">\n\(body)\n</file>"),
-                ]))
+                    "text": .string("<file name=\"\(name)\">\n\(body)\n</file>")
+                ])
+            )
         }
         let mediaType = type?.preferredMIMEType ?? ""
         guard mediaType.hasPrefix("image/") || mediaType == "application/pdf" else {
@@ -59,12 +60,15 @@ struct Attachment: Identifiable, Equatable {
                 "type": .string("file"),
                 "mediaType": .string(mediaType),
                 "filename": .string(name),
-                "url": .string("data:\(mediaType);base64,\(data.base64EncodedString())"),
-            ]))
+                "url": .string("data:\(mediaType);base64,\(data.base64EncodedString())")
+            ])
+        )
     }
 
     /// Throws if the files together are too large to store in one message.
     static func check(_ attachments: [Attachment]) throws {
-        if attachments.reduce(0, { $0 + $1.size }) > maxTotalBytes { throw Failure.tooLarge }
+        if attachments.reduce(0, { $0 + $1.size }) > maxTotalBytes {
+            throw Failure.tooLarge
+        }
     }
 }

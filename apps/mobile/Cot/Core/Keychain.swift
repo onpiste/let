@@ -11,7 +11,7 @@ struct KeychainItem {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
+            kSecAttrAccount as String: account
         ]
     }
 
@@ -21,7 +21,7 @@ struct KeychainItem {
         request[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
         guard SecItemCopyMatching(request as CFDictionary, &result) == errSecSuccess,
-            let data = result as? Data
+              let data = result as? Data
         else { return nil }
         return String(data: data, encoding: .utf8)
     }

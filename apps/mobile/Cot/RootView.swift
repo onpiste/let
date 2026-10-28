@@ -8,9 +8,9 @@ struct RootView: View {
             switch auth.state {
             case .loading:
                 ProgressView()
-            case .signedOut(let message):
+            case let .signedOut(message):
                 SignInView(message: message) { await auth.signIn() }
-            case .signedIn(let user):
+            case let .signedIn(user):
                 ChatView(user: user, auth: auth)
             }
         }

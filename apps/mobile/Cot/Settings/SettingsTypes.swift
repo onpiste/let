@@ -1,15 +1,17 @@
 import Foundation
 
-/// Mirrors @cot/shared settings.ts, telegram.ts and email.ts. The Worker
-/// validates every change, so this only carries the shapes and the provider
-/// list the pickers need.
+// Mirrors @cot/shared settings.ts, telegram.ts and email.ts. The Worker
+// validates every change, so this only carries the shapes and the provider
+// list the pickers need.
 
 struct ProviderInfo: Identifiable {
     let id: String
     let label: String
     let defaultModel: String
     let suggestions: [String]
-    var needsKey: Bool { id != "workers-ai" }
+    var needsKey: Bool {
+        id != "workers-ai"
+    }
 }
 
 enum Providers {
@@ -29,13 +31,20 @@ enum Providers {
                 "@cf/qwen/qwen3-30b-a3b-fp8",
                 "@cf/nvidia/nemotron-3-120b-a12b",
                 "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
-                "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
-            ]),
-        ProviderInfo(id: "openai", label: "OpenAI", defaultModel: "gpt-5.5", suggestions: ["gpt-5.5"]),
+                "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+            ]
+        ),
+        ProviderInfo(
+            id: "openai",
+            label: "OpenAI",
+            defaultModel: "gpt-5.5",
+            suggestions: ["gpt-5.5"]
+        ),
         ProviderInfo(
             id: "anthropic", label: "Anthropic", defaultModel: "claude-sonnet-5-5",
-            suggestions: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]),
-        ProviderInfo(id: "google", label: "Google", defaultModel: "", suggestions: []),
+            suggestions: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
+        ),
+        ProviderInfo(id: "google", label: "Google", defaultModel: "", suggestions: [])
     ]
 
     static func info(_ id: String) -> ProviderInfo {

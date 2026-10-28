@@ -15,7 +15,7 @@ private let toolTitles: [String: String] = [
     "codeTask": "Coding agent",
     "updateScheduledTask": "Task updated",
     "pauseScheduledTask": "Task paused",
-    "resumeScheduledTask": "Task resumed",
+    "resumeScheduledTask": "Task resumed"
 ]
 
 /// A tool call as a chip, with Approve / Reject when the tool asks first.

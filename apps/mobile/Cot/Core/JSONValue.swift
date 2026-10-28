@@ -24,7 +24,7 @@ enum JSONValue: Codable, Equatable, Sendable {
         } else if let value = try? container.decode([JSONValue].self) {
             self = .array(value)
         } else {
-            self = .object(try container.decode([String: JSONValue].self))
+            self = try .object(container.decode([String: JSONValue].self))
         }
     }
 
@@ -32,11 +32,11 @@ enum JSONValue: Codable, Equatable, Sendable {
         var container = encoder.singleValueContainer()
         switch self {
         case .null: try container.encodeNil()
-        case .bool(let value): try container.encode(value)
-        case .number(let value): try container.encode(value)
-        case .string(let value): try container.encode(value)
-        case .array(let value): try container.encode(value)
-        case .object(let value): try container.encode(value)
+        case let .bool(value): try container.encode(value)
+        case let .number(value): try container.encode(value)
+        case let .string(value): try container.encode(value)
+        case let .array(value): try container.encode(value)
+        case let .object(value): try container.encode(value)
         }
     }
 
@@ -45,7 +45,7 @@ enum JSONValue: Codable, Equatable, Sendable {
     }
 
     /// Encodes any `Encodable` (e.g. a settings patch) as a JSON value.
-    static func encoding<T: Encodable>(_ value: T) throws -> JSONValue {
+    static func encoding(_ value: some Encodable) throws -> JSONValue {
         try JSONDecoder().decode(JSONValue.self, from: JSONEncoder().encode(value))
     }
 
@@ -59,38 +59,50 @@ enum JSONValue: Codable, Equatable, Sendable {
     }
 
     subscript(key: String) -> JSONValue? {
-        if case .object(let object) = self { return object[key] }
+        if case let .object(object) = self {
+            return object[key]
+        }
         return nil
     }
 
     var string: String? {
-        if case .string(let value) = self { return value }
+        if case let .string(value) = self {
+            return value
+        }
         return nil
     }
 
     var bool: Bool? {
-        if case .bool(let value) = self { return value }
+        if case let .bool(value) = self {
+            return value
+        }
         return nil
     }
 
     var number: Double? {
-        if case .number(let value) = self { return value }
+        if case let .number(value) = self {
+            return value
+        }
         return nil
     }
 
     var array: [JSONValue]? {
-        if case .array(let value) = self { return value }
+        if case let .array(value) = self {
+            return value
+        }
         return nil
     }
 
     var object: [String: JSONValue]? {
-        if case .object(let value) = self { return value }
+        if case let .object(value) = self {
+            return value
+        }
         return nil
     }
 
     /// Sets a key on an object value; does nothing on other cases.
     mutating func set(_ key: String, _ value: JSONValue) {
-        if case .object(var object) = self {
+        if case var .object(object) = self {
             object[key] = value
             self = .object(object)
         }

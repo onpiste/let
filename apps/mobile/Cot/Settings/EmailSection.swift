@@ -34,13 +34,18 @@ struct EmailSection: View {
                     let list = senders.split(whereSeparator: \.isNewline)
                         .map { $0.trimmingCharacters(in: .whitespaces) }
                         .filter { !$0.isEmpty }
-                    Task { await model.updateEmailPolicy(acceptFromAnyone: acceptFromAnyone, trustedSenders: list) }
+                    Task { await model.updateEmailPolicy(
+                        acceptFromAnyone: acceptFromAnyone,
+                        trustedSenders: list
+                    ) }
                 }
                 .disabled(model.busy)
             } header: {
                 Text("Email")
             } footer: {
-                Text(acceptFromAnyone ? "Strangers' mail is kept but marked as from an unknown sender." : "Only you and your trusted senders can reach it; other mail bounces. One trusted address per line.")
+                Text(acceptFromAnyone ?
+                    "Strangers' mail is kept but marked as from an unknown sender." :
+                    "Only you and your trusted senders can reach it; other mail bounces. One trusted address per line.")
             }
             .onAppear { load(status) }
         }

@@ -43,7 +43,9 @@ struct McpSection: View {
         } header: {
             Text("MCP servers")
         } footer: {
-            Text("Tools from connected servers are available to the Think assistant in every chat, including Telegram. Servers that need sign-in: authorize them once in the web app.")
+            Text(
+                "Tools from connected servers are available to the Think assistant in every chat, including Telegram. Servers that need sign-in: authorize them once in the web app."
+            )
         }
     }
 
@@ -53,7 +55,9 @@ struct McpSection: View {
             let count = model.mcp?.tools.filter { $0.serverId == id }.count ?? 0
             text += " · \(count) tools"
         }
-        if let error = server.error { text += " · \(error)" }
+        if let error = server.error {
+            text += " · \(error)"
+        }
         return text
     }
 }

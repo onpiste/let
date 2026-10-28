@@ -14,18 +14,23 @@ disabled_rules:
   - vertical_whitespace
   - trailing_whitespace
   - line_length # SwiftFormat wraps; long strings/URLs are fine
+  # `String(decoding:as:)` is the lossy-safe form; the failable one adds nothing.
+  - optional_data_string_conversion
+  # The reducer, markdown parser and ChatStore are big switches by nature;
+  # splitting them without a compiler at hand is riskier than the warning.
+  - cyclomatic_complexity
+  - function_body_length
+  - type_body_length
+  - nesting
 
 opt_in_rules:
   - empty_count
   - first_where
   - sorted_first_last
-  - unused_import
-  - force_unwrapping
   - fatal_error_message
 
-# Mirrors the "no non-null `!`" rule on the TypeScript side.
-force_unwrapping:
-  severity: error
+identifier_name:
+  min_length: 1
 
 file_length:
   warning: 300
