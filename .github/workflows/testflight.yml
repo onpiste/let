@@ -19,7 +19,9 @@ concurrency:
 
 jobs:
   upload:
-    runs-on: macos-15
+    # App Store Connect only accepts builds made with the iOS 26 SDK or later
+    # (Xcode 26), which macos-15 doesn't have by default.
+    runs-on: macos-26
     timeout-minutes: 30
     env:
       TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -29,6 +31,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      # Apple raises the minimum SDK every year; use the newest stable Xcode
+      # on the image rather than whatever it defaults to.
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -47,7 +55,18 @@ jobs:
             echo "::error::Set the APPLE_TEAM_ID and APP_STORE_CONNECT_* secrets first (apps/mobile/README.md)."
             exit 1
           fi
-          printf '%s\n' "$ASC_KEY" > "$RUNNER_TEMP/AuthKey.p8"
+          # Rebuild the PEM from its base64 body, so a paste that lost its
+          # line breaks or BEGIN/END lines (or has CRLFs) still works.
+          body=$(printf '%s' "$ASC_KEY" | sed -e 's/\\n//g' -e 's/-----[A-Z ]*-----//g' | tr -d ' \r\n\t')
+          {
+            echo "-----BEGIN PRIVATE KEY-----"
+            printf '%s\n' "$body" | fold -w 64
+            echo "-----END PRIVATE KEY-----"
+          } > "$RUNNER_TEMP/AuthKey.p8"
+          if ! openssl pkey -in "$RUNNER_TEMP/AuthKey.p8" -noout 2>/dev/null; then
+            echo "::error::APP_STORE_CONNECT_KEY isn't a valid private key. Paste the whole contents of the AuthKey_<KEY_ID>.p8 file."
+            exit 1
+          fi
 
       # The build number must grow with every upload; the run number does.
       - name: Archive
