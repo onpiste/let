@@ -6,4 +6,12 @@ class BridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(WebAuthPlugin())
     }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // The page scrolls inside its own container; the WebView's native
+        // indicator would only show a stray bar at the screen edge.
+        webView?.scrollView.showsVerticalScrollIndicator = false
+        webView?.scrollView.showsHorizontalScrollIndicator = false
+    }
 }
