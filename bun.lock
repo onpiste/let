@@ -21,6 +21,7 @@
         "@capacitor/core": "8.5.3",
         "@capacitor/haptics": "^8.0.2",
         "@capacitor/ios": "8.5.3",
+        "@capacitor/keyboard": "^8.0.6",
         "@capacitor/local-notifications": "^8.3.1",
       },
       "devDependencies": {
@@ -63,6 +64,7 @@
         "@ai-sdk/react": "^4.0.0",
         "@capacitor/core": "8.5.3",
         "@capacitor/haptics": "^8.0.2",
+        "@capacitor/keyboard": "^8.0.6",
         "@capacitor/local-notifications": "^8.3.1",
         "@cloudflare/think": "^0.21.0",
         "@cot/shared": "workspace:*",
@@ -223,6 +225,8 @@
     "@capacitor/haptics": ["@capacitor/haptics@8.0.2", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-c2hZzRR5Fk1tbTvhG1jhh2XBAf3EhnIerMIb2sl7Mt41Gxx1fhBJFDa0/BI1IbY4loVepyyuqNC9820/GZuoWQ=="],
 
     "@capacitor/ios": ["@capacitor/ios@8.5.3", "", { "peerDependencies": { "@capacitor/core": "^8.5.0" } }, "sha512-HnnV92Jl8+3x0JUloXUMjFcUsQI8wHFVsKwkLn72DfRZXYGZW11tQbmNOWOnRTljaU18FdI1b9ipT09SzzPDNw=="],
+
+    "@capacitor/keyboard": ["@capacitor/keyboard@8.0.6", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-Bbe+9V0qaT6dzEFJEK7BUWR01l2+vZE8FM5ITF/WgKtx+G6eGZ6d5+YiSMRJBAK0VGjdO59v8yiQ10Doa5KyvQ=="],
 
     "@capacitor/local-notifications": ["@capacitor/local-notifications@8.3.1", "", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-F7zu/+p/mIR958YP4axOkeI5hBKRaXDyYjbNPrAil2wWfd7OxScPSTvP9t85NpQ0eULVRu0/sntoxOg6ck477A=="],
 
