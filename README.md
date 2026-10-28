@@ -35,6 +35,7 @@ Features:
 - **Chat** with streaming replies (Workers AI, no third-party API key)
 - **Sign in with Google**: each account gets its own Durable Object (chat history, memory, reminders). Only emails in `ALLOWED_EMAILS` can sign in, and the Worker — not the browser — picks which assistant a request reaches
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant
+- **Chat history**: every conversation is saved; the clock icon lists them, and you can open, delete or start a new one. One conversation is active at a time, and Telegram continues in that one
 - **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification and, if you connected a bot, a Telegram message
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:

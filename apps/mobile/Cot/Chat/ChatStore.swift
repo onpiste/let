@@ -78,10 +78,23 @@ final class ChatStore {
         finishTurn()
     }
 
-    func clear() {
-        socket.send(.object(["type": .string("cf_agent_chat_clear")]))
-        messages = []
-        finishTurn()
+    // MARK: History (AssistantRpc listChats / newChat / openChat / deleteChat)
+
+    /// The server swaps the conversation and broadcasts the new messages (or
+    /// a clear), which `handle` applies like any other update.
+    func chats() async throws -> [ChatSummary] { try await history("listChats") }
+    func newChat() async throws -> [ChatSummary] { try await history("newChat") }
+    func openChat(_ id: String) async throws -> [ChatSummary] { try await history("openChat", id) }
+    func deleteChat(_ id: String) async throws -> [ChatSummary] { try await history("deleteChat", id) }
+
+    private func history(_ method: String, _ id: String? = nil) async throws -> [ChatSummary] {
+        try await socket.call(method, id.map { [JSONValue.string($0)] } ?? []).decoded(as: [ChatSummary].self)
+    }
+
+    func startNewChat() {
+        Task {
+            do { _ = try await newChat() } catch { errorText = error.localizedDescription }
+        }
     }
 
     func respond(toApproval approvalID: String, approved: Bool) {

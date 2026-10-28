@@ -63,3 +63,14 @@ final class AttachmentTests: XCTestCase {
         XCTAssertThrowsError(try Attachment.check([attachment]))
     }
 }
+
+final class ChatSummaryTests: XCTestCase {
+    func testDecodesTheServersList() throws {
+        let json = JSONValue.parse(
+            #"[{"id":"a","title":"Hello","updatedAt":"2026-10-28T04:41:34.123Z","active":true}]"#)
+        let chats = try XCTUnwrap(json).decoded(as: [ChatSummary].self)
+
+        XCTAssertEqual(chats.map(\.title), ["Hello"])
+        XCTAssertTrue(chats[0].active)
+    }
+}

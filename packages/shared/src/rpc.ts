@@ -1,3 +1,4 @@
+import type { ChatSummary } from "./chats";
 import type { EmailPolicy, EmailStatus } from "./email";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { TelegramStatus } from "./telegram";
@@ -14,6 +15,13 @@ export type AddMcpResult =
  * signature breaks the build on both sides instead of at runtime.
  */
 export interface AssistantRpc {
+  /** Saved conversations, newest first; the active one is flagged. */
+  listChats(): Promise<ChatSummary[]>;
+  /** Saves the active conversation and starts an empty one. */
+  newChat(): Promise<ChatSummary[]>;
+  /** Saves the active conversation and makes a saved one active. */
+  openChat(id: string): Promise<ChatSummary[]>;
+  deleteChat(id: string): Promise<ChatSummary[]>;
   getSettings(): Promise<PublicSettings>;
   updateSettings(patch: SettingsPatch): Promise<PublicSettings>;
   addMcp(name: string, url: string): Promise<AddMcpResult>;

@@ -25,6 +25,7 @@ import {
 import { broadcastReminder } from "../common/reminders";
 import { takeTurn, usageLimits } from "../common/usage";
 import { cannedReply } from "./canned-reply";
+import { ChatHistory } from "./history";
 import { modelFor, paidByUser } from "./model";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
@@ -162,6 +163,36 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       commandsAllowed,
       emailAddress: this.emailAddress()
     });
+  }
+
+  // ── Chat history (callables) ────────────────────────────────────────
+
+  private get history() {
+    return new ChatHistory(this);
+  }
+
+  @callable()
+  async listChats() {
+    return this.history.list();
+  }
+
+  @callable()
+  async newChat() {
+    return this.history.create();
+  }
+
+  @callable()
+  async openChat(id: string) {
+    if (typeof id !== "string" || id.length > 64)
+      throw new Error("Bad chat id.");
+    return this.history.open(id);
+  }
+
+  @callable()
+  async deleteChat(id: string) {
+    if (typeof id !== "string" || id.length > 64)
+      throw new Error("Bad chat id.");
+    return this.history.remove(id);
   }
 
   // ── Settings (callables) ────────────────────────────────────────────

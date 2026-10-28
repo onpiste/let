@@ -7,8 +7,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
 import { Brand } from "../../components/brand";
-import { Gear, LogOut, Plus } from "../../components/icons";
+import { Clock, Gear, LogOut, Plus } from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
+import { api } from "../../lib/assistant-rpc";
 import {
   checkTotalSize,
   readAttachment,
@@ -18,6 +19,7 @@ import { errorText } from "../../lib/errors";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
+import { HistoryPanel } from "./history-panel";
 import { MessageList } from "./message-list";
 import { NoticeToast, type Notice } from "./notice-toast";
 import { mcpToolLabels } from "./tool-chip";
@@ -37,6 +39,7 @@ export function ChatPage({
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState<Notice | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const endRef = useRef<HTMLDivElement>(null);
@@ -79,17 +82,11 @@ export function ChatPage({
 
   useReconnectOnResume(agent);
 
-  const {
-    messages,
-    sendMessage,
-    clearHistory,
-    stop,
-    status,
-    addToolApprovalResponse
-  } = useAgentChat({
-    agent,
-    experimental_throttle: 50
-  });
+  const { messages, sendMessage, stop, status, addToolApprovalResponse } =
+    useAgentChat({
+      agent,
+      experimental_throttle: 50
+    });
 
   const busy = status === "streaming" || status === "submitted";
   const last = messages[messages.length - 1];
@@ -134,10 +131,28 @@ export function ChatPage({
           />
         </Brand>
         <div className="flex items-center gap-1">
+          <button
+            className="icon-btn"
+            onClick={() => setHistoryOpen(!historyOpen)}
+            aria-label="History"
+            title="History"
+          >
+            <Clock />
+          </button>
           {!empty && (
             <button
               className="icon-btn"
-              onClick={clearHistory}
+              onClick={() =>
+                void api(agent)
+                  .newChat()
+                  .catch((e: unknown) =>
+                    setToast({
+                      icon: "⚠️",
+                      title: "Can't start a new chat",
+                      text: errorText(e)
+                    })
+                  )
+              }
               aria-label="New chat"
               title="New chat"
             >
@@ -163,6 +178,10 @@ export function ChatPage({
           </button>
         </div>
       </header>
+
+      {historyOpen && (
+        <HistoryPanel agent={agent} onClose={() => setHistoryOpen(false)} />
+      )}
 
       <main className="scroll">
         <div className="column">

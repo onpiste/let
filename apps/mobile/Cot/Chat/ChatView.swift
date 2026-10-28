@@ -9,6 +9,7 @@ struct ChatView: View {
     @State private var input = ""
     @State private var attachments: [Attachment] = []
     @State private var showSettings = false
+    @State private var showHistory = false
     @Environment(\.scenePhase) private var scenePhase
 
     init(user: User, auth: AuthModel) {
@@ -63,6 +64,9 @@ struct ChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
         }
+        .sheet(isPresented: $showHistory) {
+            HistoryView(store: store)
+        }
         .sheet(isPresented: $showSettings) {
             SettingsView(user: user, auth: auth)
         }
@@ -88,8 +92,9 @@ struct ChatView: View {
             }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
+            Button("History", systemImage: "clock") { showHistory = true }
             if !store.messages.isEmpty {
-                Button("New chat", systemImage: "square.and.pencil", action: store.clear)
+                Button("New chat", systemImage: "square.and.pencil", action: store.startNewChat)
             }
             Button("Settings", systemImage: "gearshape") { showSettings = true }
         }
