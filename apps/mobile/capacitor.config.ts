@@ -11,8 +11,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * against `bun run dev`, use your machine's LAN address with `cleartext`.
  */
 const config: CapacitorConfig = {
-  appId: "us.runlet.cot",
-  appName: "Cot",
+  appId: "runlet.GoodMenu",
+  appName: "CotBot",
   // Shown only if the server can't be reached; the app itself is remote.
   webDir: "www",
   server: {
