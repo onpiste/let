@@ -276,3 +276,40 @@
     opacity: 1;
   }
 }
+
+.attach-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--muted);
+}
+.attach-btn:hover {
+  background: var(--user-bubble);
+  color: var(--text);
+}
+.attachments {
+  max-width: 720px;
+  margin: 0 auto 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--user-bubble);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chip-file button {
+  color: var(--muted);
+}

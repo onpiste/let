@@ -1,4 +1,4 @@
-/* Top bar: brand, connection status, harness switch, icon buttons. */
+/* Top bar: brand, connection status, icon buttons. */
 
 .topbar {
   display: flex;
@@ -43,27 +43,4 @@
 .icon-btn:hover {
   background: var(--user-bubble);
   color: var(--text);
-}
-
-.harness {
-  border: 0;
-  min-width: 0;
-  display: flex;
-  padding: 2px;
-  margin-right: 4px;
-  border-radius: 10px;
-  background: var(--user-bubble);
-  font-size: 13px;
-}
-.harness button {
-  padding: 4px 10px;
-  border-radius: 8px;
-  color: var(--muted);
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-.harness button.on {
-  background: var(--accent);
-  color: var(--accent-text);
 }

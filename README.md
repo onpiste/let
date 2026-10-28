@@ -23,12 +23,12 @@ reminders and settings.
 
 **What you get out of the box**
 
-The same assistant runs on two agent harnesses, switchable from the header:
+One assistant, two agent harnesses working together; there is nothing to pick:
 
-- **Think** ([`@cloudflare/think`](https://github.com/cloudflare/agents/tree/main/docs/think)), which runs the agentic loop, stores the conversation and resumes interrupted turns
-- **Pi** ([`@mariozechner/pi-agent-core`](https://www.npmjs.com/package/@mariozechner/pi-agent-core)), wrapped in an `AIChatAgent` for the chat protocol and persistence
+- **Think** ([`@cloudflare/think`](https://github.com/cloudflare/agents/tree/main/docs/think)), which chats, runs the agentic loop, stores the conversation and resumes interrupted turns
+- **Pi** ([`@mariozechner/pi-agent-core`](https://www.npmjs.com/package/@mariozechner/pi-agent-core)), the coding agent: Think hands programming jobs to it through the `codeTask` tool (after you approve) and it works in the Linux sandbox on Workers AI
 
-Each harness keeps its own chat history; long-term memory is shared.
+Attach local files with the paperclip: text, code and CSV files are read inline by any model; images and PDFs need a model that accepts them. Up to 1 MB per message.
 
 Features:
 
@@ -38,8 +38,8 @@ Features:
 - **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification and, if you connected a bot, a Telegram message
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:
-  - **Assistant**: name, reply language and custom instructions, used by both harnesses
-  - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. Applies to the Think assistant and Telegram; the Pi assistant stays on Workers AI
+  - **Assistant**: name, reply language and custom instructions, used by the assistant
+  - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. For Workers AI, pick from a list of open models (Kimi, gpt-oss, GLM, Llama, Gemma, Qwen…) or type any model id. Applies to chat and Telegram; the coding agent stays on Workers AI
   - **MCP servers**: add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
   - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
 - A calm, minimal chat UI with light and dark mode that works on mobile

@@ -5,6 +5,24 @@ import { Streamdown } from "streamdown";
 import { Thinking, TypingDots } from "./thinking";
 import { ToolChip } from "./tool-chip";
 
+const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
+
+/** A user message's typed text plus the names of the files attached to it. */
+function userContent(m: UIMessage) {
+  const files: string[] = [];
+  let text = "";
+  for (const p of m.parts) {
+    if (p.type === "file") files.push(p.filename ?? "file");
+    if (p.type !== "text") continue;
+    // Text files travel inline; show them as chips, not as a wall of text.
+    text += p.text.replace(INLINE_FILE, (_, name: string) => {
+      files.push(name);
+      return "";
+    });
+  }
+  return { text: text.trim(), files };
+}
+
 /** The conversation: user bubbles, and assistant text, reasoning and tools. */
 export function MessageList({
   messages,
@@ -26,13 +44,19 @@ export function MessageList({
       {messages.map((m, i) => {
         const isLast = i === messages.length - 1;
         if (m.role === "user") {
-          const text = m.parts
-            .filter((p) => p.type === "text")
-            .map((p) => (p as { text: string }).text)
-            .join("");
+          const { text, files } = userContent(m);
           return (
-            <div key={m.id} className="flex justify-end">
-              <div className="bubble-user">{text}</div>
+            <div key={m.id} className="flex flex-col items-end gap-1">
+              {files.length > 0 && (
+                <div className="attachments justify-end">
+                  {files.map((f, k) => (
+                    <span className="chip-file" key={k}>
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {text && <div className="bubble-user">{text}</div>}
             </div>
           );
         }

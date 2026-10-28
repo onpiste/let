@@ -1,22 +1,23 @@
 import { useAgentChat } from "@cloudflare/think/react";
 import type { MCPServersState } from "agents";
 import { useAgent } from "agents/react";
+import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  HARNESSES,
-  type HarnessId as Harness,
-  type ServerEvent,
-  type User
-} from "@cot/shared";
+import { HARNESSES, type ServerEvent, type User } from "@cot/shared";
 
 import { Brand } from "../../components/brand";
 import { Gear, LogOut, Plus } from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
+import {
+  checkTotalSize,
+  readAttachment,
+  type Attachment
+} from "../../lib/attachments";
+import { errorText } from "../../lib/errors";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
-import { HarnessSwitch } from "./harness-switch";
 import { MessageList } from "./message-list";
 import { NoticeToast, type Notice } from "./notice-toast";
 import { mcpToolLabels } from "./tool-chip";
@@ -24,28 +25,25 @@ import { useReconnectOnResume } from "./use-reconnect";
 
 export function ChatPage({
   user,
-  harness,
-  onHarnessChange,
   onSignOut,
   onAuthCheck,
   onOpenSettings
 }: {
   user: User;
-  harness: Harness;
-  onHarnessChange: (h: Harness) => void;
   onSignOut: () => void;
   onAuthCheck: () => void;
   onOpenSettings: () => void;
 }) {
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [toast, setToast] = useState<Notice | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const endRef = useRef<HTMLDivElement>(null);
 
   const agent = useAgent({
-    agent: HARNESSES[harness].agent,
-    basePath: HARNESSES[harness].basePath,
+    agent: HARNESSES.think.agent,
+    basePath: HARNESSES.think.basePath,
     // A cold Durable Object can take longer than the default timeout to
     // accept the first socket; retry quickly instead of backing off.
     connectionTimeout: 10_000,
@@ -104,12 +102,26 @@ export function ChatPage({
 
   const dismissToast = useCallback(() => setToast(null), []);
 
+  const attach = async (files: File[]) => {
+    try {
+      const added = await Promise.all(files.map(readAttachment));
+      const next = [...attachments, ...added];
+      checkTotalSize(next);
+      setAttachments(next);
+    } catch (e) {
+      setToast({ icon: "⚠️", title: "Can't attach", text: errorText(e) });
+    }
+  };
+
   const send = (text = input) => {
     const t = text.trim();
-    if (!t || busy) return;
+    if ((!t && attachments.length === 0) || busy) return;
     requestNotificationPermission();
+    const parts: UIMessage["parts"] = attachments.map((a) => a.part);
+    if (t) parts.push({ type: "text", text: t });
     setInput("");
-    void sendMessage({ role: "user", parts: [{ type: "text", text: t }] });
+    setAttachments([]);
+    void sendMessage({ role: "user", parts });
   };
 
   return (
@@ -122,7 +134,6 @@ export function ChatPage({
           />
         </Brand>
         <div className="flex items-center gap-1">
-          <HarnessSwitch value={harness} onChange={onHarnessChange} />
           {!empty && (
             <button
               className="icon-btn"
@@ -175,7 +186,12 @@ export function ChatPage({
       <Composer
         value={input}
         busy={busy}
+        attachments={attachments}
         onChange={setInput}
+        onAttach={(files) => void attach(files)}
+        onRemoveAttachment={(i) =>
+          setAttachments(attachments.filter((_, j) => j !== i))
+        }
         onSend={() => send()}
         onStop={() => void stop()}
       />

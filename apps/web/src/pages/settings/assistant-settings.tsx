@@ -135,8 +135,7 @@ export function AssistantSettings({ agent }: { agent: AgentHandle }) {
 
       <h2>Model</h2>
       <p className="muted">
-        Used by the Think assistant and Telegram. The Pi assistant always uses
-        Workers AI.
+        Used for chat and Telegram. The coding agent always uses Workers AI.
       </p>
       <label>
         <span>Provider</span>
@@ -158,12 +157,25 @@ export function AssistantSettings({ agent }: { agent: AgentHandle }) {
       </label>
       <label>
         <span>Model</span>
-        <input
-          list="models"
-          value={draft.model}
-          placeholder="Model id"
-          onChange={(e) => set("model", e.target.value)}
-        />
+        {draft.provider === "workers-ai" ? (
+          <select
+            value={draft.model}
+            onChange={(e) => set("model", e.target.value)}
+          >
+            {[...new Set([draft.model, ...info.suggestions])].map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            list="models"
+            value={draft.model}
+            placeholder="Model id"
+            onChange={(e) => set("model", e.target.value)}
+          />
+        )}
         <datalist id="models">
           {info.suggestions.map((m) => (
             <option key={m} value={m}>

@@ -1,6 +1,7 @@
 import { useRef } from "react";
 
-import { ArrowUp, Square } from "../../components/icons";
+import { ArrowUp, Paperclip, Square } from "../../components/icons";
+import type { Attachment } from "../../lib/attachments";
 
 const MAX_HEIGHT = 200;
 
@@ -11,17 +12,24 @@ const MAX_HEIGHT = 200;
 export function Composer({
   value,
   busy,
+  attachments,
   onChange,
+  onAttach,
+  onRemoveAttachment,
   onSend,
   onStop
 }: {
   value: string;
   busy: boolean;
+  attachments: Attachment[];
   onChange: (value: string) => void;
+  onAttach: (files: File[]) => void;
+  onRemoveAttachment: (index: number) => void;
   onSend: () => void;
   onStop: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const autosize = () => {
     const el = textareaRef.current;
@@ -40,6 +48,22 @@ export function Composer({
 
   return (
     <footer className="composer-wrap">
+      {attachments.length > 0 && (
+        <div className="attachments">
+          {attachments.map((a, i) => (
+            <span className="chip-file" key={`${a.name}-${i}`}>
+              {a.name}
+              <button
+                type="button"
+                aria-label={`Remove ${a.name}`}
+                onClick={() => onRemoveAttachment(i)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <form
         className="composer"
         onSubmit={(e) => {
@@ -47,6 +71,26 @@ export function Composer({
           send();
         }}
       >
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          hidden
+          accept="text/*,image/*,application/pdf,.md,.csv,.json,.yaml,.yml,.log,.py,.js,.ts,.tsx,.go,.rs,.java,.sql"
+          onChange={(e) => {
+            onAttach(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          className="attach-btn"
+          onClick={() => fileRef.current?.click()}
+          aria-label="Attach files"
+          title="Attach files"
+        >
+          <Paperclip />
+        </button>
         <textarea
           ref={textareaRef}
           value={value}
@@ -80,7 +124,7 @@ export function Composer({
           <button
             type="submit"
             className="send-btn"
-            disabled={!value.trim()}
+            disabled={!value.trim() && attachments.length === 0}
             aria-label="Send"
           >
             <ArrowUp />

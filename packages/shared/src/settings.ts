@@ -14,7 +14,22 @@ export const PROVIDERS: Record<
   "workers-ai": {
     label: "Workers AI",
     defaultModel: "@cf/moonshotai/kimi-k2.7-code",
-    suggestions: ["@cf/moonshotai/kimi-k2.7-code"]
+    // Open models from the Workers AI catalog that handle tool calls well;
+    // the field stays free text for anything newer.
+    suggestions: [
+      "@cf/moonshotai/kimi-k2.7-code",
+      "@cf/moonshotai/kimi-k2.6",
+      "@cf/openai/gpt-oss-120b",
+      "@cf/openai/gpt-oss-20b",
+      "@cf/zai-org/glm-4.7-flash",
+      "@cf/meta/llama-4-scout-17b-16e-instruct",
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      "@cf/mistralai/mistral-small-3.1-24b-instruct",
+      "@cf/google/gemma-4-26b-a4b-it",
+      "@cf/qwen/qwen3-30b-a3b-fp8",
+      "@cf/nvidia/nemotron-3-120b-a12b",
+      "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"
+    ]
   },
   openai: {
     label: "OpenAI",
