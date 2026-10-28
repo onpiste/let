@@ -1,4 +1,0 @@
-{
-  "extends": "@cot/tsconfig/base.json",
-  "include": ["capacitor.config.ts"]
-}

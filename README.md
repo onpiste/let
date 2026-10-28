@@ -108,15 +108,16 @@ Telegram only delivers webhooks to public `https://` URLs, so a bot connected fr
 
 ## iOS app
 
-`apps/mobile` is a Capacitor app that runs the deployed web app with native
-sign-in, reminder notifications and haptics. On a Mac with Xcode:
+`apps/mobile` is a native SwiftUI app (iOS 17+): system Google sign-in,
+streaming chat with tools and approvals, settings, and haptics, talking to the
+same Worker as the web app. On a Mac with Xcode:
 
 ```bash
-bun run --filter @cot/mobile sync   # then:
-bun run --filter @cot/mobile open   # build and run from Xcode
+brew install xcodegen
+cd apps/mobile && xcodegen generate && open Cot.xcodeproj
 ```
 
-Details, and how to add device capabilities, in
+Details, and how to make it yours, in
 [apps/mobile/README.md](apps/mobile/README.md).
 
 ## Run locally
@@ -160,9 +161,9 @@ apps/server/               # @cot/server — Cloudflare Worker
   src/integrations/telegram/ # per-user Telegram bots
   src/tools/               #   sandbox (Container), code runner, knowledge search, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
-apps/mobile/               # @cot/mobile — Capacitor iOS shell around the web app
-  capacitor.config.ts      #   app id, server URL
-  ios/App/                 #   Xcode project; App/WebAuthPlugin.swift does native sign-in
+apps/mobile/               # native SwiftUI iOS app (XcodeGen, not a Bun workspace)
+  project.yml              #   bundle id, server URL, URL scheme
+  Cot/                     #   Core (auth, socket), Chat, Settings
 apps/web/                  # @cot/web — React client (its Vite build also bundles the Worker)
   src/app.tsx              #   session state and page switching
   src/pages/chat/          #   chat page and its components

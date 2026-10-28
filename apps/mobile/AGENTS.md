@@ -1,15 +1,24 @@
 # apps/mobile — AGENTS.md
 
-The Capacitor iOS shell. Root rules in [/AGENTS.md](../../AGENTS.md) apply;
-see [README.md](README.md) for what it does and how to build it.
+The native iOS app (SwiftUI). Root rules in [/AGENTS.md](../../AGENTS.md)
+apply; see [README.md](README.md) for what it does and how to build it.
 
-- **No UI here.** The app loads the deployed web app; features go in
-  `apps/web` and call device APIs from `apps/web/src/lib/` behind
-  `isNativeApp`, always with a browser fallback.
-- **Generated files.** `ios/App/CapApp-SPM/Package.swift` is written by
-  `cap sync`; never edit it by hand. `ios/App/App/public`,
-  `capacitor.config.json` and `config.xml` are gitignored outputs of `sync`.
-- **Hand-written native code** lives in `ios/App/App/` (`WebAuthPlugin.swift`,
-  `BridgeViewController.swift`, `Info.plist`). A new Swift file must also be
-  added to `ios/App/App.xcodeproj/project.pbxproj` (Xcode does this for you).
-- Swift can't be built on Linux; the `iOS` workflow builds it on macOS.
+- **Not a Bun workspace.** There is no `package.json`; `bun run check` never
+  sees this folder. The `iOS` workflow builds and tests it on macOS.
+- **Swift can't be built on Linux.** Keep changes small and let CI be the
+  compiler; run the tests in Xcode (⌘U) when you have a Mac.
+- **The Xcode project is generated.** `project.yml` (XcodeGen) is the source;
+  `Cot.xcodeproj` and `Cot/Info.plist` are gitignored outputs. A new Swift
+  file under `Cot/` or `CotTests/` needs no project edit.
+- **Deployment values live in `project.yml`** (`CotServerURL`,
+  `CotRedirectURI`, bundle id), read through `Cot/Core/Config.swift`. Never
+  hard-code a domain in Swift.
+- **The contract is `@cot/shared`.** The Swift types in `Cot/Settings/
+SettingsTypes.swift`, `Cot/Core/User.swift` and `Cot/Chat/Harness.swift`
+  mirror it by hand. When you change `packages/shared` (a route, an
+  `AssistantRpc` method, a settings field), update them in the same change.
+- **Layout.** `Core/` is networking and auth (no SwiftUI), `Chat/` the chat
+  protocol, reducer and views, `Settings/` the settings sheet. Views stay
+  thin: protocol and state logic goes in a store/model that tests can drive.
+- **Chat messages stay raw JSON** (`JSONValue`) so the whole history can be
+  sent back unchanged; read them through the accessors on `ChatMessage`.
