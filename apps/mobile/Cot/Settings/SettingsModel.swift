@@ -18,7 +18,7 @@ final class SettingsModel {
     private let socket: AgentSocket
 
     init(token: @escaping () -> String?) {
-        socket = AgentSocket(url: Config.socketURL(basePath: Harness.think.basePath), token: token)
+        socket = AgentSocket(url: Config.socketURL(basePath: "chat"), token: token)
         socket.onFrame = { [weak self] frame in
             guard frame["type"]?.string == "cf_agent_mcp_servers" else { return }
             self?.mcp = frame["mcp"].flatMap { try? $0.decoded(as: McpState.self) }
