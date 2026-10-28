@@ -10,9 +10,11 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "@cot/tsconfig": "workspace:*"
+    "@cot/tsconfig": "workspace:*",
+    "vitest": "^5.0.5"
   }
 }

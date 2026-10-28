@@ -74,6 +74,13 @@ Cot is meant to be forked and changed. The usual first steps:
    public paths (`/auth/*`, `/messengers/*`) and billing alerts are set in
    the Cloudflare dashboard.
 
+   **Approvals.** Each user picks, in **Settings → Approvals**, whether
+   sandbox commands and file writes wait for a click: _Ask every time_
+   (default), _Auto_ (routine work runs by itself; destructive, privileged or
+   out-of-workspace calls still ask) or _Never ask_. The rules live in
+   `packages/shared/src/approval.ts`; tune them there for your deployment.
+   Telegram never runs these tools, since it has no approve button.
+
 5. **Skills.** Add a tool group in `apps/server/src/agents/think/tools/`, or
    connect an existing MCP server from **Settings → MCP servers** without
    writing code. Business-specific knowledge can go into the `cot-knowledge`

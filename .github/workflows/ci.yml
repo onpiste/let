@@ -41,6 +41,9 @@ jobs:
       - name: Dead code (knip)
         run: bun run knip
 
+      - name: Tests
+        run: bun run test
+
       - name: Worker types are up to date
         run: bun run --filter @cot/server types:check
 
