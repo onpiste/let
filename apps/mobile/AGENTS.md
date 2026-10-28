@@ -8,7 +8,7 @@ apply; see [README.md](README.md) for what it does and how to build it.
 - **Swift can't be built on Linux.** Keep changes small and let CI be the
   compiler; run the tests in Xcode (⌘U) when you have a Mac.
 - **Lint and format with SwiftFormat + SwiftLint** (`brew install swiftformat
-  swiftlint`). Run `swiftformat .` then `swiftlint lint --strict` in this
+swiftlint`). Run `swiftformat .` then `swiftlint lint --strict` in this
   folder before committing; the `iOS` workflow runs both. Config is in
   `.swiftformat` and `.swiftlint.yml`; SwiftFormat owns formatting, so keep
   style rules out of SwiftLint.
