@@ -8,6 +8,12 @@ body,
   margin: 0;
 }
 
+html,
+body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -27,4 +33,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100dvh;
+  /* The iOS shell draws edge to edge (viewport-fit=cover), so keep content
+     clear of the notch, home indicator and rounded corners. Zero in browsers. */
+  box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }

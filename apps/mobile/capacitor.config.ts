@@ -23,7 +23,10 @@ const config: CapacitorConfig = {
   },
   // The `cot://` URL scheme native sign-in returns to is registered in
   // ios/App/App/Info.plist (CFBundleURLTypes).
-  ios: { contentInset: "automatic" },
+  // "never": the web app pads itself with env(safe-area-inset-*); an
+  // automatic native inset on top of that makes the page taller than the
+  // screen (stray scrollbar) and clips the notch area.
+  ios: { contentInset: "never" },
   plugins: {
     LocalNotifications: { presentationOptions: ["banner", "sound"] }
   }
