@@ -166,3 +166,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+.task {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.task.paused {
+  opacity: 0.6;
+}

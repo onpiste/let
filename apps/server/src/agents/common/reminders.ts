@@ -30,16 +30,6 @@ function reminders(agent: ReminderAgent) {
   return agent.getSchedules().filter((s) => s.callback === "executeTask");
 }
 
-export function listReminders(agent: ReminderAgent) {
-  const tasks = reminders(agent);
-  return tasks.length > 0 ? tasks : "No reminders scheduled.";
-}
-
-export async function cancelReminder(agent: ReminderAgent, taskId: string) {
-  await agent.cancelSchedule(taskId);
-  return `Reminder ${taskId} cancelled.`;
-}
-
 export function broadcastReminder(agent: ReminderAgent, description: string) {
   // Broadcast instead of saving a message so the reminder doesn't enter the
   // chat history and trigger another model turn.

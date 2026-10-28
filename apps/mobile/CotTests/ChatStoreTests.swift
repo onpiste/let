@@ -74,3 +74,13 @@ final class ChatSummaryTests: XCTestCase {
         XCTAssertTrue(chats[0].active)
     }
 }
+
+final class ScheduledTaskTests: XCTestCase {
+    func testDecodesAPausedRepeatingTask() throws {
+        let json = JSONValue.parse(
+            #"[{"id":"t","description":"Report","schedule":{"kind":"cron","cron":"0 9 * * 1"},"nextRun":null,"paused":true}]"#)
+        let tasks = try XCTUnwrap(json).decoded(as: [ScheduledTask].self)
+
+        XCTAssertEqual(tasks[0].statusText, "Repeats (0 9 * * 1) · Paused")
+    }
+}

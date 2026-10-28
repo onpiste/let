@@ -10,6 +10,7 @@ there is no WebView: native text, keyboard, haptics and system sign-in.
 | Reconnecting agent WebSocket + `AssistantRpc` calls | `Cot/Core/AgentSocket.swift`                         |
 | Chat: streaming, reasoning, tools, approvals        | `Cot/Chat/` (`ChatStore`, `ChunkReducer`, views)     |
 | Attach files and photos (text inline, images/PDF)   | `Cot/Chat/Attachment.swift`, `ComposerView.swift`    |
+| Scheduled tasks: list, pause, resume, delete, edit  | `Cot/Chat/TasksView.swift`, `ChatStore+Tasks.swift`  |
 | Chat history: list, open, delete, new chat          | `Cot/Chat/HistoryView.swift`, `ChatStore` history    |
 | Settings: model and keys, MCP, Telegram, email      | `Cot/Settings/`                                      |
 | Reminder and mail notices                           | in-app banner; system notification when backgrounded |

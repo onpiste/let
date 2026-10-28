@@ -20,6 +20,7 @@ src/
     common/                 Persona + memory prompt, reminders, usage limits
     think/
       assistant.ts          Assistant DO: Think hooks + callables, delegating to the files below
+      tasks.ts              Scheduled tasks: list, pause (park + cancel), resume, update, delete
       history.ts            Saved conversations: snapshot the active chat, swap another in
       store.ts              Its SQLite tables (settings, owner, Telegram and email config, memories)
       model.ts              Settings → model (Workers AI / OpenAI / Anthropic / Google)

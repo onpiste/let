@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
 import { Brand } from "../../components/brand";
-import { Clock, Gear, LogOut, Plus } from "../../components/icons";
+import { Calendar, Clock, Gear, LogOut, Plus } from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
 import { api } from "../../lib/assistant-rpc";
 import {
@@ -27,17 +27,22 @@ import { useReconnectOnResume } from "./use-reconnect";
 
 export function ChatPage({
   user,
+  draft,
   onSignOut,
   onAuthCheck,
-  onOpenSettings
+  onOpenSettings,
+  onOpenTasks
 }: {
   user: User;
+  /** Text to start the message box with. */
+  draft: string;
   onSignOut: () => void;
   onAuthCheck: () => void;
   onOpenSettings: () => void;
+  onOpenTasks: () => void;
 }) {
   const [connected, setConnected] = useState(false);
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(draft);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState<Notice | null>(null);
@@ -160,6 +165,14 @@ export function ChatPage({
             </button>
           )}
           <ThemeToggle />
+          <button
+            className="icon-btn"
+            onClick={onOpenTasks}
+            aria-label="Tasks"
+            title="Tasks"
+          >
+            <Calendar />
+          </button>
           <button
             className="icon-btn"
             onClick={onOpenSettings}

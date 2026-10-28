@@ -3,5 +3,6 @@ export * from "./email";
 export * from "./routes";
 export * from "./rpc";
 export * from "./settings";
+export * from "./tasks";
 export * from "./telegram";
 export * from "./user";

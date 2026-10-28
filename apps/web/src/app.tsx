@@ -6,15 +6,17 @@ import { fetchCurrentUser, signOut as requestSignOut } from "./lib/auth";
 import { ChatPage } from "./pages/chat/chat-page";
 import { SettingsPage } from "./pages/settings/settings-page";
 import { SignInPage } from "./pages/sign-in-page";
+import { TasksPage } from "./pages/tasks/tasks-page";
 
 // ── Routing ───────────────────────────────────────────────────────────
 // Two pages, so a router library isn't worth it: the path picks the page
 // and history.pushState keeps the back button working.
 
-type Page = "chat" | "settings";
+type Page = "chat" | "settings" | "tasks";
 
 function currentPage(): Page {
-  return location.pathname === "/settings" ? "settings" : "chat";
+  if (location.pathname === "/settings") return "settings";
+  return location.pathname === "/tasks" ? "tasks" : "chat";
 }
 
 /** Session state and page switching; each page owns its own agent socket. */
@@ -23,6 +25,8 @@ export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(currentPage);
+  // Text to put in the chat box, e.g. from the Tasks page's Edit button.
+  const [draft, setDraft] = useState("");
 
   useEffect(() => {
     const onPop = () => setPage(currentPage());
@@ -31,7 +35,7 @@ export default function App() {
   }, []);
 
   const navigate = (to: Page) => {
-    history.pushState(null, "", to === "settings" ? "/settings" : "/");
+    history.pushState(null, "", to === "chat" ? "/" : `/${to}`);
     setPage(to);
   };
 
@@ -57,12 +61,25 @@ export default function App() {
   if (page === "settings") {
     return <SettingsPage user={user} onBack={() => navigate("chat")} />;
   }
+  if (page === "tasks") {
+    return (
+      <TasksPage
+        onBack={() => navigate("chat")}
+        onEditInChat={(text) => {
+          setDraft(text);
+          navigate("chat");
+        }}
+      />
+    );
+  }
   return (
     <ChatPage
       user={user}
+      draft={draft}
       onSignOut={() => void signOut()}
       onAuthCheck={refresh}
       onOpenSettings={() => navigate("settings")}
+      onOpenTasks={() => navigate("tasks")}
     />
   );
 }

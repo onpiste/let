@@ -2,12 +2,10 @@ import { scheduleSchema } from "agents/schedule";
 import { tool } from "ai";
 import { z } from "zod";
 
-import {
-  cancelReminder,
-  listReminders,
-  setReminder,
-  type ReminderAgent
-} from "../../common/reminders";
+import type { TaskSchedule } from "@cot/shared";
+
+import { setReminder, type ReminderAgent } from "../../common/reminders";
+import { Tasks } from "../tasks";
 
 export function reminderTools(agent: ReminderAgent, env: Env) {
   return {
@@ -37,21 +35,83 @@ export function reminderTools(agent: ReminderAgent, env: Env) {
     }),
 
     getScheduledTasks: tool({
-      description: "List all scheduled reminders",
+      description:
+        "List all scheduled tasks with their ids, schedules and whether they are paused",
       inputSchema: z.object({}),
-      execute: async () => listReminders(agent)
+      execute: async () => {
+        const tasks = new Tasks(agent).list();
+        return tasks.length > 0 ? tasks : "No reminders scheduled.";
+      }
+    }),
+
+    updateScheduledTask: tool({
+      description:
+        "Change a scheduled task's text and/or time. Look up its id with getScheduledTasks first. Give at most one of date, delayInSeconds or cron; omit all to keep the time. A paused task stays paused.",
+      inputSchema: z.object({
+        taskId: z.string().describe("The ID of the task to change"),
+        description: z.string().optional().describe("The new reminder text"),
+        date: z.string().optional().describe("ISO date-time, for a one-off"),
+        delayInSeconds: z.number().optional().describe("Seconds from now"),
+        cron: z.string().optional().describe("Cron expression, for a repeat")
+      }),
+      execute: async ({ taskId, description, date, delayInSeconds, cron }) => {
+        const schedule: TaskSchedule | undefined = date
+          ? { kind: "once", at: new Date(date).toISOString() }
+          : delayInSeconds !== undefined
+            ? {
+                kind: "once",
+                at: new Date(Date.now() + delayInSeconds * 1000).toISOString()
+              }
+            : cron
+              ? { kind: "cron", cron }
+              : undefined;
+        try {
+          await new Tasks(agent).update(taskId, { description, schedule });
+          return `Task ${taskId} updated.`;
+        } catch (error) {
+          return `Error updating task: ${String(error)}`;
+        }
+      }
+    }),
+
+    pauseScheduledTask: tool({
+      description:
+        "Pause a scheduled task so it stops firing but is kept. Resume it later with resumeScheduledTask.",
+      inputSchema: z.object({ taskId: z.string() }),
+      execute: async ({ taskId }) => {
+        try {
+          await new Tasks(agent).pause(taskId);
+          return `Task ${taskId} paused.`;
+        } catch (error) {
+          return `Error pausing task: ${String(error)}`;
+        }
+      }
+    }),
+
+    resumeScheduledTask: tool({
+      description: "Resume a paused scheduled task",
+      inputSchema: z.object({ taskId: z.string() }),
+      execute: async ({ taskId }) => {
+        try {
+          await new Tasks(agent).resume(taskId);
+          return `Task ${taskId} resumed.`;
+        } catch (error) {
+          return `Error resuming task: ${String(error)}`;
+        }
+      }
     }),
 
     cancelScheduledTask: tool({
-      description: "Cancel a scheduled reminder by its ID",
+      description: "Delete a scheduled task by its ID",
       inputSchema: z.object({
-        taskId: z.string().describe("The ID of the task to cancel")
+        taskId: z.string().describe("The ID of the task to delete")
       }),
       execute: async ({ taskId }) => {
         try {
-          return await cancelReminder(agent, taskId);
+          await new Tasks(agent).remove(taskId);
+          return `Task ${taskId} deleted.`;
         } catch (error) {
-          return `Error cancelling reminder: ${String(error)}`;
+          return `Error deleting task: ${String(error)}`;
         }
       }
     })

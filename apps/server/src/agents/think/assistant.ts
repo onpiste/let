@@ -29,6 +29,7 @@ import { ChatHistory } from "./history";
 import { modelFor, paidByUser } from "./model";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
+import { Tasks } from "./tasks";
 import { assistantTools, NEEDS_APPROVAL } from "./tools";
 
 /**
@@ -193,6 +194,28 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     if (typeof id !== "string" || id.length > 64)
       throw new Error("Bad chat id.");
     return this.history.remove(id);
+  }
+
+  // ── Scheduled tasks (callables) ─────────────────────────────────────
+
+  @callable()
+  async listTasks() {
+    return new Tasks(this).list();
+  }
+
+  @callable()
+  async pauseTask(id: string) {
+    return new Tasks(this).pause(id);
+  }
+
+  @callable()
+  async resumeTask(id: string) {
+    return new Tasks(this).resume(id);
+  }
+
+  @callable()
+  async deleteTask(id: string) {
+    return new Tasks(this).remove(id);
   }
 
   // ── Settings (callables) ────────────────────────────────────────────

@@ -14,7 +14,10 @@ const TOOL_LABELS: Record<string, string> = {
   browseWeb: "Opened web page",
   searchKnowledge: "Searched knowledge base",
   runCode: "Ran code",
-  codeTask: "Coding agent"
+  codeTask: "Coding agent",
+  updateScheduledTask: "Task updated",
+  pauseScheduledTask: "Task paused",
+  resumeScheduledTask: "Task resumed"
 };
 
 /** "server · tool" for MCP tools, keyed by the AI SDK tool name. */
