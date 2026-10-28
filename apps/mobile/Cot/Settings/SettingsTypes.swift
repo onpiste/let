@@ -28,6 +28,7 @@ enum Providers {
                 "@cf/google/gemma-4-26b-a4b-it",
                 "@cf/qwen/qwen3-30b-a3b-fp8",
                 "@cf/nvidia/nemotron-3-120b-a12b",
+                "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
                 "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
             ]),
         ProviderInfo(id: "openai", label: "OpenAI", defaultModel: "gpt-5.5", suggestions: ["gpt-5.5"]),
