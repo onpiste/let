@@ -9,7 +9,7 @@ function formatMemories(memories: Memory[]) {
     : "(nothing yet)";
 }
 
-/** The persona both harnesses start their system prompt with. */
+/** The persona the system prompt starts with. */
 export function buildPersona(settings: Settings) {
   const language =
     settings.language === "auto"

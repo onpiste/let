@@ -1,6 +1,6 @@
 import { getAgentByName } from "agents";
 
-import { AUTH_ROUTES, HARNESSES } from "@cot/shared";
+import { ASSISTANT, AUTH_ROUTES } from "@cot/shared";
 
 import { handleCallback, handleLogin, handleLogout } from "../auth/google";
 import { handleToken } from "../auth/native";
@@ -42,20 +42,10 @@ export const router = {
 
       // The Worker, not the browser, decides which assistant instance a
       // request reaches. There is deliberately no generic /agents/* route.
-      // /chat is the Think assistant, /pi the Pi one; both are keyed by the
-      // same account, so they share its memory.
-      const harness = url.pathname.split("/")[1];
-      if (
-        harness === HARNESSES.think.basePath ||
-        harness === HARNESSES.pi.basePath
-      ) {
+      if (url.pathname.split("/")[1] === ASSISTANT.basePath) {
         const user = await getUserFromRequest(request, env);
         if (!user) return new Response("Unauthorized", { status: 401 });
-        const name = `google:${user.id}`;
-        if (harness === HARNESSES.pi.basePath) {
-          return (await getAgentByName(env.PiAssistant, name)).fetch(request);
-        }
-        const agent = await getAgentByName(env.Assistant, name);
+        const agent = await getAgentByName(env.Assistant, `google:${user.id}`);
         if (request.headers.get("Upgrade") === "websocket") {
           await agent.setOwner(user.email, user.name);
         }

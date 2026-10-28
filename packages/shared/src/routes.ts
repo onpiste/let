@@ -31,17 +31,11 @@ export const NATIVE_AUTH_PARAMS = {
 } as const;
 
 /**
- * The agent harnesses a client can talk to. `agent` is the Durable Object
- * class name and `basePath` the WebSocket/HTTP prefix the Worker routes to
- * the signed-in user's own instance.
+ * The assistant a client talks to. `agent` is the Durable Object class name
+ * and `basePath` the WebSocket/HTTP prefix the Worker routes to the
+ * signed-in user's own instance.
  */
-export const HARNESSES = {
-  think: { agent: "Assistant", basePath: "chat", label: "Think" },
-  pi: { agent: "PiAssistant", basePath: "pi", label: "Pi" }
-} as const;
-
-export type HarnessId = keyof typeof HARNESSES;
-export type HarnessBasePath = (typeof HARNESSES)[HarnessId]["basePath"];
+export const ASSISTANT = { agent: "Assistant", basePath: "chat" } as const;
 
 /** Where MCP servers send the user back after OAuth; routed like `/chat`. */
-export const MCP_CALLBACK_PATH = `${HARNESSES.think.basePath}/mcp-callback`;
+export const MCP_CALLBACK_PATH = `${ASSISTANT.basePath}/mcp-callback`;

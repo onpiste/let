@@ -2,7 +2,7 @@ import type { MCPServersState } from "agents";
 import { useAgent } from "agents/react";
 import { useCallback, useState } from "react";
 
-import { HARNESSES, type User } from "@cot/shared";
+import { ASSISTANT, type User } from "@cot/shared";
 
 import { AssistantSettings } from "./assistant-settings";
 import { EmailSettings } from "./email-settings";
@@ -23,8 +23,8 @@ export function SettingsPage({
   const [mcp, setMcp] = useState<MCPServersState | null>(null);
   const [epoch, setEpoch] = useState(0);
   const agent = useAgent({
-    agent: HARNESSES.think.agent,
-    basePath: HARNESSES.think.basePath,
+    agent: ASSISTANT.agent,
+    basePath: ASSISTANT.basePath,
     onOpen: useCallback(() => setEpoch((n) => n + 1), []),
     onMcpUpdate: useCallback((state: MCPServersState) => setMcp(state), [])
   });

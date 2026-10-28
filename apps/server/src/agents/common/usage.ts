@@ -1,7 +1,5 @@
 /**
- * Per-account message limits, shared by both harnesses so switching between
- * them doesn't double the allowance. The counts live in the account's Think
- * assistant; the limits come from `vars` in wrangler.jsonc, where 0 (or an
+ * Per-account message limits, counted in the account's Think assistant; the limits come from `vars` in wrangler.jsonc, where 0 (or an
  * unset var) means no limit.
  */
 

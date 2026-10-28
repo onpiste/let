@@ -39,24 +39,13 @@
   // plugin at this file), so there is no assets directory here.
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": [
-      "/auth/*",
-      "/chat",
-      "/chat/*",
-      "/pi",
-      "/pi/*",
-      "/messengers/*"
-    ]
+    "run_worker_first": ["/auth/*", "/chat", "/chat/*", "/messengers/*"]
   },
   "durable_objects": {
     "bindings": [
       {
         "class_name": "Assistant",
         "name": "Assistant"
-      },
-      {
-        "class_name": "PiAssistant",
-        "name": "PiAssistant"
       },
       {
         "class_name": "TelegramRoutes",
@@ -109,6 +98,11 @@
     {
       "new_sqlite_classes": ["EmailAddresses"],
       "tag": "v5"
+    },
+    {
+      // The Pi chat harness became a headless coding agent (no Durable Object).
+      "deleted_classes": ["PiAssistant"],
+      "tag": "v6"
     }
   ]
 }

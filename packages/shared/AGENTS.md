@@ -5,7 +5,7 @@ The contract between the server and every client. Root rules in
 
 ```
 src/
-  routes.ts     HTTP paths and agent harnesses (AUTH_ROUTES, HARNESSES, MCP_CALLBACK_PATH)
+  routes.ts     HTTP paths and agent harnesses (AUTH_ROUTES, ASSISTANT, MCP_CALLBACK_PATH)
   rpc.ts        AssistantRpc (callable signatures), AddMcpResult, ServerEvent
   settings.ts   Settings types, providers, defaults, validation
   telegram.ts   TelegramStatus

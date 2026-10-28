@@ -8,7 +8,6 @@ import { router } from "./http/router";
 import { handleIncomingEmail } from "./integrations/email/handler";
 
 export { Assistant } from "./agents/think/assistant";
-export { PiAssistant } from "./agents/pi/pi-assistant";
 export { EmailAddresses } from "./integrations/email/addresses";
 export { TelegramRoutes } from "./integrations/telegram/routes";
 export { Sandbox } from "./tools/sandbox";

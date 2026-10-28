@@ -118,7 +118,7 @@ work around them with relative paths.
   `node:*` imports. Anything a second client would need (types, route paths,
   RPC signatures, validation) belongs here.
 - **Clients never import server code.** `apps/web` talks to the server only
-  over HTTP/WebSocket, using `AUTH_ROUTES`, `HARNESSES` and the
+  over HTTP/WebSocket, using `AUTH_ROUTES`, `ASSISTANT` and the
   `AssistantRpc` interface from `@cot/shared`.
 - **The server never imports client code** (no React, no `@cot/web`).
 - **Cross-workspace imports use the package name** (`@cot/shared`), never a

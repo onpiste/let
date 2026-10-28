@@ -22,7 +22,6 @@
         "@ai-sdk/google": "^4.0.106",
         "@ai-sdk/openai": "^4.0.103",
         "@chat-adapter/telegram": "^4.43.0",
-        "@cloudflare/ai-chat": "^0.12.2",
         "@cloudflare/computer": "^0.5.1",
         "@cloudflare/puppeteer": "1.4.0",
         "@cloudflare/think": "^0.21.0",
@@ -206,8 +205,6 @@
     "@chat-adapter/shared": ["@chat-adapter/shared@4.43.0", "", { "dependencies": { "chat": "4.43.0" } }, "sha512-uclU9sQLQa5f9pN9xpCHkMC7eypnIvXnZRnpgdAzltL2d0PhrsJlSPkijmc4Q4FzSfof4kh+gE6yAMFp/tNsQQ=="],
 
     "@chat-adapter/telegram": ["@chat-adapter/telegram@4.43.0", "", { "dependencies": { "@chat-adapter/shared": "4.43.0", "chat": "4.43.0" } }, "sha512-tBtRW7QzvF8pI5rrIUwEWesDMZLPaPdyhn9leTrC5J0B8cwb/uXvhgmrtaOQ5GzEQR8AnbIINGHyEY32nMeNLw=="],
-
-    "@cloudflare/ai-chat": ["@cloudflare/ai-chat@0.12.2", "", { "dependencies": { "nanoid": "^5.1.16" }, "peerDependencies": { "@ai-sdk/react": "^3.0.0 || ^4.0.0", "agents": ">=0.25.0 <1.0.0", "ai": "^6.0.0 || ^7.0.0", "react": "^19.0.0" }, "optionalPeers": ["@ai-sdk/react", "react"] }, "sha512-LqS/jX+uOewhIdnOt9Yrd1t92xUvSuxBYcmbP11lvg2wYmpKm0p0mOFP0ieiRQj1bRFVkcPiHgDn+UXwga841Q=="],
 
     "@cloudflare/codemode": ["@cloudflare/codemode@0.5.5", "", { "dependencies": { "@types/json-schema": "^7.0.15", "acorn": "^8.17.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.0", "@tanstack/ai": ">=0.8.0 <1.0.0", "ai": "^6.0.0 || ^7.0.0", "zod": "^4.0.0" }, "optionalPeers": ["@modelcontextprotocol/sdk", "@tanstack/ai", "ai", "zod"] }, "sha512-MQMOisCSXpXO0+cHBRshK2mzzEx3lnm6jk/R8MS3G1BmKnrmaSf7HxNBh058ZGBVzp++DJmWOqaCUJjVTCZJKA=="],
 

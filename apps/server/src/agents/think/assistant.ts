@@ -22,7 +22,6 @@ import {
   TelegramChannel,
   type TelegramUpdateResult
 } from "../../integrations/telegram/channel";
-import { buildPersona } from "../common/prompt";
 import { broadcastReminder } from "../common/reminders";
 import { takeTurn, usageLimits } from "../common/usage";
 import { cannedReply } from "./canned-reply";
@@ -34,8 +33,7 @@ import { assistantTools, NEEDS_APPROVAL } from "./tools";
 /**
  * A personal assistant. Each signed-in Google account gets its own Durable
  * Object instance, which keeps the chat history, long-term memories and
- * scheduled reminders for that person. Its memories are also the memory of
- * the same person's Pi assistant, which reads and writes them over RPC.
+ * scheduled reminders for that person.
  *
  * Think runs the agentic loop, persists the conversation and resumes
  * interrupted turns; this class only supplies the model, prompt and tools,
@@ -278,21 +276,12 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     );
   }
 
-  // ── RPC for the Worker and the Pi assistant ─────────────────────────
+  // ── RPC for the Worker ─────────────────────────────────────────
 
   /** The owner's email and name, recorded by the Worker on every web connection. */
   async setOwner(email: string, name: string) {
     this.store.ensureTables();
     this.store.setOwner(email, name);
-  }
-
-  /** The persona text, also used by the Pi assistant. */
-  async getPersona() {
-    return buildPersona(this.store.getSettings());
-  }
-
-  async getMemories() {
-    return this.store.listMemories();
   }
 
   async addMemory(content: string) {
@@ -304,9 +293,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   /**
-   * Counts a turn against the account's message limits, which both harnesses
-   * share. Turns on the user's own API key are free to the deployment, so
-   * they aren't limited. Returns a refusal to show instead of answering.
+   * Counts a turn against the account's message limits. Turns on the user's own API key are
+   * free to the deployment, so they aren't limited. Returns a refusal to show instead of answering.
    */
   countTurn(paid: boolean) {
     if (paid) return null;

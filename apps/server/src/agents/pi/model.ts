@@ -1,6 +1,6 @@
 import type { Model } from "@mariozechner/pi-ai";
 
-export const MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
+const MODEL_ID = "@cf/moonshotai/kimi-k2.7-code";
 
 /**
  * Kimi on Workers AI through its OpenAI-compatible REST endpoint. The Pi

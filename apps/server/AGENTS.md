@@ -17,20 +17,16 @@ src/
     signing.ts              HMAC-signed values shared by sessions and codes
     cookies.ts              Cookie read/write helpers
   agents/
-    common/                 Shared by both harnesses: persona + memory prompt, reminders
+    common/                 Persona + memory prompt, reminders, usage limits
     think/
       assistant.ts          Assistant DO: Think hooks + callables, delegating to the files below
       store.ts              Its SQLite tables (settings, owner, Telegram and email config, memories)
       model.ts              Settings → model (Workers AI / OpenAI / Anthropic / Google)
       system-prompt.ts      System prompt
-      tools/                AI SDK tools by group (memory, reminders, sandbox, research, email)
+      tools/                AI SDK tools by group (memory, reminders, sandbox, code, research, email)
     pi/
-      pi-assistant.ts       PiAssistant DO: one Pi agent per turn
+      code-agent.ts         Headless Pi coding agent Think delegates to (codeTask)
       model.ts              Workers AI model over REST
-      system-prompt.ts      System prompt
-      tools.ts              Pi (TypeBox) tools
-      transcript.ts         UI messages → Pi transcript
-      ui-stream.ts          Pi events → AI SDK UI stream
   integrations/telegram/    Per-user bots; see its README.md (TelegramRoutes DO lives here)
   integrations/email/       Each assistant's own address; see its README.md (EmailAddresses DO lives here)
   tools/                    Capabilities the agents call (browser, code runner, knowledge, sandbox DO)

@@ -24,7 +24,7 @@ apps/extension ┘
 apps/mobile ──► native Swift client; speaks the same HTTP/WebSocket contract
 ```
 
-- **`packages/shared`** is the contract: route paths, harness names, the
+- **`packages/shared`** is the contract: route paths, the assistant endpoint, the
   `AssistantRpc` callable interface, server events, settings types and
   validation. Runtime-agnostic, no dependencies.
 - **`apps/server`** implements the contract. `Assistant implements
@@ -82,7 +82,7 @@ source layout has to change.
 ### iOS (`apps/mobile`)
 
 - A native SwiftUI app, not a Bun workspace: it can't import `@cot/shared`,
-  so the few types it needs (`User`, settings, the harness list) are mirrored
+  so the few types it needs (`User`, settings) are mirrored
   by hand in Swift and must change together with the contract. It reaches the
   server only over HTTP and the agent WebSocket, like the web client.
 - Sign-in is the native flow: `ASWebAuthenticationSession` → `/auth/login`

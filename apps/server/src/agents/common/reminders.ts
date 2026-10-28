@@ -8,8 +8,8 @@ export type ReminderAgent = Agent<Env> & {
 };
 
 /**
- * Reminder logic shared by the Think and Pi assistants. Each harness wraps
- * these in its own tool format; the scheduling itself is plain Agents SDK.
+ * Reminder logic used by the Think assistant: the tool wrappers live in
+ * think/tools; the scheduling itself is plain Agents SDK.
  */
 export async function setReminder(
   agent: ReminderAgent,

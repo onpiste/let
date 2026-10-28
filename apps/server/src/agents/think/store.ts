@@ -18,7 +18,7 @@ type SettingsKey =
 /**
  * The Think assistant's own SQLite tables: `memories`, and a key/value
  * `settings` table for the user's settings, owner email, Telegram bot and
- * email address, and message usage (shared with the Pi assistant).
+ * email address, and message usage.
  */
 export class AssistantStore {
   constructor(private readonly db: Pick<Agent<Env>, "sql">) {}

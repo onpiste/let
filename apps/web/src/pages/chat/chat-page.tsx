@@ -4,7 +4,7 @@ import { useAgent } from "agents/react";
 import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { HARNESSES, type ServerEvent, type User } from "@cot/shared";
+import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
 import { Brand } from "../../components/brand";
 import { Gear, LogOut, Plus } from "../../components/icons";
@@ -42,8 +42,8 @@ export function ChatPage({
   const endRef = useRef<HTMLDivElement>(null);
 
   const agent = useAgent({
-    agent: HARNESSES.think.agent,
-    basePath: HARNESSES.think.basePath,
+    agent: ASSISTANT.agent,
+    basePath: ASSISTANT.basePath,
     // A cold Durable Object can take longer than the default timeout to
     // accept the first socket; retry quickly instead of backing off.
     connectionTimeout: 10_000,
