@@ -3,6 +3,11 @@
 .scroll {
   flex: 1;
   overflow-y: auto;
+  /* Chat is a touch-first surface; hide the bar but keep scrolling. */
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .column {
