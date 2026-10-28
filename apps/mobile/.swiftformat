@@ -1,0 +1,10 @@
+# Formatter for the iOS app. Run `swiftformat .` in this folder.
+--swiftversion 5.10
+--indent 4
+--maxwidth 100
+--wraparguments before-first
+--wrapcollections before-first
+--commas inline
+--stripunusedargs closure-only
+--header strip
+--exclude Cot.xcodeproj,build,.build
