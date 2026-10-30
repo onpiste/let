@@ -69,8 +69,33 @@ phone with the TestFlight app. One-time setup:
    processed the build, add yourself under **TestFlight → Internal Testing**.
 
 The build number is the workflow's run number; bump `MARKETING_VERSION` in
-`project.yml` for a new version. Each run's runner creates a fresh Apple
-Development certificate; revoke old ones on developer.apple.com if they pile up.
+`project.yml` for a new version.
+
+### Manual signing (recommended)
+
+By default each run's runner asks Apple for a fresh Development certificate,
+and once the account's limit is reached the archive fails with "Your account
+has reached the maximum number of certificates". To avoid that, sign every
+build with one fixed distribution certificate. No Mac is needed; run this
+anywhere with OpenSSL:
+
+1. Make a key and certificate request, keeping `dist.key` private:
+   `openssl genrsa -out dist.key 2048 && openssl req -new -key dist.key -out dist.csr -subj "/CN=Cot Distribution"`
+2. On developer.apple.com → **Certificates** → **+** → **Apple Distribution**,
+   upload `dist.csr` and download the certificate (`distribution.cer`).
+3. Turn it into a `.p12` (the legacy ciphers are what macOS can import):
+   `openssl x509 -inform der -in distribution.cer -out dist.pem && openssl pkcs12 -export -inkey dist.key -in dist.pem -out dist.p12 -certpbe PBE-SHA1-3DES -keypbe PBE-SHA1-3DES -macalg sha1`
+   and choose a password when asked.
+4. On developer.apple.com → **Profiles** → **+** → **App Store Connect**, pick
+   your App ID (the bundle id) and that certificate, and download the
+   `.mobileprovision`.
+5. Add the repository secrets `IOS_DIST_CERT_P12` (`base64 -w0 dist.p12`, or
+   `base64 -i dist.p12` on macOS), `IOS_DIST_CERT_PASSWORD` and
+   `IOS_PROVISIONING_PROFILE` (`base64` of the `.mobileprovision`).
+
+Once `IOS_DIST_CERT_P12` is set the workflow uses it; remove the secret to
+go back to automatic signing. The certificate and profile last a year, so
+renew them (repeat steps 2-5) before they expire.
 
 ## Make it yours
 
