@@ -130,6 +130,10 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     };
   }
 
+  override async onChatResponse() {
+    await this.history.autoTitle(this.env.AI);
+  }
+
   override getTools(): ToolSet {
     return assistantTools({
       env: this.env,
@@ -175,15 +179,11 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   @callable()
   async openChat(id: string) {
-    if (typeof id !== "string" || id.length > 64)
-      throw new Error("Bad chat id.");
     return this.history.open(id);
   }
 
   @callable()
   async deleteChat(id: string) {
-    if (typeof id !== "string" || id.length > 64)
-      throw new Error("Bad chat id.");
     return this.history.remove(id);
   }
 

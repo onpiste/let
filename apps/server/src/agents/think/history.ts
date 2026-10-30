@@ -3,6 +3,8 @@ import type { UIMessage } from "ai";
 
 import type { ChatSummary } from "@cot/shared";
 
+import { generateTitle } from "./title";
+
 /** The Think methods the history swaps conversations through. */
 type Host = Pick<Agent<Env>, "sql"> & {
   getMessages(): Promise<UIMessage[]>;
@@ -31,6 +33,11 @@ function chatTitle(messages: UIMessage[]) {
     if (title) return title.slice(0, TITLE_LENGTH);
   }
   return "New chat";
+}
+
+/** Callable arguments arrive untyped from the client. */
+function checkId(id: unknown) {
+  if (typeof id !== "string" || id.length > 64) throw new Error("Bad chat id.");
 }
 
 /**
@@ -72,6 +79,40 @@ export class ChatHistory {
     return id;
   }
 
+  /** A title the model wrote, which wins over the first-message fallback. */
+  private namedTitle(id: string) {
+    const [row] = this.host.sql<{ value: string }>`
+      SELECT value FROM chat_state WHERE key = ${`title:${id}`}`;
+    return row?.value ?? null;
+  }
+
+  private titleFor(id: string, messages: UIMessage[]) {
+    return this.namedTitle(id) ?? chatTitle(messages);
+  }
+
+  /**
+   * Names the active chat once it has a first exchange. A failure keeps the
+   * first-message title, and the next reply tries again.
+   */
+  async autoTitle(ai: Ai) {
+    this.ensureTables();
+    const id = this.activeId();
+    if (this.namedTitle(id)) return;
+    const messages = await this.host.getMessages();
+    if (!messages.some((m) => m.role === "assistant")) return;
+    let title: string | null = null;
+    try {
+      title = await generateTitle(ai, messages);
+    } catch (error) {
+      // Cosmetic: the list keeps the first-message title.
+      console.error(`Chat title failed: ${String(error)}`);
+    }
+    // The chat may have been swapped out while the model was thinking.
+    if (!title || id !== this.activeId()) return;
+    this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
+      VALUES (${`title:${id}`}, ${title})`;
+  }
+
   async list(): Promise<ChatSummary[]> {
     this.ensureTables();
     const active = this.activeId();
@@ -91,7 +132,7 @@ export class ChatHistory {
     if (current.length > 0) {
       list.unshift({
         id: active,
-        title: chatTitle(current),
+        title: this.titleFor(active, current),
         updatedAt: new Date().toISOString(),
         active: true
       });
@@ -106,6 +147,7 @@ export class ChatHistory {
     this.host.sql`DELETE FROM chat_messages WHERE chat_id = ${id}`;
     if (messages.length === 0) {
       this.host.sql`DELETE FROM chats WHERE id = ${id}`;
+      this.host.sql`DELETE FROM chat_state WHERE key = ${`title:${id}`}`;
       return;
     }
     messages.forEach((message, seq) => {
@@ -113,7 +155,7 @@ export class ChatHistory {
         VALUES (${id}, ${seq}, ${JSON.stringify(message)})`;
     });
     this.host.sql`INSERT OR REPLACE INTO chats (id, title, updated_at)
-      VALUES (${id}, ${chatTitle(messages)}, ${new Date().toISOString()})`;
+      VALUES (${id}, ${this.titleFor(id, messages)}, ${new Date().toISOString()})`;
   }
 
   async create() {
@@ -125,6 +167,7 @@ export class ChatHistory {
   }
 
   async open(id: string) {
+    checkId(id);
     this.ensureTables();
     if (id === this.activeId()) return this.list();
     const rows = this.host.sql<{ json: string }>`
@@ -141,6 +184,7 @@ export class ChatHistory {
   }
 
   async remove(id: string) {
+    checkId(id);
     this.ensureTables();
     if (id === this.activeId()) {
       await this.host.clearMessages();
@@ -148,6 +192,7 @@ export class ChatHistory {
     }
     this.host.sql`DELETE FROM chat_messages WHERE chat_id = ${id}`;
     this.host.sql`DELETE FROM chats WHERE id = ${id}`;
+    this.host.sql`DELETE FROM chat_state WHERE key = ${`title:${id}`}`;
     return this.list();
   }
 }
