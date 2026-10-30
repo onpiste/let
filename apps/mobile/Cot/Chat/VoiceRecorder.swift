@@ -12,9 +12,11 @@ final class VoiceRecorder {
     private let file = FileManager.default.temporaryDirectory.appendingPathComponent("voice.m4a")
 
     /// Starts recording, or stops and transcribes if already recording.
-    func toggle(token: @escaping () -> String?, onText: @escaping (String) -> Void,
-                onError: @escaping (String) -> Void)
-    {
+    func toggle(
+        token: @escaping () -> String?,
+        onText: @escaping (String) -> Void,
+        onError: @escaping (String) -> Void
+    ) {
         switch state {
         case .idle:
             Task {
@@ -49,7 +51,7 @@ final class VoiceRecorder {
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
             AVSampleRateKey: 16000,
-            AVNumberOfChannelsKey: 1,
+            AVNumberOfChannelsKey: 1
         ]
         let next = try AVAudioRecorder(url: file, settings: settings)
         guard next.record() else { throw CocoaError(.fileWriteUnknown) }
