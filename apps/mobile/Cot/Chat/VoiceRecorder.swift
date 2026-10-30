@@ -34,7 +34,9 @@ final class VoiceRecorder {
                 defer { state = .idle }
                 do {
                     let text = try await Transcription.transcribe(file: file, token: token())
-                    if !text.isEmpty { onText(text) }
+                    if !text.isEmpty {
+                        onText(text)
+                    }
                 } catch {
                     onError(error.localizedDescription)
                 }
