@@ -15,7 +15,7 @@ export const PROVIDERS: Record<
 > = {
   "workers-ai": {
     label: "Workers AI",
-    defaultModel: "@cf/moonshotai/kimi-k2.7-code",
+    defaultModel: "@cf/openai/gpt-oss-120b",
     // Open models from the Workers AI catalog that handle tool calls well;
     // the field stays free text for anything newer.
     suggestions: [

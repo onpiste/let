@@ -9,8 +9,8 @@ const MAX_OUTPUT = 8000;
  */
 const IMAGE = "cloudflare/debian-trixie";
 
-/** Stop the container after this long without a command, so it isn't billed idle. */
-const IDLE_MS = 15 * 60_000;
+/** Destroy the container after this long without a command, so it isn't billed idle. */
+const IDLE_MS = 2 * 60_000;
 
 /**
  * Each script starts in /workspace (created on first use) and takes the

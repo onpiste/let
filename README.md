@@ -70,7 +70,7 @@ Cot is meant to be forked and changed. The usual first steps:
    - `MAX_REMINDERS` (default 50): scheduled reminders per assistant.
 
    Each turn makes at most 10 tool-call rounds, and an account's sandbox
-   container stops after 15 minutes without a command. Rate limits on the
+   container stops after 2 minutes without a command. Rate limits on the
    public paths (`/auth/*`, `/messengers/*`) and billing alerts are set in
    the Cloudflare dashboard.
 
