@@ -78,9 +78,10 @@ struct ComposerView: View {
                         trailingButton
                     }
                     .padding(.trailing, 4)
-                    .background(
-                        Color(.secondarySystemBackground),
-                        in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+                    // Hairline outline on a clear fill, as in iMessage.
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 19, style: .continuous)
+                            .strokeBorder(Color(.systemGray4), lineWidth: 1)
                     )
                 }
             }
