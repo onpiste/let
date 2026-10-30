@@ -37,7 +37,7 @@ Features:
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant
 - **Chat history**: every conversation is saved; the clock icon lists them, and you can open, delete or start a new one. One conversation is active at a time, and Telegram continues in that one
 - **Tasks page** (calendar icon, `/tasks`): every scheduled reminder, with pause, resume and delete buttons. Change one in words: press Edit (or just ask in chat) and say e.g. "move it to 9am"
-- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification and, if you connected a bot, a Telegram message
+- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification, a push notification on the iOS app (once APNs is set up, see [iOS push notifications](#ios-push-notifications)) and, if you connected a bot, a Telegram message
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:
   - **Assistant**: name, reply language and custom instructions, used by the assistant
@@ -133,6 +133,23 @@ cd apps/mobile && xcodegen generate && open Cot.xcodeproj
 Details, and how to make it yours, in
 [apps/mobile/README.md](apps/mobile/README.md).
 
+### iOS push notifications
+
+Without this, reminders and new-mail notices reach the phone only while the
+app is still connected. With an APNs key the Worker pushes them, so they
+arrive even when the app is closed. Optional; nothing breaks without it.
+
+1. On [developer.apple.com](https://developer.apple.com/account/resources/authkeys/list)
+   → **Keys** → **+**, tick **Apple Push Notifications service (APNs)** and
+   download the `.p8` file (only once). Note its **Key ID**.
+2. Under **Identifiers**, open your app's App ID and turn on **Push
+   Notifications**. If the TestFlight workflow signs manually, make a new
+   provisioning profile afterwards and update `IOS_PROVISIONING_PROFILE`
+   (see [apps/mobile/README.md](apps/mobile/README.md#push-notifications)).
+3. In `apps/server/wrangler.jsonc`, set `APNS_KEY_ID`, `APNS_TEAM_ID` (from
+   **Membership**) and `APNS_TOPIC` (the app's bundle id), and store the key:
+   `cd apps/server && bunx wrangler secret put APNS_KEY < AuthKey_XXXX.p8`.
+
 ## Run locally
 
 ```bash
@@ -172,6 +189,7 @@ apps/server/               # @cot/server — Cloudflare Worker
   src/agents/pi/           #   Pi coding agent: model + headless runner (no Durable Object)
   src/agents/common/       #   persona/memory prompt and reminders shared by both
   src/integrations/telegram/ # per-user Telegram bots
+  src/integrations/apns/   #   iOS push notifications
   src/tools/               #   sandbox (Container), code runner, knowledge search, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
 apps/mobile/               # native SwiftUI iOS app (XcodeGen, not a Bun workspace)

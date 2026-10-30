@@ -9,11 +9,14 @@ import {
   toPublicSettings,
   type AssistantRpc,
   type EmailPolicy,
+  type PushDevice,
   type SettingsPatch,
   type Skill
 } from "@cot/shared";
 
 import { isAllowed } from "../../auth/session";
+import { PushChannel } from "../../integrations/apns/channel";
+import { PushDevices } from "../../integrations/apns/devices";
 import { EmailChannel } from "../../integrations/email/channel";
 import { emailAddress } from "../../integrations/email/config";
 import { Inbox } from "../../integrations/email/inbox";
@@ -24,12 +27,12 @@ import {
   TelegramChannel,
   type TelegramUpdateResult
 } from "../../integrations/telegram/channel";
-import { broadcastReminder } from "../common/reminders";
 import { takeTurn, usageLimits } from "../common/usage";
 import { cannedReply } from "./canned-reply";
 import { ChatHistory, stampCreatedAt } from "./history";
 import { mcpPopupResult } from "./mcp-popup";
 import { languageModelFor, modelFor, paidByUser } from "./model";
+import { notifyOwner, reminderNotice } from "./notices";
 import { deleteSkill, saveSkill } from "./skill-save";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
@@ -79,6 +82,10 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       onEmail: (id, email, trusted, preview) =>
         this.onEmail(id, email, trusted, preview)
     });
+  }
+
+  private get push() {
+    return new PushChannel({ env: this.env, devices: new PushDevices(this) });
   }
 
   /** The owner's email while it is still in ALLOWED_EMAILS. */
@@ -291,9 +298,11 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return this.telegram.receive(secret, body);
   }
 
-  /** Sends a fired reminder to the owner of the connected bot, if any. */
-  async sendTelegramReminder(description: string) {
-    await this.telegram.sendReminder(description);
+  // ── Push notifications (callable) ───────────────────────────────────
+
+  @callable()
+  async registerPushDevice(device: PushDevice) {
+    return this.push.register(device);
   }
 
   // ── Email (callables + Worker RPC) ──────────────────────────────────
@@ -328,7 +337,9 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     // Gmail's forwarding confirmation is passed on as is: the owner needs its
     // link now. Everything else is read by the model first.
     if (preview !== null)
-      return this.announceEmail(email, trusted, null, preview);
+      return this.notify(
+        emailNotice({ ...email, trusted, triage: null, preview })
+      );
     await this.schedule(1, "triageNewEmail", id);
   }
 
@@ -340,29 +351,20 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     if (!email) return;
     let triage: Triage | null = null;
     try {
-      triage = await triageEmail(
-        languageModelFor(this.store.getSettings(), this.env),
-        email
-      );
+      const model = languageModelFor(this.store.getSettings(), this.env);
+      triage = await triageEmail(model, email);
       inbox.setTriage(id, triage.category, triage.summary);
     } catch (error) {
       // Still tell the owner, just without the summary.
       console.error(`Email triage failed: ${String(error)}`);
     }
-    await this.announceEmail(email, email.trusted, triage, null);
+    await this.notify(emailNotice({ ...email, triage, preview: null }));
   }
 
-  private async announceEmail(
-    email: Pick<ParsedEmail, "from" | "subject">,
-    trusted: boolean,
-    triage: Triage | null,
-    preview: string | null
-  ) {
-    // Like reminders, a broadcast rather than a chat message, so new mail
-    // never starts a model turn on its own.
-    const { event, push } = emailNotice({ ...email, trusted, triage, preview });
-    this.broadcast(JSON.stringify(event));
-    if (push) await this.telegram.notify(push);
+  /** Tells the owner outside the chat: open clients, Telegram, phones. */
+  private notify(notice: Parameters<typeof notifyOwner>[2]) {
+    const channels = { telegram: this.telegram, push: this.push };
+    return notifyOwner(this, channels, notice);
   }
 
   // ── RPC for the Worker ─────────────────────────────────────────
@@ -402,7 +404,6 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   // ── Scheduled reminders fire here ───────────────────────────────────
 
   async executeTask(description: string) {
-    broadcastReminder(this, description);
-    await this.sendTelegramReminder(description);
+    await this.notify(reminderNotice(description));
   }
 }

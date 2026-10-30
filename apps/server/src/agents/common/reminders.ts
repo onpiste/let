@@ -1,7 +1,5 @@
 import type { Agent } from "agents";
 
-import type { ServerEvent } from "@cot/shared";
-
 /** An agent that can fire reminders through its `executeTask` callback. */
 export type ReminderAgent = Agent<Env> & {
   executeTask(description: string): Promise<void>;
@@ -28,15 +26,4 @@ export async function setReminder(
 /** Only reminders; the SDK may keep other schedules of its own. */
 function reminders(agent: ReminderAgent) {
   return agent.getSchedules().filter((s) => s.callback === "executeTask");
-}
-
-export function broadcastReminder(agent: ReminderAgent, description: string) {
-  // Broadcast instead of saving a message so the reminder doesn't enter the
-  // chat history and trigger another model turn.
-  const event: ServerEvent = {
-    type: "reminder",
-    description,
-    timestamp: new Date().toISOString()
-  };
-  agent.broadcast(JSON.stringify(event));
 }

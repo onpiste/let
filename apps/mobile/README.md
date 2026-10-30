@@ -16,7 +16,7 @@ there is no WebView: native text, keyboard, haptics and system sign-in.
 | Scheduled tasks: list, pause, resume, delete, edit            | `Cot/Chat/TasksView.swift`, `ChatStore+Tasks.swift`                              |
 | Chat history: list, open, delete, new chat                    | `Cot/Chat/HistoryView.swift`, `ChatStore` history                                |
 | Settings: model and keys, skills, connectors, Telegram, email | `Cot/Settings/`                                                                  |
-| Reminder and mail notices                                     | in-app banner; system notification when backgrounded                             |
+| Reminder and mail notices                                     | in-app banner; APNs push (`Cot/Core/Push.swift`), else a local notification      |
 
 Requires iOS 17 and Xcode 16+.
 
@@ -99,6 +99,24 @@ Once `IOS_DIST_CERT_P12` is set the workflow uses it; remove the secret to
 go back to automatic signing. The certificate and profile last a year, so
 renew them (repeat steps 2-5) before they expire.
 
+## Push notifications
+
+The app asks for notification permission on the first message, then
+registers its APNs device token with the assistant every time the chat socket
+connects (`registerPushDevice`). When the Worker has an APNs key it pushes
+reminders and new mail, so they arrive while the app is closed; without one
+the app falls back to local notifications while it is still connected. Server
+setup: [iOS push notifications](../../README.md#ios-push-notifications).
+
+The `aps-environment` entitlement comes from `project.yml`: `development` for
+Debug builds from Xcode (sandbox tokens), `production` for Release builds
+(TestFlight, App Store). The app tells the server which, so both work.
+
+Turn on **Push Notifications** for the App ID on developer.apple.com.
+Automatic signing picks it up by itself; with manual signing, make a new App
+Store profile after turning it on and update `IOS_PROVISIONING_PROFILE`, or
+the TestFlight archive fails because the old profile lacks the entitlement.
+
 ## Make it yours
 
 All in `project.yml`:
@@ -113,8 +131,9 @@ All in `project.yml`:
 
 ## Limitations
 
-- Notices arrive over the WebSocket, so a reminder reaches the phone only
-  while the app is running or recently backgrounded. Reliable background
-  delivery needs APNs and a server-side push; not built yet.
+- Without an APNs key on the server, notices arrive over the WebSocket only,
+  so a reminder reaches the phone only while the app is running or recently
+  backgrounded. The web app has no Web Push yet either: it shows reminders
+  while a tab is open.
 - MCP servers that need OAuth must be authorized once in the web app: the
   OAuth callback is a web page that needs the browser's session cookie.

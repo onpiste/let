@@ -1,13 +1,28 @@
 import UIKit
 import UserNotifications
 
-/// System notifications for reminders and new mail while the app is in the
-/// background but still connected. The server pushes them over the socket (there
-/// is no APNs); the permission is asked on the first message the user sends.
+/// System notifications for reminders and new mail. When the server has an
+/// APNs key it pushes them (see `Push`); otherwise they come over the socket
+/// and show here, which only works while the app is still connected. The
+/// permission is asked on the first message the user sends.
 enum Reminders {
     static func requestPermission() {
         UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound]) { _, _ in }
+            .requestAuthorization(options: [.alert, .sound]) { granted, _ in
+                if granted {
+                    Task { @MainActor in Push.register() }
+                }
+            }
+    }
+
+    /// At sign-in, without asking: gets the APNs token if notifications are
+    /// already allowed.
+    static func registerIfAllowed() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            if settings.authorizationStatus == .authorized {
+                Task { @MainActor in Push.register() }
+            }
+        }
     }
 
     static func notify(title: String, body: String) {

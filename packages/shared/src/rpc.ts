@@ -1,5 +1,6 @@
 import type { ChatSummary } from "./chats";
 import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
+import type { PushDevice, PushStatus } from "./push";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { Skill } from "./skills";
 import type { ScheduledTask } from "./tasks";
@@ -45,6 +46,8 @@ export interface AssistantRpc {
   getEmailStatus(): Promise<EmailStatus>;
   setEmailAlias(alias: string): Promise<EmailStatus>;
   updateEmailPolicy(policy: EmailPolicy): Promise<EmailStatus>;
+  /** Saves a phone's APNs token so reminders and mail reach it when the app is closed. */
+  registerPushDevice(device: PushDevice): Promise<PushStatus>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */

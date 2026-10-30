@@ -123,6 +123,7 @@ final class AuthModel {
         tokenItem.delete()
         expiryItem.delete()
         token = nil
+        Push.stop()
         state = .signedOut(message: message)
     }
 

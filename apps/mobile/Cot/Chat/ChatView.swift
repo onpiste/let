@@ -125,6 +125,7 @@ struct ChatView: View {
         .task {
             store.onConnectionLost = { Task { await auth.validate() } }
             store.start()
+            Reminders.registerIfAllowed()
         }
         .onDisappear { store.disconnect() }
         .onChange(of: scenePhase) {

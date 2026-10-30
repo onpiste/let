@@ -51,6 +51,7 @@ final class ChatStore {
         socket.onFrame = { [weak self] in self?.handle($0) }
         socket.onOpen = { [weak self] in self?.opened() }
         socket.onClose = { [weak self] in self?.closed() }
+        Push.onToken = { [weak self] _ in self?.registerPush() }
     }
 
     func start() {
@@ -178,6 +179,7 @@ final class ChatStore {
                 "probeId": .string(randomID(length: 8))
             ])
         )
+        registerPush()
     }
 
     private func closed() {
@@ -237,8 +239,9 @@ final class ChatStore {
 
     private func present(_ notice: Notice) {
         self.notice = notice
-        // In the foreground the banner in the app is enough.
-        if UIApplication.shared.applicationState != .active {
+        // In the foreground the banner in the app is enough; in the
+        // background the server's push already shows it, if it sends one.
+        if UIApplication.shared.applicationState != .active, !Push.serverSends {
             Reminders.notify(title: notice.title, body: notice.text)
         }
     }

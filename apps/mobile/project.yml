@@ -24,6 +24,20 @@ targets:
         PRODUCT_NAME: Cot
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
+      # Which APNs gateway the app's tokens belong to; Push.swift tells the
+      # server the same thing.
+      configs:
+        Debug:
+          APS_ENVIRONMENT: development
+        Release:
+          APS_ENVIRONMENT: production
+    # Push notifications (APNs). The App ID needs the Push Notifications
+    # capability, and a manual provisioning profile must be made after it is
+    # turned on (see README.md).
+    entitlements:
+      path: Cot/Cot.entitlements
+      properties:
+        aps-environment: $(APS_ENVIRONMENT)
     info:
       path: Cot/Info.plist
       properties:

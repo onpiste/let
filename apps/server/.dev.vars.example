@@ -14,3 +14,7 @@ ALLOWED_EMAILS=you@gmail.com
 
 # API token with Workers AI access, for the Pi assistant.
 CLOUDFLARE_API_KEY=
+
+# Optional: an APNs auth key (.p8 contents) for iOS push notifications. Also
+# set APNS_KEY_ID, APNS_TEAM_ID and APNS_TOPIC in wrangler.jsonc. Empty: no push.
+APNS_KEY=
