@@ -26,7 +26,8 @@ enum Config {
     static func socketURL(basePath: String) -> URL {
         let http = url(basePath)
         var components = URLComponents(url: http, resolvingAgainstBaseURL: false)
-        components?.scheme = components?.scheme == "http" ? "ws" : "wss"
+        let scheme = http.scheme == "http" ? "ws" : "wss"
+        components?.scheme = scheme
         // Unreachable for a valid serverURL; the plain URL fails at connect time.
         return components?.url ?? http
     }
