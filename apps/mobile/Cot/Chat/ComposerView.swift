@@ -103,7 +103,9 @@ struct ComposerView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.bar)
+        // Opaque, not `.bar`: the material is translucent and extends under the
+        // keyboard, so its rounded corners would show the window behind.
+        .background(Color(.systemBackground))
         .fileImporter(
             isPresented: $pickingFile,
             allowedContentTypes: [.item],
