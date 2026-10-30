@@ -15,7 +15,7 @@ export const PROVIDERS: Record<
 > = {
   "workers-ai": {
     label: "Workers AI",
-    defaultModel: "@cf/openai/gpt-oss-120b",
+    defaultModel: "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
     // Open models from the Workers AI catalog that handle tool calls well;
     // the field stays free text for anything newer.
     suggestions: [
