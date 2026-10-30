@@ -119,7 +119,11 @@ export function ChatPage({
   const waiting = busy && (!last || last.role === "user");
   const empty = messages.length === 0;
   const queued = useSendQueue(busy, (parts) => {
-    void sendMessage({ role: "user", parts });
+    void sendMessage({
+      role: "user",
+      parts,
+      metadata: { createdAt: Date.now() }
+    });
   });
 
   const { ref: scrollRef, away, onScroll, follow } = useFollowScroll(messages);
@@ -147,7 +151,12 @@ export function ChatPage({
     setAttachments([]);
     follow();
     if (busy) queued.enqueue(parts);
-    else void sendMessage({ role: "user", parts });
+    else
+      void sendMessage({
+        role: "user",
+        parts,
+        metadata: { createdAt: Date.now() }
+      });
   };
 
   return (

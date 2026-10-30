@@ -312,6 +312,9 @@ final class ChatStore {
                 replay: replay,
                 continuation: continuation
             )
+            if let id = streamingMessageID, let index = messages.firstIndex(where: { $0.id == id }) {
+                messages[index].stamp(with: chunk["messageMetadata"])
+            }
         case "error":
             errorText = chunk["errorText"]?.string
         default:

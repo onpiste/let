@@ -44,7 +44,29 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
         if !text.isEmpty {
             parts.append(.object(["type": .string("text"), "text": .string(text)]))
         }
-        return ChatMessage(id: randomID(), role: "user", parts: parts)
+        return ChatMessage(
+            id: randomID(), role: "user", parts: parts,
+            extra: ["metadata": .object(["createdAt": .number(Date().timeIntervalSince1970 * 1000)])]
+        )
+    }
+
+    /// When the message was sent, if it was stamped (older ones are not).
+    var createdAt: Date? {
+        extra["metadata"]?["createdAt"]?.number.map { Date(timeIntervalSince1970: $0 / 1000) }
+    }
+
+    /// Adds the metadata a stream's `start` chunk carries, and a local
+    /// timestamp if the server sent none. Existing keys win, so a resumed
+    /// reply keeps the time it was first started.
+    mutating func stamp(with metadata: JSONValue?) {
+        var merged = extra["metadata"]?.object ?? [:]
+        for (key, value) in metadata?.object ?? [:] where merged[key] == nil {
+            merged[key] = value
+        }
+        if merged["createdAt"] == nil {
+            merged["createdAt"] = .number(Date().timeIntervalSince1970 * 1000)
+        }
+        extra["metadata"] = .object(merged)
     }
 
     var isUser: Bool {

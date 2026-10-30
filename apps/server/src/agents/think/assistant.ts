@@ -27,7 +27,7 @@ import {
 import { broadcastReminder } from "../common/reminders";
 import { takeTurn, usageLimits } from "../common/usage";
 import { cannedReply } from "./canned-reply";
-import { ChatHistory } from "./history";
+import { ChatHistory, stampCreatedAt } from "./history";
 import { mcpPopupResult } from "./mcp-popup";
 import { languageModelFor, modelFor, paidByUser } from "./model";
 import { deleteSkill, saveSkill } from "./skill-save";
@@ -110,6 +110,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   override getSystemPrompt() {
     return this.systemPrompt(true);
   }
+
+  override messageMetadata = stampCreatedAt;
 
   override beforeTurn(ctx: TurnContext): TurnConfig | void {
     // Continuations and recoveries finish a turn that was already counted.

@@ -34,7 +34,13 @@ struct ChatView: View {
                         if store.messages.isEmpty {
                             EmptyStateView(user: user, onSuggestion: send)
                         }
-                        ForEach(store.messages) { message in
+                        ForEach(Array(store.messages.enumerated()), id: \.element.id) { index, message in
+                            if let sent = message.createdAt, index > 0,
+                               let before = store.messages[index - 1].createdAt,
+                               sent.timeIntervalSince(before) >= 15 * 60
+                            {
+                                TimeDivider(date: sent)
+                            }
                             MessageRow(
                                 message: message,
                                 toolLabels: store.mcp?.toolLabels ?? [:],
@@ -160,6 +166,29 @@ struct ChatView: View {
 
     private func scrollToEnd(_ proxy: ScrollViewProxy) {
         withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo("end", anchor: .bottom) }
+    }
+}
+
+/// When the next message was sent, after a long gap in the conversation.
+private struct TimeDivider: View {
+    let date: Date
+
+    private var text: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) {
+            return date.formatted(.dateTime.hour().minute())
+        }
+        if calendar.isDate(date, equalTo: .now, toGranularity: .year) {
+            return date.formatted(.dateTime.month().day().hour().minute())
+        }
+        return date.formatted(.dateTime.year().month().day().hour().minute())
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
     }
 }
 

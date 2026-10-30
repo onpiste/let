@@ -41,6 +41,15 @@ function checkId(id: unknown) {
 }
 
 /**
+ * Stamps each assistant reply with `createdAt` (epoch ms) when its stream
+ * starts, so clients can show the time after a long pause. A resumed turn
+ * keeps the stamp it already has (Think does not overwrite existing keys).
+ */
+export function stampCreatedAt({ part }: { part: { type: string } }) {
+  return part.type === "start" ? { createdAt: Date.now() } : undefined;
+}
+
+/**
  * Saved conversations. Think holds one conversation, so history works by
  * swapping: the active one is snapshotted into SQLite (one row per message,
  * since a row is capped at 2 MB) and another is loaded back in its place.
