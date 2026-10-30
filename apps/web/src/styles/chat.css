@@ -322,6 +322,11 @@
   background: var(--user-bubble);
   color: var(--text);
 }
+.attach-btn.recording {
+  background: var(--user-bubble);
+  color: #e5484d;
+  animation: pulse 1.2s ease-in-out infinite;
+}
 .attachments {
   max-width: 720px;
   margin: 0 auto 6px;

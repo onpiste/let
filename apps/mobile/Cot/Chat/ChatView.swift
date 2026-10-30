@@ -59,7 +59,7 @@ struct ChatView: View {
                     QueuedView(queue: store.queue, onRemove: store.removeQueued)
                     ComposerView(
                         text: $input, attachments: $attachments, busy: store.busy,
-                        onError: { store.report($0) },
+                        token: { auth.token }, onError: { store.report($0) },
                         onSend: { send(input) }, onStop: store.stopTurn
                     )
                 }

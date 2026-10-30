@@ -245,6 +245,7 @@ export function ChatPage({
         attachments={attachments}
         onChange={setInput}
         onAttach={(files) => void attach(files)}
+        onError={(text) => setToast({ icon: "⚠️", title: "Voice input", text })}
         onRemoveAttachment={(i) =>
           setAttachments(attachments.filter((_, j) => j !== i))
         }

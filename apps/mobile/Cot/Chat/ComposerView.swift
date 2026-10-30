@@ -8,6 +8,7 @@ struct ComposerView: View {
     @Binding var text: String
     @Binding var attachments: [Attachment]
     let busy: Bool
+    let token: () -> String?
     let onError: (String) -> Void
     let onSend: () -> Void
     let onStop: () -> Void
@@ -15,6 +16,7 @@ struct ComposerView: View {
     @State private var pickingFile = false
     @State private var pickingPhoto = false
     @State private var photo: PhotosPickerItem?
+    @State private var voice = VoiceRecorder()
 
     private var canSend: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty
@@ -58,6 +60,18 @@ struct ComposerView: View {
                         .frame(width: 34, height: 40)
                 }
                 .accessibilityLabel("Attach files")
+
+                Button {
+                    voice.toggle(token: token, onText: append, onError: onError)
+                } label: {
+                    Image(systemName: voice.state == .recording ? "stop.circle.fill" : "mic")
+                        .font(.system(size: 20))
+                        .foregroundStyle(voice.state == .recording ? Color.red : Color.accentColor)
+                        .frame(width: 34, height: 40)
+                        .opacity(voice.state == .transcribing ? 0.4 : 1)
+                }
+                .disabled(voice.state == .transcribing)
+                .accessibilityLabel(voice.state == .recording ? "Stop recording" : "Voice input")
 
                 TextField("Message Cot…", text: $text, axis: .vertical)
                     .lineLimit(1 ... 6)
@@ -109,6 +123,11 @@ struct ComposerView: View {
                 }
             }
         }
+    }
+
+    /// The transcript arrives after an upload; append to whatever is typed now.
+    private func append(_ spoken: String) {
+        text = text.isEmpty ? spoken : "\(text) \(spoken)"
     }
 
     private func read(_ url: URL) -> Result<Attachment, Error> {
