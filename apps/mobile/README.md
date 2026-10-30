@@ -4,19 +4,19 @@ A native SwiftUI client for the same assistant the web app talks to. It speaks
 the server's own protocols (HTTP auth, the Agents SDK WebSocket) directly, so
 there is no WebView: native text, keyboard, haptics and system sign-in.
 
-| Feature                                                       | Where                                                      |
-| ------------------------------------------------------------- | ---------------------------------------------------------- |
-| Google sign-in (system sheet, PKCE, bearer token)             | `Cot/Core/AuthModel.swift`                                 |
-| Reconnecting agent WebSocket + `AssistantRpc` calls           | `Cot/Core/AgentSocket.swift`                               |
-| Chat: streaming, reasoning, tools, approvals                  | `Cot/Chat/` (`ChatStore`, `ChunkReducer`, views)           |
-| Attach files and photos (text inline, images/PDF)             | `Cot/Chat/Attachment.swift`, `ComposerView.swift`          |
-| Voice input: record, transcribe on the Worker, fill the box   | `Cot/Chat/VoiceRecorder.swift`, `Core/Transcription.swift` |
-| Copy and share a message (buttons, long-press menu)           | `Cot/Chat/MessageRow.swift`                                |
-| Message queue: send while the assistant replies               | `Cot/Chat/QueuedView.swift`, `ChatStore` queue             |
-| Scheduled tasks: list, pause, resume, delete, edit            | `Cot/Chat/TasksView.swift`, `ChatStore+Tasks.swift`        |
-| Chat history: list, open, delete, new chat                    | `Cot/Chat/HistoryView.swift`, `ChatStore` history          |
-| Settings: model and keys, skills, connectors, Telegram, email | `Cot/Settings/`                                            |
-| Reminder and mail notices                                     | in-app banner; system notification when backgrounded       |
+| Feature                                                       | Where                                                                            |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Google sign-in (system sheet, PKCE, bearer token)             | `Cot/Core/AuthModel.swift`                                                       |
+| Reconnecting agent WebSocket + `AssistantRpc` calls           | `Cot/Core/AgentSocket.swift`                                                     |
+| Chat: streaming, reasoning, tools, approvals                  | `Cot/Chat/` (`ChatStore`, `ChunkReducer`, views)                                 |
+| Attach files and photos (text inline, images/PDF)             | `Cot/Chat/Attachment.swift`, `ComposerView.swift`                                |
+| Voice input: record, transcribe on the Worker, fill the box   | `Cot/Chat/VoiceRecorder.swift`, `VoiceBarView.swift`, `Core/Transcription.swift` |
+| Copy and share a message (buttons, long-press menu)           | `Cot/Chat/MessageRow.swift`                                                      |
+| Message queue: send while the assistant replies               | `Cot/Chat/QueuedView.swift`, `ChatStore` queue                                   |
+| Scheduled tasks: list, pause, resume, delete, edit            | `Cot/Chat/TasksView.swift`, `ChatStore+Tasks.swift`                              |
+| Chat history: list, open, delete, new chat                    | `Cot/Chat/HistoryView.swift`, `ChatStore` history                                |
+| Settings: model and keys, skills, connectors, Telegram, email | `Cot/Settings/`                                                                  |
+| Reminder and mail notices                                     | in-app banner; system notification when backgrounded                             |
 
 Requires iOS 17 and Xcode 16+.
 

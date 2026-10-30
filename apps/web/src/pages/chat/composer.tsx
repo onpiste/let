@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { ArrowUp, Mic, Paperclip, Square } from "../../components/icons";
 import type { Attachment } from "../../lib/attachments";
 import { useVoiceInput } from "./use-voice-input";
+import { VoiceBar } from "./voice-bar";
 
 const MAX_HEIGHT = 200;
 
@@ -81,89 +82,93 @@ export function Composer({
           ))}
         </div>
       )}
-      <form
-        className="composer"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-      >
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
-          hidden
-          accept="text/*,image/*,application/pdf,.md,.csv,.json,.yaml,.yml,.log,.py,.js,.ts,.tsx,.go,.rs,.java,.sql"
-          onChange={(e) => {
-            onAttach(Array.from(e.target.files ?? []));
-            e.target.value = "";
-          }}
+      {voice.state !== "idle" ? (
+        <VoiceBar
+          state={voice.state}
+          analyser={voice.analyser}
+          onCancel={voice.cancel}
+          onConfirm={voice.confirm}
         />
-        <button
-          type="button"
-          className="attach-btn"
-          onClick={() => fileRef.current?.click()}
-          aria-label="Attach files"
-          title="Attach files"
+      ) : (
+        <form
+          className="composer"
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
         >
-          <Paperclip />
-        </button>
-        {voice.supported && (
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            hidden
+            accept="text/*,image/*,application/pdf,.md,.csv,.json,.yaml,.yml,.log,.py,.js,.ts,.tsx,.go,.rs,.java,.sql"
+            onChange={(e) => {
+              onAttach(Array.from(e.target.files ?? []));
+              e.target.value = "";
+            }}
+          />
           <button
             type="button"
-            className={`attach-btn${voice.state === "recording" ? " recording" : ""}`}
-            onClick={voice.toggle}
-            disabled={voice.state === "transcribing"}
-            aria-label={
-              voice.state === "recording" ? "Stop recording" : "Voice input"
-            }
-            title={
-              voice.state === "recording" ? "Stop recording" : "Voice input"
-            }
+            className="attach-btn"
+            onClick={() => fileRef.current?.click()}
+            aria-label="Attach files"
+            title="Attach files"
           >
-            {voice.state === "transcribing" ? "…" : <Mic />}
+            <Paperclip />
           </button>
-        )}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          rows={1}
-          placeholder="Message Cot…"
-          onChange={(e) => {
-            onChange(e.target.value);
-            autosize();
-          }}
-          onKeyDown={(e) => {
-            if (
-              e.key === "Enter" &&
-              !e.shiftKey &&
-              !e.nativeEvent.isComposing
-            ) {
-              e.preventDefault();
-              send();
-            }
-          }}
-        />
-        {busy && !value.trim() && attachments.length === 0 ? (
-          <button
-            type="button"
-            className="send-btn"
-            onClick={onStop}
-            aria-label="Stop"
-          >
-            <Square />
-          </button>
-        ) : (
-          <button
-            type="submit"
-            className="send-btn"
-            disabled={!value.trim() && attachments.length === 0}
-            aria-label="Send"
-          >
-            <ArrowUp />
-          </button>
-        )}
-      </form>
+          {voice.supported && (
+            <button
+              type="button"
+              className="attach-btn"
+              onClick={voice.start}
+              aria-label="Voice input"
+              title="Voice input"
+            >
+              <Mic />
+            </button>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={value}
+            rows={1}
+            placeholder="Message Cot…"
+            onChange={(e) => {
+              onChange(e.target.value);
+              autosize();
+            }}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
+                e.preventDefault();
+                send();
+              }
+            }}
+          />
+          {busy && !value.trim() && attachments.length === 0 ? (
+            <button
+              type="button"
+              className="send-btn"
+              onClick={onStop}
+              aria-label="Stop"
+            >
+              <Square />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="send-btn"
+              disabled={!value.trim() && attachments.length === 0}
+              aria-label="Send"
+            >
+              <ArrowUp />
+            </button>
+          )}
+        </form>
+      )}
     </footer>
   );
 }

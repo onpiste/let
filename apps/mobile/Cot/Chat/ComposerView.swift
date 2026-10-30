@@ -50,52 +50,55 @@ struct ComposerView: View {
                     }
                 }
             }
-            HStack(alignment: .bottom, spacing: 8) {
-                Menu {
-                    Button("Choose file", systemImage: "doc") { pickingFile = true }
-                    Button("Choose photo", systemImage: "photo") { pickingPhoto = true }
-                } label: {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: 20))
-                        .frame(width: 34, height: 40)
+            if voice.state != .idle {
+                VoiceBarView(voice: voice) {
+                    voice.confirm(token: token, onText: append, onError: onError)
                 }
-                .accessibilityLabel("Attach files")
-
-                Button {
-                    voice.toggle(token: token, onText: append, onError: onError)
-                } label: {
-                    Image(systemName: voice.state == .recording ? "stop.circle.fill" : "mic")
-                        .font(.system(size: 20))
-                        .foregroundStyle(voice.state == .recording ? Color.red : Color.accentColor)
-                        .frame(width: 34, height: 40)
-                        .opacity(voice.state == .transcribing ? 0.4 : 1)
-                }
-                .disabled(voice.state == .transcribing)
-                .accessibilityLabel(voice.state == .recording ? "Stop recording" : "Voice input")
-
-                TextField("Message Cot…", text: $text, axis: .vertical)
-                    .lineLimit(1 ... 6)
-                    .focused($focused)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        Color(.secondarySystemBackground),
-                        in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    )
-
-                Button {
-                    if canSend {
-                        onSend()
-                    } else if busy {
-                        onStop()
+            } else {
+                HStack(alignment: .bottom, spacing: 8) {
+                    Menu {
+                        Button("Choose file", systemImage: "doc") { pickingFile = true }
+                        Button("Choose photo", systemImage: "photo") { pickingPhoto = true }
+                    } label: {
+                        Image(systemName: "paperclip")
+                            .font(.system(size: 20))
+                            .frame(width: 34, height: 40)
                     }
-                } label: {
-                    Image(systemName: stopping ? "stop.circle.fill" : "arrow.up.circle.fill")
-                        .font(.system(size: 34))
-                        .symbolRenderingMode(.hierarchical)
+                    .accessibilityLabel("Attach files")
+
+                    Button {
+                        voice.start(onError: onError)
+                    } label: {
+                        Image(systemName: "mic")
+                            .font(.system(size: 20))
+                            .frame(width: 34, height: 40)
+                    }
+                    .accessibilityLabel("Voice input")
+
+                    TextField("Message Cot…", text: $text, axis: .vertical)
+                        .lineLimit(1 ... 6)
+                        .focused($focused)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            Color(.secondarySystemBackground),
+                            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        )
+
+                    Button {
+                        if canSend {
+                            onSend()
+                        } else if busy {
+                            onStop()
+                        }
+                    } label: {
+                        Image(systemName: stopping ? "stop.circle.fill" : "arrow.up.circle.fill")
+                            .font(.system(size: 34))
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    .disabled(!busy && !canSend)
+                    .accessibilityLabel(stopping ? "Stop" : busy ? "Queue message" : "Send")
                 }
-                .disabled(!busy && !canSend)
-                .accessibilityLabel(stopping ? "Stop" : busy ? "Queue message" : "Send")
             }
         }
         .padding(.horizontal, 12)
