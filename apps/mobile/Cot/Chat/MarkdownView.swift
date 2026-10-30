@@ -41,9 +41,35 @@ struct MarkdownView: View {
                 .overlay(alignment: .leading) {
                     Rectangle().fill(Color(.separator)).frame(width: 3)
                 }
+        case let .table(header, rows):
+            table(header: header, rows: rows)
         case .rule:
             Divider()
         }
+    }
+
+    private func table(header: [String], rows: [[String]]) -> some View {
+        let columns = header.count
+        return ScrollView(.horizontal, showsIndicators: false) {
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+                GridRow {
+                    ForEach(0 ..< columns, id: \.self) { column in
+                        Text(inline(header[column])).bold()
+                    }
+                }
+                Divider().gridCellUnsizedAxes(.horizontal)
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    GridRow {
+                        ForEach(0 ..< columns, id: \.self) { column in
+                            // Ragged rows are padded or trimmed to the header width.
+                            Text(inline(column < row.count ? row[column] : ""))
+                        }
+                    }
+                }
+            }
+            .padding(12)
+        }
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
     }
 
     private func list(_ items: [String], marker: @escaping (Int) -> String) -> some View {

@@ -7,6 +7,7 @@ enum MarkdownBlock: Equatable {
     case bullets([String])
     case numbered([String])
     case quote(String)
+    case table(header: [String], rows: [[String]])
     case rule
 }
 
@@ -66,6 +67,18 @@ enum MarkdownParser {
                     level: level,
                     text: String(trimmed.drop(while: { $0 == "#" }).dropFirst())
                 ))
+            } else if let header = tableCells(trimmed),
+                      let next = lines.first,
+                      isTableDelimiter(next.trimmingCharacters(in: .whitespaces)) {
+                flush()
+                lines.removeFirst()
+                var rows: [[String]] = []
+                while let row = lines.first,
+                      let cells = tableCells(row.trimmingCharacters(in: .whitespaces)) {
+                    lines.removeFirst()
+                    rows.append(cells)
+                }
+                blocks.append(.table(header: header, rows: rows))
             } else if ["---", "***", "___"].contains(trimmed) {
                 flush()
                 blocks.append(.rule)
@@ -99,6 +112,34 @@ enum MarkdownParser {
         let hashes = line.prefix { $0 == "#" }.count
         guard (1 ... 6).contains(hashes), line.dropFirst(hashes).first == " " else { return nil }
         return hashes
+    }
+
+    /// Splits a `| a | b |` row into cells; nil when the line is not a row.
+    private static func tableCells(_ line: String) -> [String]? {
+        guard line.contains("|") else { return nil }
+        var body = Substring(line)
+        if body.hasPrefix("|") {
+            body = body.dropFirst()
+        }
+        if body.hasSuffix("|"), !body.hasSuffix("\\|") {
+            body = body.dropLast()
+        }
+        // Escaped pipes stay inside their cell.
+        let marker = "\u{0}"
+        return body.replacingOccurrences(of: "\\|", with: marker)
+            .components(separatedBy: "|")
+            .map {
+                $0.replacingOccurrences(of: marker, with: "|")
+                    .trimmingCharacters(in: .whitespaces)
+            }
+    }
+
+    private static func isTableDelimiter(_ line: String) -> Bool {
+        guard let cells = tableCells(line) else { return false }
+        return cells.allSatisfy { cell in
+            let dashes = cell.trimmingCharacters(in: CharacterSet(charactersIn: ":"))
+            return !dashes.isEmpty && dashes.allSatisfy { $0 == "-" }
+        }
     }
 
     private static func bulletItem(_ line: String) -> String? {

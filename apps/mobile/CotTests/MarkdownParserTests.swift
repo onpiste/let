@@ -33,6 +33,36 @@ final class MarkdownParserTests: XCTestCase {
         )
     }
 
+    func testTable() {
+        let blocks = MarkdownParser.parse(
+            """
+            Intro
+
+            | Name | Qty |
+            | :--- | ---: |
+            | **a** | 1 |
+            | b \\| c | 2 |
+
+            After
+            """
+        )
+        XCTAssertEqual(
+            blocks,
+            [
+                .paragraph("Intro"),
+                .table(header: ["Name", "Qty"], rows: [["**a**", "1"], ["b | c", "2"]]),
+                .paragraph("After")
+            ]
+        )
+    }
+
+    func testPipeLineWithoutDelimiterIsAParagraph() {
+        XCTAssertEqual(
+            MarkdownParser.parse("| a | b |"),
+            [.paragraph("| a | b |")]
+        )
+    }
+
     func testUnclosedFenceRunsToTheEnd() {
         XCTAssertEqual(
             MarkdownParser.parse("```\nlet x"),
