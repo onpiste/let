@@ -2,8 +2,8 @@ import AVFoundation
 import Observation
 
 /// Records the microphone to an AAC file and turns it into text on the
-/// server. `confirm` transcribes, `cancel` discards; the composer appends the
-/// result to its text field. `levels` and `elapsed` drive the recording bar.
+/// server. `confirm` transcribes and hands the text over to be sent; `cancel`
+/// discards the recording. `levels` and `elapsed` drive the recording bar.
 @MainActor @Observable
 final class VoiceRecorder {
     enum State { case idle, recording, transcribing }
@@ -52,7 +52,9 @@ final class VoiceRecorder {
             defer { state = .idle }
             do {
                 let text = try await Transcription.transcribe(file: file, token: token())
-                if !text.isEmpty {
+                if text.isEmpty {
+                    onError("Didn't catch that. Try again.")
+                } else {
                     onText(text)
                 }
             } catch {

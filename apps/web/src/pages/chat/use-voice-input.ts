@@ -8,8 +8,8 @@ import { transcribe } from "../../lib/transcribe";
 export type VoiceState = "idle" | "recording" | "transcribing";
 
 /**
- * Record from the microphone and hand the transcript to `onText`. `confirm`
- * stops and transcribes; `cancel` stops and throws the recording away.
+ * Record from the microphone and hand the transcript to `onText`, which
+ * sends it. `confirm` stops and transcribes; `cancel` stops and throws the recording away.
  * `analyser` is live while recording so the UI can draw the level.
  */
 export function useVoiceInput(
@@ -53,7 +53,9 @@ export function useVoiceInput(
         setState("transcribing");
         const audio = new Blob(chunks, { type: rec.mimeType });
         transcribe(audio)
-          .then((text) => text && onText(text))
+          .then((text) =>
+            text ? onText(text) : onError("Didn't catch that. Try again.")
+          )
           .catch((e: unknown) => onError(errorText(e)))
           .finally(() => setState("idle"));
       };

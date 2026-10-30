@@ -29,7 +29,8 @@ export function Composer({
   onAttach: (files: File[]) => void;
   onError: (message: string) => void;
   onRemoveAttachment: (index: number) => void;
-  onSend: () => void;
+  /** `text` overrides the box, e.g. a transcript appended to what is typed. */
+  onSend: (text?: string) => void;
   onStop: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -42,14 +43,14 @@ export function Composer({
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
   };
 
-  // The transcript lands after an async upload; append to the live text.
-  const valueRef = useRef(value);
+  // The transcript lands after an async upload, so read the latest state.
+  const latest = useRef({ value, onSend });
   useEffect(() => {
-    valueRef.current = value;
-  }, [value]);
+    latest.current = { value, onSend };
+  }, [value, onSend]);
   const voice = useVoiceInput((text) => {
-    const current = valueRef.current;
-    onChange(current ? `${current} ${text}` : text);
+    const { value: current, onSend: sendNow } = latest.current;
+    sendNow(current.trim() ? `${current.trim()} ${text}` : text);
     requestAnimationFrame(() => {
       autosize();
       textareaRef.current?.focus();

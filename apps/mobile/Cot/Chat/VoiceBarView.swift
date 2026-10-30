@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Replaces the message box while dictating: cancel, a scrolling waveform
-/// with the elapsed time, and confirm. While transcribing, the waveform gives
+/// with the elapsed time, and send. While transcribing, the waveform gives
 /// way to a spinner and both buttons are disabled.
 struct VoiceBarView: View {
     let voice: VoiceRecorder
@@ -56,12 +56,12 @@ struct VoiceBarView: View {
             )
 
             Button(action: onConfirm) {
-                Image(systemName: "checkmark.circle.fill")
+                Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 34))
                     .symbolRenderingMode(.hierarchical)
             }
             .disabled(!recording)
-            .accessibilityLabel("Finish and transcribe")
+            .accessibilityLabel("Send voice message")
         }
         .sensoryFeedback(.impact, trigger: voice.state)
     }

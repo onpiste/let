@@ -10,7 +10,7 @@ struct ComposerView: View {
     let busy: Bool
     let token: () -> String?
     let onError: (String) -> Void
-    let onSend: () -> Void
+    let onSend: (String) -> Void
     let onStop: () -> Void
     @FocusState private var focused: Bool
     @State private var pickingFile = false
@@ -52,7 +52,7 @@ struct ComposerView: View {
             }
             if voice.state != .idle {
                 VoiceBarView(voice: voice) {
-                    voice.confirm(token: token, onText: append, onError: onError)
+                    voice.confirm(token: token, onText: sendSpoken, onError: onError)
                 }
             } else {
                 HStack(alignment: .bottom, spacing: 8) {
@@ -87,7 +87,7 @@ struct ComposerView: View {
 
                     Button {
                         if canSend {
-                            onSend()
+                            onSend(text)
                         } else if busy {
                             onStop()
                         }
@@ -128,9 +128,10 @@ struct ComposerView: View {
         }
     }
 
-    /// The transcript arrives after an upload; append to whatever is typed now.
-    private func append(_ spoken: String) {
-        text = text.isEmpty ? spoken : "\(text) \(spoken)"
+    /// Sends the transcript, after whatever is already typed, like a message.
+    private func sendSpoken(_ spoken: String) {
+        let typed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        onSend(typed.isEmpty ? spoken : "\(typed) \(spoken)")
     }
 
     private func read(_ url: URL) -> Result<Attachment, Error> {

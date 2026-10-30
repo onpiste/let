@@ -60,7 +60,7 @@ struct ChatView: View {
                     ComposerView(
                         text: $input, attachments: $attachments, busy: store.busy,
                         token: { auth.token }, onError: { store.report($0) },
-                        onSend: { send(input) }, onStop: store.stopTurn
+                        onSend: { send($0) }, onStop: store.stopTurn
                     )
                 }
             }

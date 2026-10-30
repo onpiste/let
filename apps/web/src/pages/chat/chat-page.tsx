@@ -249,7 +249,7 @@ export function ChatPage({
         onRemoveAttachment={(i) =>
           setAttachments(attachments.filter((_, j) => j !== i))
         }
-        onSend={() => send()}
+        onSend={(text) => send(text)}
         onStop={() => void stop()}
       />
 

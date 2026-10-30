@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Check, X } from "../../components/icons";
+import { ArrowUp, X } from "../../components/icons";
 import type { VoiceState } from "./use-voice-input";
 
 const BARS = 36;
@@ -22,7 +22,7 @@ function level(analyser: AnalyserNode, buffer: Uint8Array<ArrayBuffer>) {
 
 /**
  * Replaces the message box while dictating: cancel, a scrolling waveform with
- * the elapsed time, and confirm. While the upload is transcribing the
+ * the elapsed time, and send. While the upload is transcribing the
  * waveform gives way to an animated status and the buttons are disabled.
  */
 export function VoiceBar({
@@ -105,10 +105,10 @@ export function VoiceBar({
         className="send-btn"
         onClick={onConfirm}
         disabled={!recording}
-        aria-label="Finish and transcribe"
-        title="Finish and transcribe"
+        aria-label="Send voice message"
+        title="Send voice message"
       >
-        <Check />
+        <ArrowUp />
       </button>
     </output>
   );
