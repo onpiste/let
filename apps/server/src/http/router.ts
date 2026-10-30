@@ -1,12 +1,13 @@
 import { getAgentByName } from "agents";
 
-import { ASSISTANT, AUTH_ROUTES } from "@cot/shared";
+import { ASSISTANT, AUTH_ROUTES, TRANSCRIBE_ROUTE } from "@cot/shared";
 
 import { handleCallback, handleLogin, handleLogout } from "../auth/google";
 import { handleToken } from "../auth/native";
 import { getUserFromRequest } from "../auth/session";
 import { handleTelegramWebhook } from "../integrations/telegram/webhook";
 import { jsonResponse } from "./responses";
+import { handleTranscribe } from "./transcribe";
 
 /**
  * The Worker's HTTP entry point. Static assets are served before this runs;
@@ -38,6 +39,13 @@ export const router = {
         return user
           ? jsonResponse(user)
           : jsonResponse({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      if (url.pathname === TRANSCRIBE_ROUTE) {
+        if (!(await getUserFromRequest(request, env))) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+        return await handleTranscribe(request, env);
       }
 
       // The Worker, not the browser, decides which assistant instance a

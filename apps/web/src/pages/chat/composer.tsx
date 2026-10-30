@@ -1,7 +1,8 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 
-import { ArrowUp, Paperclip, Square } from "../../components/icons";
+import { ArrowUp, Mic, Paperclip, Square } from "../../components/icons";
 import type { Attachment } from "../../lib/attachments";
+import { useVoiceInput } from "./use-voice-input";
 
 const MAX_HEIGHT = 200;
 
@@ -15,6 +16,7 @@ export function Composer({
   attachments,
   onChange,
   onAttach,
+  onError,
   onRemoveAttachment,
   onSend,
   onStop
@@ -24,6 +26,7 @@ export function Composer({
   attachments: Attachment[];
   onChange: (value: string) => void;
   onAttach: (files: File[]) => void;
+  onError: (message: string) => void;
   onRemoveAttachment: (index: number) => void;
   onSend: () => void;
   onStop: () => void;
@@ -37,6 +40,20 @@ export function Composer({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
   };
+
+  // The transcript lands after an async upload; append to the live text.
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+  const voice = useVoiceInput((text) => {
+    const current = valueRef.current;
+    onChange(current ? `${current} ${text}` : text);
+    requestAnimationFrame(() => {
+      autosize();
+      textareaRef.current?.focus();
+    });
+  }, onError);
 
   const send = () => {
     onSend();
@@ -91,6 +108,22 @@ export function Composer({
         >
           <Paperclip />
         </button>
+        {voice.supported && (
+          <button
+            type="button"
+            className={`attach-btn${voice.state === "recording" ? " recording" : ""}`}
+            onClick={voice.toggle}
+            disabled={voice.state === "transcribing"}
+            aria-label={
+              voice.state === "recording" ? "Stop recording" : "Voice input"
+            }
+            title={
+              voice.state === "recording" ? "Stop recording" : "Voice input"
+            }
+          >
+            {voice.state === "transcribing" ? "…" : <Mic />}
+          </button>
+        )}
         <textarea
           ref={textareaRef}
           value={value}

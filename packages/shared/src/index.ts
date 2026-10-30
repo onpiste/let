@@ -8,4 +8,5 @@ export * from "./settings";
 export * from "./skills";
 export * from "./tasks";
 export * from "./telegram";
+export * from "./transcribe";
 export * from "./user";
