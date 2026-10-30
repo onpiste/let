@@ -14,6 +14,20 @@ export const ArrowUp = () => (
     <path d="M12 19V5M5 12l7-7 7 7" />
   </svg>
 );
+export const ArrowDown = () => (
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 5v14M5 12l7 7 7-7" />
+  </svg>
+);
 export const Square = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <rect x="5" y="5" width="14" height="14" rx="2" />

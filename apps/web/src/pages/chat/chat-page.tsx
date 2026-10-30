@@ -2,12 +2,19 @@ import { useAgentChat } from "@cloudflare/think/react";
 import type { MCPServersState } from "agents";
 import { useAgent } from "agents/react";
 import type { UIMessage } from "ai";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
 import { Brand } from "../../components/brand";
-import { Calendar, Clock, Gear, LogOut, Plus } from "../../components/icons";
+import {
+  ArrowDown,
+  Calendar,
+  Clock,
+  Gear,
+  LogOut,
+  Plus
+} from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
 import { api } from "../../lib/assistant-rpc";
 import {
@@ -24,6 +31,7 @@ import { MessageList } from "./message-list";
 import { NoticeToast, type Notice } from "./notice-toast";
 import { QueuedList } from "./queued-list";
 import { mcpToolLabels } from "./tool-chip";
+import { useFollowScroll } from "./use-follow-scroll";
 import { useReconnectOnResume } from "./use-reconnect";
 import { useSendQueue } from "./use-send-queue";
 
@@ -49,7 +57,6 @@ export function ChatPage({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState<Notice | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
-  const endRef = useRef<HTMLDivElement>(null);
 
   const agent = useAgent({
     agent: ASSISTANT.agent,
@@ -115,9 +122,7 @@ export function ChatPage({
     void sendMessage({ role: "user", parts });
   });
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, waiting]);
+  const { ref: scrollRef, away, onScroll, follow } = useFollowScroll(messages);
 
   const dismissToast = useCallback(() => setToast(null), []);
 
@@ -140,6 +145,7 @@ export function ChatPage({
     if (t) parts.push({ type: "text", text: t });
     setInput("");
     setAttachments([]);
+    follow();
     if (busy) queued.enqueue(parts);
     else void sendMessage({ role: "user", parts });
   };
@@ -219,7 +225,7 @@ export function ChatPage({
         />
       )}
 
-      <main className="scroll">
+      <main className="scroll" ref={scrollRef} onScroll={onScroll}>
         <div className="column">
           {empty ? (
             <EmptyState user={user} onSuggestion={send} />
@@ -234,8 +240,19 @@ export function ChatPage({
               }
             />
           )}
-          <div ref={endRef} className="h-4" />
+          <div className="h-4" />
         </div>
+        {away && (
+          <div className="to-bottom">
+            <button
+              className="to-bottom-btn"
+              onClick={follow}
+              aria-label="Scroll to latest"
+            >
+              <ArrowDown />
+            </button>
+          </div>
+        )}
       </main>
 
       <QueuedList queue={queued.queue} onRemove={queued.remove} />

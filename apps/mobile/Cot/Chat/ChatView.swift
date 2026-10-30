@@ -11,6 +11,9 @@ struct ChatView: View {
     @State private var showSettings = false
     @State private var showHistory = false
     @State private var showTasks = false
+    /// Auto-scroll with new content until the user drags the list away.
+    @State private var following = true
+    @State private var endVisible = true
     @Environment(\.scenePhase) private var scenePhase
 
     init(user: User, auth: AuthModel) {
@@ -46,13 +49,44 @@ struct ChatView: View {
                             Text(error).font(.footnote).foregroundStyle(.red)
                         }
                         Color.clear.frame(height: 1).id("end")
+                            .onAppear {
+                                endVisible = true
+                                following = true
+                            }
+                            .onDisappear { endVisible = false }
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                 }
                 .scrollDismissesKeyboard(.interactively)
-                .onChange(of: store.messages) { scrollToEnd(proxy) }
-                .onChange(of: waiting) { scrollToEnd(proxy) }
+                // Dragging toward older messages takes over from auto-scroll,
+                // including mid-stream; it resumes once the end is back in view.
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onChanged { if $0.translation.height > 0 { following = false } }
+                        .onEnded { _ in if endVisible { following = true } }
+                )
+                .onChange(of: store.messages) { if following { scrollToEnd(proxy) } }
+                .onChange(of: waiting) { if following { scrollToEnd(proxy) } }
+                .overlay(alignment: .bottom) {
+                    if !following && !endVisible {
+                        Button {
+                            following = true
+                            scrollToEnd(proxy)
+                        } label: {
+                            Image(systemName: "arrow.down")
+                                .font(.system(size: 15, weight: .semibold))
+                                .frame(width: 36, height: 36)
+                                .background(.regularMaterial, in: Circle())
+                                .overlay(Circle().strokeBorder(Color(.systemGray4), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.bottom, 8)
+                        .transition(.scale.combined(with: .opacity))
+                        .accessibilityLabel("Scroll to latest")
+                    }
+                }
+                .animation(.default, value: following || endVisible)
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 0) {
@@ -118,6 +152,7 @@ struct ChatView: View {
     private func send(_ text: String) {
         Reminders.requestPermission()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        following = true
         store.send(text, attachments: attachments)
         input = ""
         attachments = []
