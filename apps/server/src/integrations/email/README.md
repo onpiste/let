@@ -8,7 +8,7 @@ assistant files it in an inbox and tells the owner. New mail is read
 by the model once, with no tools (`triage.ts`), and sorted into `action`,
 `notify` or `ignore` with a one-line summary, so the owner hears about
 what matters without asking. The chat model still reads full messages only
-on request, through `listEmails` / `readEmail`, and mail never starts a chat
+on request, through `listEmails` / `searchEmails` / `readEmail`, and mail never starts a chat
 turn.
 
 1. The settings page calls `getEmailStatus`. `EmailChannel.status` claims

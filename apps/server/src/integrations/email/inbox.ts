@@ -25,6 +25,18 @@ export type InboxEmail = InboxSummary & {
 /** SQLite has no booleans; `trusted` comes back as 0 or 1. */
 type SummaryRow = Omit<InboxSummary, "trusted"> & { trusted: number };
 
+function toSummary(row: SummaryRow): InboxSummary {
+  return {
+    id: row.id,
+    receivedAt: row.receivedAt,
+    from: row.from,
+    trusted: row.trusted === 1,
+    subject: row.subject,
+    category: row.category,
+    summary: row.summary
+  };
+}
+
 /** The assistant's received emails, in its own SQLite. */
 export class Inbox {
   constructor(private readonly db: Pick<Agent<Env>, "sql">) {
@@ -81,15 +93,23 @@ export class Inbox {
       SELECT id, received_at AS receivedAt, sender AS "from", trusted, subject,
         category, summary
       FROM emails ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
-    return rows.map((row) => ({
-      id: row.id,
-      receivedAt: row.receivedAt,
-      from: row.from,
-      trusted: row.trusted === 1,
-      subject: row.subject,
-      category: row.category,
-      summary: row.summary
-    }));
+    return rows.map(toSummary);
+  }
+
+  /** Newest first emails whose sender, subject, summary or body contain `text`. */
+  search(text: string, limit: number): InboxSummary[] {
+    // LIKE treats % and _ as wildcards; escape them so the text is literal.
+    const pattern = `%${text.replace(/[\\%_]/g, "\\$&")}%`;
+    const rows = this.db.sql<SummaryRow>`
+      SELECT id, received_at AS receivedAt, sender AS "from", trusted, subject,
+        category, summary
+      FROM emails
+      WHERE sender LIKE ${pattern} ESCAPE '\\'
+        OR subject LIKE ${pattern} ESCAPE '\\'
+        OR summary LIKE ${pattern} ESCAPE '\\'
+        OR body LIKE ${pattern} ESCAPE '\\'
+      ORDER BY id DESC LIMIT ${limit}`;
+    return rows.map(toSummary);
   }
 
   get(id: number): InboxEmail | null {
