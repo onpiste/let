@@ -2,7 +2,7 @@ import PhotosUI
 import SwiftUI
 
 /// The message box. Return adds a line; the button sends (queues while the
-/// assistant is replying), or stops the turn when the box is empty. The paperclip attaches files or
+/// assistant is replying), or stops the turn when the box is empty. The plus button attaches files or
 /// photos.
 struct ComposerView: View {
     @Binding var text: String
@@ -60,52 +60,35 @@ struct ComposerView: View {
                         Button("Choose file", systemImage: "doc") { pickingFile = true }
                         Button("Choose photo", systemImage: "photo") { pickingPhoto = true }
                     } label: {
-                        Image(systemName: "paperclip")
-                            .font(.system(size: 20))
-                            .frame(width: 34, height: 40)
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(.primary)
+                            .frame(width: 38, height: 38)
+                            .background(Color(.secondarySystemBackground), in: Circle())
                     }
                     .accessibilityLabel("Attach files")
 
-                    Button {
-                        voice.start(onError: onError)
-                    } label: {
-                        Image(systemName: "mic")
-                            .font(.system(size: 20))
-                            .frame(width: 34, height: 40)
-                    }
-                    .accessibilityLabel("Voice input")
+                    HStack(alignment: .bottom, spacing: 6) {
+                        TextField("Message Cot…", text: $text, axis: .vertical)
+                            .lineLimit(1 ... 6)
+                            .focused($focused)
+                            .padding(.leading, 14)
+                            .padding(.vertical, 8)
 
-                    TextField("Message Cot…", text: $text, axis: .vertical)
-                        .lineLimit(1 ... 6)
-                        .focused($focused)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(
-                            Color(.secondarySystemBackground),
-                            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        )
-
-                    Button {
-                        if canSend {
-                            onSend()
-                        } else if busy {
-                            onStop()
-                        }
-                    } label: {
-                        Image(systemName: stopping ? "stop.circle.fill" : "arrow.up.circle.fill")
-                            .font(.system(size: 34))
-                            .symbolRenderingMode(.hierarchical)
+                        trailingButton
                     }
-                    .disabled(!busy && !canSend)
-                    .accessibilityLabel(stopping ? "Stop" : busy ? "Queue message" : "Send")
+                    .padding(.trailing, 4)
+                    .background(
+                        Color(.secondarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: 19, style: .continuous)
+                    )
                 }
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        // Opaque, not `.bar`: the material is translucent and extends under the
-        // keyboard, so its rounded corners would show the window behind.
-        .background(Color(.systemBackground))
+        // No bar behind the controls, like iMessage: the page background
+        // shows through, so the keyboard's rounded corners reveal the same colour.
         .fileImporter(
             isPresented: $pickingFile,
             allowedContentTypes: [.item],
@@ -127,6 +110,39 @@ struct ComposerView: View {
                     onError("Couldn't load that photo.")
                 }
             }
+        }
+    }
+
+    /// Mic while the box is empty; send, queue or stop once there is something
+    /// to do, as in iMessage.
+    @ViewBuilder
+    private var trailingButton: some View {
+        if canSend || busy {
+            Button {
+                if canSend {
+                    onSend()
+                } else {
+                    onStop()
+                }
+            } label: {
+                Image(systemName: stopping ? "stop.circle.fill" : "arrow.up.circle.fill")
+                    .font(.system(size: 30))
+                    .symbolRenderingMode(.hierarchical)
+                    .frame(width: 30, height: 30)
+            }
+            .padding(.bottom, 4)
+            .accessibilityLabel(stopping ? "Stop" : busy ? "Queue message" : "Send")
+        } else {
+            Button {
+                voice.start(onError: onError)
+            } label: {
+                Image(systemName: "mic")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 30)
+            }
+            .padding(.bottom, 4)
+            .accessibilityLabel("Voice input")
         }
     }
 
