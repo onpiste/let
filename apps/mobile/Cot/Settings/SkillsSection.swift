@@ -34,10 +34,14 @@ struct SkillsSection: View {
                 .autocorrectionDisabled()
             TextField("When to use it", text: $description)
             TextField("Instructions (Markdown)", text: $instructions, axis: .vertical)
-                .lineLimit(4...12)
+                .lineLimit(4 ... 12)
             Button("Save skill") {
                 Task {
-                    if await model.saveSkill(name: name, description: description, instructions: instructions) {
+                    if await model.saveSkill(
+                        name: name,
+                        description: description,
+                        instructions: instructions
+                    ) {
                         name = ""
                         description = ""
                         instructions = ""
@@ -48,7 +52,9 @@ struct SkillsSection: View {
         } header: {
             Text("Skills")
         } footer: {
-            Text("Reusable instructions. The assistant sees each name and description, and loads the full text only when a request fits. Tap a skill to edit it.")
+            Text(
+                "Reusable instructions. The assistant sees each name and description, and loads the full text only when a request fits. Tap a skill to edit it."
+            )
         }
     }
 }

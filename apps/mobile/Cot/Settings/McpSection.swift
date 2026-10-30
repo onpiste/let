@@ -65,7 +65,7 @@ struct McpSection: View {
         ("Sentry", "https://mcp.sentry.dev/mcp"),
         ("Atlassian", "https://mcp.atlassian.com/v1/sse"),
         ("Asana", "https://mcp.asana.com/sse"),
-        ("Cloudflare Docs", "https://docs.mcp.cloudflare.com/mcp"),
+        ("Cloudflare Docs", "https://docs.mcp.cloudflare.com/mcp")
     ]
 
     private func status(_ server: McpState.Server, id: String) -> String {

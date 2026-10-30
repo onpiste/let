@@ -69,12 +69,14 @@ enum MarkdownParser {
                 ))
             } else if let header = tableCells(trimmed),
                       let next = lines.first,
-                      isTableDelimiter(next.trimmingCharacters(in: .whitespaces)) {
+                      isTableDelimiter(next.trimmingCharacters(in: .whitespaces))
+            {
                 flush()
                 lines.removeFirst()
                 var rows: [[String]] = []
                 while let row = lines.first,
-                      let cells = tableCells(row.trimmingCharacters(in: .whitespaces)) {
+                      let cells = tableCells(row.trimmingCharacters(in: .whitespaces))
+                {
                     lines.removeFirst()
                     rows.append(cells)
                 }

@@ -72,7 +72,9 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
     /// What Copy and Share hand out: the typed text, or the assistant's answer
     /// without its reasoning and tool calls.
     var shareText: String {
-        if isUser { return plainText }
+        if isUser {
+            return plainText
+        }
         return parts
             .compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

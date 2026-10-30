@@ -60,7 +60,7 @@ final class SettingsModel {
         let skill = JSONValue.object([
             "name": .string(name),
             "description": .string(description),
-            "instructions": .string(instructions),
+            "instructions": .string(instructions)
         ])
         return await run { [self] in skills = try await call("saveSkill", [skill]) }
     }

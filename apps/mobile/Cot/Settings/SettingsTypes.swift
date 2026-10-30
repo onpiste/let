@@ -92,5 +92,7 @@ struct Skill: Decodable, Identifiable, Equatable {
     let name: String
     let description: String
     let instructions: String
-    var id: String { name }
+    var id: String {
+        name
+    }
 }
