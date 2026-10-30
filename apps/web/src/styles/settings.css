@@ -143,9 +143,13 @@
   background: rgba(196, 71, 58, 0.12);
   color: #c4473a;
 }
+.stack-form {
+  display: grid;
+  gap: 8px;
+}
 .inline-form {
   display: grid;
-  grid-template-columns: 1fr 2fr auto;
+  grid-template-columns: auto 1fr 2fr auto;
   gap: 8px;
 }
 .inline-form.two {

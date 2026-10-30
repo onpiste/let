@@ -42,7 +42,8 @@ Features:
 - **Settings page** (gear icon, `/settings`), saved per account:
   - **Assistant**: name, reply language and custom instructions, used by the assistant
   - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. For Workers AI, pick from a list of open models (Kimi, gpt-oss, GLM, Llama, Gemma, Qwen…) or type any model id. Applies to chat and Telegram; the coding agent stays on Workers AI
-  - **MCP servers**: add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
+  - **Skills**: write reusable instructions (name, when to use it, Markdown body). The assistant sees only names and descriptions, and loads a skill's full text with `useSkill` when a request fits. Stored per account
+  - **Connectors (MCP servers)**: pick a popular one or add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
   - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
 - A calm, minimal chat UI with light and dark mode that works on mobile
 
@@ -81,9 +82,12 @@ Cot is meant to be forked and changed. The usual first steps:
    `packages/shared/src/approval.ts`; tune them there for your deployment.
    Telegram never runs these tools, since it has no approve button.
 
-5. **Skills.** Add a tool group in `apps/server/src/agents/think/tools/`, or
-   connect an existing MCP server from **Settings → MCP servers** without
-   writing code. Business-specific knowledge can go into the `cot-knowledge`
+5. **Skills, tools and connectors.** Users write their own skills in
+   **Settings → Skills**. Add a tool group in
+   `apps/server/src/agents/think/tools/`, or connect an MCP server from
+   **Settings → Connectors** without writing code; edit the one-tap list in
+   `packages/shared/src/connectors.ts` (and the copy in
+   `apps/mobile/Cot/Settings/McpSection.swift`). Business-specific knowledge can go into the `cot-knowledge`
    AI Search instance that the knowledge tool searches.
 6. **Channels.** Telegram is the reference integration
    (`apps/server/src/integrations/telegram/`); new messengers follow the same

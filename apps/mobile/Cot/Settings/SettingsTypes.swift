@@ -87,3 +87,10 @@ struct AddMcpResult: Decodable {
     let state: String
     let authUrl: String?
 }
+
+struct Skill: Decodable, Identifiable, Equatable {
+    let name: String
+    let description: String
+    let instructions: String
+    var id: String { name }
+}

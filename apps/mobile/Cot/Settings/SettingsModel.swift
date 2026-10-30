@@ -9,6 +9,7 @@ import Observation
 final class SettingsModel {
     private(set) var settings: PublicSettings?
     private(set) var mcp: McpState?
+    private(set) var skills: [Skill] = []
     private(set) var telegram: TelegramStatus?
     private(set) var email: EmailStatus?
     private(set) var connected = false
@@ -47,11 +48,25 @@ final class SettingsModel {
             settings = try await call("getSettings")
             telegram = try await call("getTelegramStatus")
             email = try await call("getEmailStatus")
+            skills = try await call("listSkills")
         }
     }
 
     func save(_ patch: JSONValue) async -> Bool {
         await run { [self] in settings = try await call("updateSettings", [patch]) }
+    }
+
+    func saveSkill(name: String, description: String, instructions: String) async -> Bool {
+        let skill = JSONValue.object([
+            "name": .string(name),
+            "description": .string(description),
+            "instructions": .string(instructions),
+        ])
+        return await run { [self] in skills = try await call("saveSkill", [skill]) }
+    }
+
+    func deleteSkill(_ name: String) async {
+        await run { [self] in skills = try await call("deleteSkill", [.string(name)]) }
     }
 
     func addMcp(name: String, url: String) async -> AddMcpResult? {

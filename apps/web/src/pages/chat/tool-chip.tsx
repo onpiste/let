@@ -17,7 +17,8 @@ const TOOL_LABELS: Record<string, string> = {
   codeTask: "Coding agent",
   updateScheduledTask: "Task updated",
   pauseScheduledTask: "Task paused",
-  resumeScheduledTask: "Task resumed"
+  resumeScheduledTask: "Task resumed",
+  useSkill: "Used skill"
 };
 
 /** "server · tool" for MCP tools, keyed by the AI SDK tool name. */

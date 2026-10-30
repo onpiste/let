@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings sheet: account, assistant persona/model, MCP servers, Telegram
+/// Settings sheet: account, assistant persona/model, skills, connectors, Telegram
 /// and email. Everything is stored in the user's own assistant on the server.
 struct SettingsView: View {
     let user: User
@@ -30,6 +30,7 @@ struct SettingsView: View {
                 }
                 if let settings = model.settings {
                     AssistantSection(model: model, settings: settings)
+                    SkillsSection(model: model)
                     McpSection(model: model)
                     TelegramSection(model: model)
                     EmailSection(model: model)

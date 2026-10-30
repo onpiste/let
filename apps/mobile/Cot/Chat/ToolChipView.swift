@@ -12,6 +12,7 @@ private let toolTitles: [String: String] = [
     "browseWeb": "Opened web page",
     "searchKnowledge": "Searched knowledge base",
     "runCode": "Ran code",
+    "useSkill": "Used skill",
     "codeTask": "Coding agent",
     "updateScheduledTask": "Task updated",
     "pauseScheduledTask": "Task paused",

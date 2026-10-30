@@ -9,12 +9,13 @@ import {
   toPublicSettings,
   type AssistantRpc,
   type EmailPolicy,
-  type SettingsPatch
+  type SettingsPatch,
+  type Skill
 } from "@cot/shared";
 
 import { isAllowed } from "../../auth/session";
 import { EmailChannel } from "../../integrations/email/channel";
-import { toEmailStatus } from "../../integrations/email/config";
+import { emailAddress } from "../../integrations/email/config";
 import { Inbox } from "../../integrations/email/inbox";
 import { emailNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
@@ -27,7 +28,9 @@ import { broadcastReminder } from "../common/reminders";
 import { takeTurn, usageLimits } from "../common/usage";
 import { cannedReply } from "./canned-reply";
 import { ChatHistory } from "./history";
+import { mcpPopupResult } from "./mcp-popup";
 import { languageModelFor, modelFor, paidByUser } from "./model";
+import { deleteSkill, saveSkill } from "./skill-save";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
 import { Tasks } from "./tasks";
@@ -47,8 +50,7 @@ import { assistantTools, NEEDS_APPROVAL } from "./tools";
  * Only the signed-in owner can reach an instance (see http/router.ts).
  */
 export class Assistant extends Think<Env> implements AssistantRpc {
-  // Getters rather than fields: Think calls getMessengers() before
-  // subclass fields would be initialised.
+  // Getters, not fields: Think calls getMessengers() before field init.
   private get store() {
     return new AssistantStore(this);
   }
@@ -86,11 +88,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   private emailAddress() {
-    const status = toEmailStatus(
-      this.store.getEmailConfig(),
-      this.env.EMAIL_DOMAIN
-    );
-    return status.enabled ? status.address : null;
+    return emailAddress(this.store.getEmailConfig(), this.env.EMAIL_DOMAIN);
   }
 
   override onStart() {
@@ -98,18 +96,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
     // MCP OAuth opens in a popup; close it and let the settings page pick
     // up the new connection state from the MCP broadcast.
-    this.mcp.configureOAuthCallback({
-      customHandler: (result) =>
-        new Response(
-          result.authSuccess
-            ? "<script>window.close()</script>Connected. You can close this window."
-            : `Authorization failed: ${result.authError ?? "unknown error"}`,
-          {
-            status: result.authSuccess ? 200 : 400,
-            headers: { "Content-Type": "text/html; charset=utf-8" }
-          }
-        )
-    });
+    this.mcp.configureOAuthCallback({ customHandler: mcpPopupResult });
   }
 
   // ── Think hooks ─────────────────────────────────────────────────────
@@ -150,7 +137,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       memory: this,
       sandbox: this.env.SANDBOX.getByName(this.name),
       inbox: this.emailAddress() ? () => new Inbox(this) : null,
-      approvalMode: () => this.store.getSettings().approvalMode
+      approvalMode: () => this.store.getSettings().approvalMode,
+      skills: { list: () => this.store.listSkills() }
     });
   }
 
@@ -164,7 +152,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       settings: this.store.getSettings(),
       memories: this.store.listMemories(),
       commandsAllowed,
-      emailAddress: this.emailAddress()
+      emailAddress: this.emailAddress(),
+      skills: this.store.listSkills()
     });
   }
 
@@ -234,6 +223,23 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return toPublicSettings(next);
   }
 
+  // ── Skills (callables) ──────────────────────────────────────────────
+
+  @callable()
+  async listSkills() {
+    return this.store.listSkills();
+  }
+
+  @callable()
+  async saveSkill(skill: Skill) {
+    return saveSkill(this.store, skill);
+  }
+
+  @callable()
+  async deleteSkill(name: string) {
+    return deleteSkill(this.store, name);
+  }
+
   // ── MCP servers (callables). Think adds their tools to every turn. ──
 
   @callable()
@@ -246,8 +252,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   @callable()
-  async removeMcp(id: string) {
-    await this.removeMcpServer(id);
+  removeMcp(id: string) {
+    return this.removeMcpServer(id);
   }
 
   // ── Telegram (callables + webhook RPC) ──────────────────────────────

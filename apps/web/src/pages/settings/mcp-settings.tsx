@@ -1,6 +1,8 @@
 import type { MCPServersState } from "agents";
 import { useState, type FormEvent } from "react";
 
+import { CONNECTOR_PRESETS } from "@cot/shared";
+
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
 
@@ -44,7 +46,7 @@ export function McpSettings({
 
   return (
     <section className="card">
-      <h2>MCP servers</h2>
+      <h2>Connectors (MCP servers)</h2>
       <p className="muted">
         Tools from connected servers are available to the Think assistant in
         every chat, including Telegram.
@@ -100,6 +102,22 @@ export function McpSettings({
         </ul>
       )}
       <form className="inline-form" onSubmit={(e) => void add(e)}>
+        <select
+          value=""
+          onChange={(e) => {
+            const preset = CONNECTOR_PRESETS.find(
+              (p) => p.name === e.target.value
+            );
+            if (!preset) return;
+            setName(preset.name);
+            setUrl(preset.url);
+          }}
+        >
+          <option value="">Popular…</option>
+          {CONNECTOR_PRESETS.map((p) => (
+            <option key={p.name}>{p.name}</option>
+          ))}
+        </select>
         <input
           required
           value={name}

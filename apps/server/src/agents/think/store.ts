@@ -1,6 +1,6 @@
 import type { Agent } from "agents";
 
-import { DEFAULT_SETTINGS, type Settings } from "@cot/shared";
+import { DEFAULT_SETTINGS, type Settings, type Skill } from "@cot/shared";
 
 import type { EmailConfig } from "../../integrations/email/config";
 import type { TelegramConfig } from "../../integrations/telegram/config";
@@ -30,6 +30,11 @@ export class AssistantStore {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       content TEXT NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`;
+    this.db.sql`CREATE TABLE IF NOT EXISTS skills (
+      name TEXT PRIMARY KEY,
+      description TEXT NOT NULL,
+      instructions TEXT NOT NULL
     )`;
     this.db.sql`CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
@@ -118,5 +123,21 @@ export class AssistantStore {
 
   removeMemory(id: number) {
     this.db.sql`DELETE FROM memories WHERE id = ${id}`;
+  }
+
+  // ── Skills ──────────────────────────────────────────────────────────
+
+  listSkills() {
+    return this.db.sql<Skill>`
+      SELECT name, description, instructions FROM skills ORDER BY name`;
+  }
+
+  saveSkill(skill: Skill) {
+    this.db.sql`INSERT OR REPLACE INTO skills (name, description, instructions)
+      VALUES (${skill.name}, ${skill.description}, ${skill.instructions})`;
+  }
+
+  removeSkill(name: string) {
+    this.db.sql`DELETE FROM skills WHERE name = ${name}`;
   }
 }

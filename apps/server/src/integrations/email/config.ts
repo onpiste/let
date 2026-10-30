@@ -90,3 +90,9 @@ export function toEmailStatus(
     trustedSenders: config.trustedSenders
   };
 }
+
+/** The assistant's own address, or null when email isn't set up. */
+export function emailAddress(config: EmailConfig | null, domain: string) {
+  const status = toEmailStatus(config, domain);
+  return status.enabled ? status.address : null;
+}

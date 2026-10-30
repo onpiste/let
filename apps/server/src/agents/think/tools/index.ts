@@ -11,6 +11,7 @@ import { memoryTools, type MemoryWriter } from "./memory";
 import { reminderTools } from "./reminders";
 import { researchTools } from "./research";
 import { sandboxTools } from "./sandbox";
+import { skillTools, type SkillReader } from "./skills";
 
 /**
  * Tools that wait for the user to approve them in the chat. Telegram has no
@@ -29,7 +30,8 @@ export function assistantTools({
   memory,
   sandbox,
   inbox,
-  approvalMode
+  approvalMode,
+  skills
 }: {
   env: Env;
   agent: ReminderAgent;
@@ -38,6 +40,7 @@ export function assistantTools({
   /** The assistant's inbox, when it has an email address. */
   inbox: (() => Inbox) | null;
   approvalMode: () => ApprovalMode;
+  skills: SkillReader;
 }): ToolSet {
   return {
     ...memoryTools(memory),
@@ -45,6 +48,7 @@ export function assistantTools({
     ...sandboxTools(sandbox, approvalMode),
     ...codeTools(env, sandbox, approvalMode),
     ...researchTools(env),
+    ...(skills.list().length ? skillTools(skills) : {}),
     ...(inbox ? emailTools(inbox) : {})
   };
 }

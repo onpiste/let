@@ -26,6 +26,14 @@ struct McpSection: View {
                     Button("Remove", role: .destructive) { Task { await model.removeMcp(id) } }
                 }
             }
+            Menu("Popular connectors") {
+                ForEach(Self.presets, id: \.name) { preset in
+                    Button(preset.name) {
+                        name = preset.name
+                        url = preset.url
+                    }
+                }
+            }
             TextField("Name", text: $name)
             TextField("https://server/mcp", text: $url)
                 .keyboardType(.URL)
@@ -41,13 +49,24 @@ struct McpSection: View {
             }
             .disabled(name.isEmpty || url.isEmpty || model.busy)
         } header: {
-            Text("MCP servers")
+            Text("Connectors (MCP servers)")
         } footer: {
             Text(
                 "Tools from connected servers are available to the Think assistant in every chat, including Telegram. Servers that need sign-in: authorize them once in the web app."
             )
         }
     }
+
+    /// Keep in sync with CONNECTOR_PRESETS in packages/shared/src/connectors.ts.
+    private static let presets: [(name: String, url: String)] = [
+        ("Notion", "https://mcp.notion.com/mcp"),
+        ("Linear", "https://mcp.linear.app/mcp"),
+        ("GitHub", "https://api.githubcopilot.com/mcp/"),
+        ("Sentry", "https://mcp.sentry.dev/mcp"),
+        ("Atlassian", "https://mcp.atlassian.com/v1/sse"),
+        ("Asana", "https://mcp.asana.com/sse"),
+        ("Cloudflare Docs", "https://docs.mcp.cloudflare.com/mcp"),
+    ]
 
     private func status(_ server: McpState.Server, id: String) -> String {
         var text = server.state

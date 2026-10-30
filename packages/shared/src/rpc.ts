@@ -1,6 +1,7 @@
 import type { ChatSummary } from "./chats";
 import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
 import type { PublicSettings, SettingsPatch } from "./settings";
+import type { Skill } from "./skills";
 import type { ScheduledTask } from "./tasks";
 import type { TelegramStatus } from "./telegram";
 
@@ -32,6 +33,11 @@ export interface AssistantRpc {
   updateSettings(patch: SettingsPatch): Promise<PublicSettings>;
   addMcp(name: string, url: string): Promise<AddMcpResult>;
   removeMcp(id: string): Promise<void>;
+  /** The user's skills, by name. */
+  listSkills(): Promise<Skill[]>;
+  /** Adds a skill, or replaces the one with the same name. */
+  saveSkill(skill: Skill): Promise<Skill[]>;
+  deleteSkill(name: string): Promise<Skill[]>;
   getTelegramStatus(): Promise<TelegramStatus>;
   connectTelegram(token: string): Promise<TelegramStatus>;
   newTelegramClaimLink(): Promise<TelegramStatus>;
