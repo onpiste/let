@@ -2,6 +2,7 @@ import { code } from "@streamdown/code";
 import { isToolUIPart, type UIMessage } from "ai";
 import { Streamdown } from "streamdown";
 
+import { MessageActions } from "./message-actions";
 import { Thinking, TypingDots } from "./thinking";
 import { ToolChip } from "./tool-chip";
 
@@ -21,6 +22,14 @@ function userContent(m: UIMessage) {
     });
   }
   return { text: text.trim(), files };
+}
+
+/** An assistant message's answer text, for copying and sharing. */
+function assistantText(m: UIMessage) {
+  return m.parts
+    .flatMap((p) => (p.type === "text" ? [p.text.trim()] : []))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /** The conversation: user bubbles, and assistant text, reasoning and tools. */
@@ -46,7 +55,7 @@ export function MessageList({
         if (m.role === "user") {
           const { text, files } = userContent(m);
           return (
-            <div key={m.id} className="flex flex-col items-end gap-1">
+            <div key={m.id} className="message flex flex-col items-end gap-1">
               {files.length > 0 && (
                 <div className="attachments justify-end">
                   {files.map((f, k) => (
@@ -57,11 +66,14 @@ export function MessageList({
                 </div>
               )}
               {text && <div className="bubble-user">{text}</div>}
+              {text && <MessageActions text={text} align="end" />}
             </div>
           );
         }
+        const answer = assistantText(m);
+        const streaming = busy && isLast;
         return (
-          <div key={m.id} className="assistant">
+          <div key={m.id} className="message assistant">
             {m.parts.map((part, j) => {
               if (part.type === "reasoning") {
                 return (
@@ -78,7 +90,7 @@ export function MessageList({
                     key={j}
                     className="prose-cot"
                     plugins={{ code }}
-                    isAnimating={busy && isLast}
+                    isAnimating={streaming}
                   >
                     {part.text}
                   </Streamdown>
@@ -96,6 +108,7 @@ export function MessageList({
               }
               return null;
             })}
+            {answer && !streaming && <MessageActions text={answer} />}
           </div>
         );
       })}

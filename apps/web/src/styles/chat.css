@@ -78,6 +78,38 @@
   animation: rise 0.25s ease-out;
 }
 
+.msg-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: -4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.message:hover .msg-actions,
+.message:last-child .msg-actions,
+.msg-actions:focus-within {
+  opacity: 1;
+}
+/* Touch screens have no hover; keep the actions visible there. */
+@media (hover: none) {
+  .msg-actions {
+    opacity: 1;
+  }
+}
+.msg-action {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+  transition: background 0.15s;
+}
+.msg-action:hover {
+  background: var(--user-bubble);
+  color: var(--text);
+}
+
 .prose-cot p {
   margin: 0.5em 0;
 }

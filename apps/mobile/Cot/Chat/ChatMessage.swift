@@ -69,6 +69,17 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// What Copy and Share hand out: the typed text, or the assistant's answer
+    /// without its reasoning and tool calls.
+    var shareText: String {
+        if isUser { return plainText }
+        return parts
+            .compactMap { $0["type"]?.string == "text" ? $0["text"]?.string : nil }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n\n")
+    }
+
     /// Names of the files attached to a user message.
     var attachmentNames: [String] {
         let text = rawText

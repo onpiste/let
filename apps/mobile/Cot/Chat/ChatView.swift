@@ -35,6 +35,7 @@ struct ChatView: View {
                             MessageRow(
                                 message: message,
                                 toolLabels: store.mcp?.toolLabels ?? [:],
+                                streaming: store.busy && message.id == store.messages.last?.id,
                                 onApproval: store.respond(toApproval:approved:)
                             )
                         }
