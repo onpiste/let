@@ -89,11 +89,13 @@ final class AgentSocket {
 
     private func connect() {
         teardown()
-        guard let bearer = token() else { return }
-        var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        guard let bearer = token(),
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return }
         // The SDK client names its connection this way; harmless to mirror.
         components.queryItems = [URLQueryItem(name: "_pk", value: UUID().uuidString)]
-        var request = URLRequest(url: components.url!)
+        guard let socketURL = components.url else { return }
+        var request = URLRequest(url: socketURL)
         request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 10
         let task = session.webSocketTask(with: request)

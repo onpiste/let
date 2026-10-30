@@ -28,6 +28,7 @@ opt_in_rules:
   - first_where
   - sorted_first_last
   - fatal_error_message
+  - force_unwrapping # mirrors the "no non-null !" rule on the TypeScript side
 
 identifier_name:
   min_length: 1

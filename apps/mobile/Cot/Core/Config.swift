@@ -24,10 +24,10 @@ enum Config {
 
     /// `wss://host/<basePath>` for an agent.
     static func socketURL(basePath: String) -> URL {
-        var components = URLComponents(
-            url: url(basePath), resolvingAgainstBaseURL: false
-        )!
-        components.scheme = components.scheme == "http" ? "ws" : "wss"
-        return components.url!
+        let http = url(basePath)
+        var components = URLComponents(url: http, resolvingAgainstBaseURL: false)
+        components?.scheme = components?.scheme == "http" ? "ws" : "wss"
+        // Unreachable for a valid serverURL; the plain URL fails at connect time.
+        return components?.url ?? http
     }
 }

@@ -68,15 +68,18 @@ final class AuthModel {
             let verifier = Self.base64URL(Data((0 ..< 32).map { _ in UInt8.random(in: 0 ... 255) }))
             let challenge = Self.base64URL(Data(SHA256.hash(data: Data(verifier.utf8))))
 
-            var login = URLComponents(
+            guard var login = URLComponents(
                 url: Config.url("auth/login"),
                 resolvingAgainstBaseURL: false
-            )!
+            ) else { throw AuthError.message("Sign-in URL is invalid.") }
             login.queryItems = [
                 URLQueryItem(name: "redirect_uri", value: Config.redirectURI),
                 URLQueryItem(name: "code_challenge", value: challenge)
             ]
-            let callback = try await authenticate(login.url!)
+            guard let loginURL = login.url else {
+                throw AuthError.message("Sign-in URL is invalid.")
+            }
+            let callback = try await authenticate(loginURL)
             guard let code = URLComponents(url: callback, resolvingAgainstBaseURL: false)?
                 .queryItems?.first(where: { $0.name == "code" })?.value
             else { throw AuthError.message("Sign-in did not return a code.") }
