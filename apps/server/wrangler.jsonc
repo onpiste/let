@@ -54,7 +54,7 @@
     // key is used instead when set, and isn't limited. Daily limits are per
     // account; "0" turns one off. Deep Research agents are versioned
     // previews; bump GEMINI_RESEARCH_AGENT when Google ships a new one.
-    "AI_GATEWAY_ID": "",
+    "AI_GATEWAY_ID": "onpiste",
     "DAILY_SEARCH_LIMIT": "100",
     "DAILY_RESEARCH_LIMIT": "3",
     "GEMINI_SEARCH_MODEL": "gemini-flash-latest",
