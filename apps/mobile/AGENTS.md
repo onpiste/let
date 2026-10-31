@@ -4,12 +4,13 @@ The native iOS app (SwiftUI). Root rules in [/AGENTS.md](../../AGENTS.md)
 apply; see [README.md](README.md) for what it does and how to build it.
 
 - **Not a Bun workspace.** There is no `package.json`; `bun run check` never
-  sees this folder. The `iOS` workflow builds and tests it on macOS.
+  sees this folder. The `iOS` workflow builds and tests it on macOS for pull
+  requests; on a Mac, `scripts/nightly.sh` does it for pushes to `main`.
 - **Swift can't be built on Linux.** Keep changes small and let CI be the
   compiler; run the tests in Xcode (⌘U) when you have a Mac.
 - **Lint and format with SwiftFormat + SwiftLint** (`brew install swiftformat
 swiftlint`). Run `swiftformat .` then `swiftlint lint --strict` in this
-  folder before committing; the `iOS` workflow runs both. Config is in
+  folder before committing; the `iOS` workflow and the pre-push hook run both. Config is in
   `.swiftformat` and `.swiftlint.yml`; SwiftFormat owns formatting, so keep
   style rules out of SwiftLint.
 - **The Xcode project is generated.** `project.yml` (XcodeGen) is the source;

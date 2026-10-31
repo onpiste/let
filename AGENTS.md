@@ -86,8 +86,8 @@ them so far (pure logic, e.g. `approval.test.ts`); add
 
 ## Definition of done
 
-Before you commit, all of these must pass. CI runs the same steps and blocks
-the merge otherwise:
+Before you commit, all of these must pass. CI runs the same steps on pull
+requests, and the Deploy workflow on pushes to `main`:
 
 1. `bun run check` — no format diffs, **zero** lint warnings, no type errors,
    passing tests, no dead code (knip: unused files, exports, types or dependencies). Delete
@@ -98,8 +98,17 @@ the merge otherwise:
    Durable Object class, run `bun run types` and commit `env.d.ts`
    (CI checks it with `wrangler types --check`).
 
-A pre-commit hook (husky + lint-staged) formats and lints staged files.
-Don't bypass it with `--no-verify`.
+A pre-commit hook (husky + lint-staged) formats and lints staged files, and a
+pre-push hook runs `bun run check` (plus SwiftFormat/SwiftLint when
+`apps/mobile` changed). Don't bypass them with `--no-verify`.
+
+### CI minutes
+
+Runner minutes cost money, macOS ones most, so slow checks that don't gate a
+deploy run on a Mac instead: `scripts/nightly.sh` (desktop build, iOS lint and
+tests, TestFlight upload when the app changed) on the latest `main`, three
+times a day once installed with `scripts/nightly.sh --install`. Keep new
+workflows on Linux and on pull requests unless they must run per push.
 
 ## Web and iOS parity
 

@@ -1,0 +1,12 @@
+# Catch what CI would reject before it costs runner minutes.
+bun run check
+
+# The iOS checks run on CI for pull requests only, so run them here when the
+# push touches the app. swiftlint needs full Xcode, not just the CLI tools.
+base=$(git rev-parse --verify --quiet '@{push}' || echo origin/main)
+if ! git diff --quiet "$base" HEAD -- apps/mobile; then
+  (cd apps/mobile && swiftformat --lint .)
+  if xcrun --find simctl >/dev/null 2>&1; then
+    (cd apps/mobile && swiftlint lint --strict)
+  fi
+fi

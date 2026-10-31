@@ -33,6 +33,7 @@ jobs:
 
       - run: bun install --frozen-lockfile
       - run: bun run check
+      - run: bun run --filter @cot/server types:check
 
       # apps/web: vite build (client + the apps/server Worker) && wrangler
       # deploy. The sandbox uses Cloudflare's managed image, so no Docker is

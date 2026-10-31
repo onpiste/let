@@ -1,14 +1,11 @@
 name: iOS
 
-# Builds the native iOS app for the simulator (unsigned) and runs its unit
-# tests. Swift can't be built on the Linux runners CI uses for everything else.
+# Lints the native iOS app, builds it for the simulator (unsigned) and runs its
+# unit tests. Swift can't be built on the Linux runners CI uses for everything
+# else. macOS minutes are expensive, so this runs on pull requests only; pushes
+# to main are covered by the pre-push hook and scripts/nightly.sh on a Mac.
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "apps/mobile/**"
-      - ".github/workflows/ios.yml"
+  workflow_dispatch:
   pull_request:
     paths:
       - "apps/mobile/**"
@@ -19,24 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    runs-on: blacksmith-6vcpu-macos-15
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - run: brew install swiftlint swiftformat
-
-      - name: Format
-        working-directory: apps/mobile
-        run: swiftformat --lint .
-
-      - name: Lint
-        working-directory: apps/mobile
-        run: swiftlint lint --strict
-
+  # One job, so lint and build share a single (costly) macOS runner.
   build:
     runs-on: blacksmith-6vcpu-macos-15
     timeout-minutes: 20
@@ -45,7 +25,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - run: brew install xcodegen
+      - run: brew install swiftlint swiftformat xcodegen
+
+      - name: Format
+        working-directory: apps/mobile
+        run: swiftformat --lint .
+
+      - name: Lint
+        working-directory: apps/mobile
+        run: swiftlint lint --strict
 
       - name: Generate the Xcode project
         working-directory: apps/mobile
