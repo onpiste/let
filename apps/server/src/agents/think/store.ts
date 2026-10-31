@@ -6,6 +6,7 @@ import type { EmailConfig } from "../../integrations/email/config";
 import type { TelegramConfig } from "../../integrations/telegram/config";
 import type { Memory } from "../common/prompt";
 import type { UsageRecord } from "../common/usage";
+import type { WebUsageRecord } from "../common/web-usage";
 
 type SettingsKey =
   | "settings"
@@ -13,12 +14,13 @@ type SettingsKey =
   | "owner_name"
   | "telegram"
   | "email"
-  | "usage";
+  | "usage"
+  | "web_usage";
 
 /**
  * The Think assistant's own SQLite tables: `memories`, and a key/value
  * `settings` table for the user's settings, owner email, Telegram bot and
- * email address, and message usage.
+ * email address, and message and web search usage.
  */
 export class AssistantStore {
   constructor(private readonly db: Pick<Agent<Env>, "sql">) {}
@@ -109,6 +111,15 @@ export class AssistantStore {
 
   saveUsage(usage: UsageRecord) {
     this.write("usage", JSON.stringify(usage));
+  }
+
+  getWebUsage(): WebUsageRecord | null {
+    const value = this.read("web_usage");
+    return value ? (JSON.parse(value) as WebUsageRecord) : null;
+  }
+
+  saveWebUsage(record: WebUsageRecord) {
+    this.write("web_usage", JSON.stringify(record));
   }
 
   // ── Memories ────────────────────────────────────────────────────────

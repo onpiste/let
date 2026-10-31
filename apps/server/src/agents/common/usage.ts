@@ -15,7 +15,7 @@ type UsageLimits = { perDay: number; perMinute: number };
 
 const MINUTE_MS = 60_000;
 
-function limit(value: string | undefined) {
+export function limit(value: string | undefined) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }

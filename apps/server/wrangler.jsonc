@@ -47,9 +47,16 @@
     "DAILY_MESSAGE_LIMIT": "500",
     "MINUTE_MESSAGE_LIMIT": "20",
     "MAX_REMINDERS": "50",
-    // Gemini models behind searchWeb and deepResearch (on each user's own
-    // Google key). Deep Research agents are versioned previews; bump this
-    // when Google ships a new one.
+    // Web search and Deep Research (Gemini), paid by the deployment: put the
+    // key in the GEMINI_API_KEY secret, or store it in an AI Gateway named by
+    // AI_GATEWAY_ID (authenticated gateways also need the CF_AIG_TOKEN
+    // secret). Empty AI_GATEWAY_ID calls Google directly. A user's own Google
+    // key is used instead when set, and isn't limited. Daily limits are per
+    // account; "0" turns one off. Deep Research agents are versioned
+    // previews; bump GEMINI_RESEARCH_AGENT when Google ships a new one.
+    "AI_GATEWAY_ID": "",
+    "DAILY_SEARCH_LIMIT": "100",
+    "DAILY_RESEARCH_LIMIT": "3",
     "GEMINI_SEARCH_MODEL": "gemini-flash-latest",
     "GEMINI_RESEARCH_AGENT": "deep-research-preview-04-2026"
   },

@@ -77,7 +77,7 @@ struct AssistantSection: View {
             Text("Model")
         } footer: {
             // Mirrors the API keys note in assistant-settings.tsx.
-            Text("Keys are stored in your assistant only. A Google key also turns on web search and Deep Research, whichever model you chat with.")
+            Text("Keys are stored in your assistant only. A Google key is also used for web search and Deep Research, without the daily limits of the shared access.")
         }
         .onAppear(perform: load)
     }

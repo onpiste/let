@@ -18,7 +18,8 @@ export function buildSystemPrompt({
   memories,
   commandsAllowed,
   emailAddress,
-  skills
+  skills,
+  webSearch
 }: {
   settings: Settings;
   memories: Memory[];
@@ -26,6 +27,8 @@ export function buildSystemPrompt({
   /** The assistant's own address, if it has one. */
   emailAddress: string | null;
   skills: Pick<Skill, "name" | "description">[];
+  /** Whether searchWeb and deepResearch are available. */
+  webSearch: boolean;
 }) {
   const sandbox = commandsAllowed
     ? "Use runCommand to run shell commands, and writeSandboxFile / readSandboxFile for files."
@@ -40,7 +43,7 @@ ${REMINDER_HINT}
 
 For a quick calculation or data transformation, use runCode: it runs JavaScript (or Python) in an isolated, short-lived runtime with no network and no files, and returns the output in about a second. Prefer JavaScript, which starts faster.
 
-You also have a Linux sandbox (Node.js 24 on Debian, with internet access; no Python preinstalled, install tools with apt-get) that keeps files between turns (working directory /workspace). ${sandbox} The first command after a while takes longer while the sandbox starts. For bigger programming jobs (building or fixing a project, analysing data with code), hand the whole task to codeTask: a coding agent works in the same sandbox and reports back.${commandsAllowed ? "" : " It is unavailable here."} Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.${settings.apiKeys.google ? WEB_SEARCH : ""}${emailAddress ? emailSection(emailAddress) : ""}${skills.length ? skillsSection(skills) : ""}`;
+You also have a Linux sandbox (Node.js 24 on Debian, with internet access; no Python preinstalled, install tools with apt-get) that keeps files between turns (working directory /workspace). ${sandbox} The first command after a while takes longer while the sandbox starts. For bigger programming jobs (building or fixing a project, analysing data with code), hand the whole task to codeTask: a coding agent works in the same sandbox and reports back.${commandsAllowed ? "" : " It is unavailable here."} Use browseWeb to open a web page and read its text. Use searchKnowledge to look things up in the user's uploaded documents.${webSearch ? WEB_SEARCH : ""}${emailAddress ? emailSection(emailAddress) : ""}${skills.length ? skillsSection(skills) : ""}`;
 }
 
 const WEB_SEARCH = `

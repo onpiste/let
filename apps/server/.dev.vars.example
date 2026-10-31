@@ -22,3 +22,12 @@ APNS_KEY=
 # Optional: the VAPID private key for Web Push (`bun run web-push-keys`). The
 # public key and WEB_PUSH_SUBJECT are in wrangler.jsonc. Empty: no Web Push.
 WEB_PUSH_PRIVATE_KEY=
+
+# Optional: the deployment's Gemini key for web search and Deep Research
+# (aistudio.google.com/apikey). Leave empty if the key is stored in the AI
+# Gateway named by AI_GATEWAY_ID instead. Empty everywhere: those tools only
+# appear for users who add their own Google key.
+GEMINI_API_KEY=
+
+# Optional: the token of an authenticated AI Gateway (AI_GATEWAY_ID).
+CF_AIG_TOKEN=

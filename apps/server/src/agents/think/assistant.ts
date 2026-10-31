@@ -174,7 +174,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       memories: this.store.listMemories(),
       commandsAllowed,
       emailAddress: this.emailAddress(),
-      skills: this.store.listSkills()
+      skills: this.store.listSkills(),
+      webSearch: this.research.key() !== null
     });
   }
 

@@ -1,4 +1,4 @@
-import { gemini } from "./gemini";
+import { gemini, type GeminiKey } from "./gemini";
 
 /** The parts of an Interactions API resource that Cot reads. */
 type Interaction = {
@@ -25,8 +25,8 @@ export type ResearchState =
  * The agent plans, searches and reads on Google's side for several minutes;
  * poll it with `researchState`.
  */
-export async function startResearch(env: Env, apiKey: string, topic: string) {
-  const interaction = await gemini<Interaction>(apiKey, "interactions", {
+export async function startResearch(env: Env, key: GeminiKey, topic: string) {
+  const interaction = await gemini<Interaction>(env, key, "interactions", {
     agent: env.GEMINI_RESEARCH_AGENT,
     input: topic,
     background: true
@@ -35,11 +35,13 @@ export async function startResearch(env: Env, apiKey: string, topic: string) {
 }
 
 export async function researchState(
-  apiKey: string,
+  env: Env,
+  key: GeminiKey,
   id: string
 ): Promise<ResearchState> {
   const interaction = await gemini<Interaction>(
-    apiKey,
+    env,
+    key,
     `interactions/${encodeURIComponent(id)}`
   );
   switch (interaction.status) {

@@ -4,6 +4,8 @@ import type { UIMessage } from "ai";
 import type { Settings } from "@cot/shared";
 
 import { researchState, startResearch } from "../../tools/deep-research";
+import { geminiKey, type GeminiKey } from "../../tools/gemini";
+import { takeWebUse, type WebUsageStore } from "../common/web-usage";
 
 /** The assistant, as far as research jobs need it. */
 export type ResearchHost = Agent<Env> & {
@@ -12,12 +14,18 @@ export type ResearchHost = Agent<Env> & {
   addMessages(messages: UIMessage[]): Promise<void>;
 };
 
-type JobRow = { id: string; topic: string; started_at: number };
+type JobRow = {
+  id: string;
+  topic: string;
+  started_at: number;
+  /** 1 when the run is on the user's own key, 0 on the deployment's. */
+  own_key: number;
+};
 
 const POLL_SECONDS = 30;
 /** Deep Research takes minutes; give up on one that runs past this. */
 const MAX_RUN_MS = 60 * 60 * 1000;
-/** Each run is billed to the user's key, so cap how many go at once. */
+/** Each run is billed, so cap how many go at once. */
 const MAX_RUNNING = 3;
 
 /**
@@ -30,35 +38,43 @@ export class ResearchJobs {
   constructor(
     private readonly host: ResearchHost,
     private readonly env: Env,
-    private readonly store: { getSettings(): Settings },
+    private readonly store: { getSettings(): Settings } & WebUsageStore,
     private readonly onFinished: (topic: string, ok: boolean) => Promise<void>
   ) {}
 
-  /** The user's Google key; without one there is no web search or research. */
-  apiKey() {
-    return this.store.getSettings().apiKeys.google;
+  /** The Gemini key to use now; null leaves out web search and research. */
+  key() {
+    return geminiKey(this.env, this.store.getSettings().apiKeys.google);
+  }
+
+  /** Counts a use of the deployment's key; the user's own key is free. */
+  allow(use: "search" | "research", key: GeminiKey) {
+    return key.ownKey ? null : takeWebUse(this.env, this.store, use);
   }
 
   private ensureTables() {
     this.host.sql`CREATE TABLE IF NOT EXISTS research_jobs (
       id TEXT PRIMARY KEY,
       topic TEXT NOT NULL,
-      started_at INTEGER NOT NULL
+      started_at INTEGER NOT NULL,
+      own_key INTEGER NOT NULL
     )`;
   }
 
   async start(topic: string) {
     this.ensureTables();
-    const key = this.apiKey();
-    if (!key) return "Deep research needs a Google API key in Settings.";
+    const key = this.key();
+    if (!key) return "Deep research isn't set up on this deployment.";
     const [running] = this.host.sql<{ n: number }>`
       SELECT COUNT(*) AS n FROM research_jobs`;
     if ((running?.n ?? 0) >= MAX_RUNNING) {
       return `${MAX_RUNNING} research runs are already going. Wait for one to finish.`;
     }
+    const refusal = this.allow("research", key);
+    if (refusal) return refusal;
     const id = await startResearch(this.env, key, topic);
-    this.host.sql`INSERT INTO research_jobs (id, topic, started_at)
-      VALUES (${id}, ${topic}, ${Date.now()})`;
+    this.host.sql`INSERT INTO research_jobs (id, topic, started_at, own_key)
+      VALUES (${id}, ${topic}, ${Date.now()}, ${key.ownKey ? 1 : 0})`;
     await this.host.schedule(POLL_SECONDS, "checkResearch", id);
     return "Deep research started. It usually takes several minutes; the report will be added to this chat and the user notified when it's ready. Tell the user that, briefly, and don't wait for it.";
   }
@@ -66,12 +82,16 @@ export class ResearchJobs {
   async check(id: string) {
     this.ensureTables();
     const [job] = this.host.sql<JobRow>`
-      SELECT id, topic, started_at FROM research_jobs WHERE id = ${id}`;
+      SELECT id, topic, started_at, own_key FROM research_jobs
+      WHERE id = ${id}`;
     if (!job) return;
-    const key = this.apiKey();
-    if (!key) return this.finish(job, "the Google API key was removed", false);
+    // A run belongs to the key that started it, so poll with that one.
+    const key = this.key();
+    if (!key || key.ownKey !== Boolean(job.own_key)) {
+      return this.finish(job, "the Google API key changed", false);
+    }
     try {
-      const state = await researchState(key, id);
+      const state = await researchState(this.env, key, id);
       if (state.status === "done") return this.finish(job, state.report, true);
       if (state.status === "failed") {
         return this.finish(job, state.error, false);

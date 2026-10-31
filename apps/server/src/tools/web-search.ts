@@ -1,4 +1,4 @@
-import { gemini } from "./gemini";
+import { gemini, type GeminiKey } from "./gemini";
 
 type GenerateResponse = {
   candidates?: {
@@ -13,12 +13,13 @@ const MAX_SOURCES = 8;
 
 /**
  * Answers `query` from a live Google Search, via Gemini's search grounding,
- * and lists the pages the answer came from. Works whichever model the user
- * chats with, as long as they have a Google key.
+ * and lists the pages the answer came from, whichever model the user chats
+ * with.
  */
-export async function searchWeb(env: Env, apiKey: string, query: string) {
+export async function searchWeb(env: Env, key: GeminiKey, query: string) {
   const result = await gemini<GenerateResponse>(
-    apiKey,
+    env,
+    key,
     `models/${env.GEMINI_SEARCH_MODEL}:generateContent`,
     {
       contents: [{ role: "user", parts: [{ text: query }] }],

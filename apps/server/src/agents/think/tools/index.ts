@@ -44,17 +44,17 @@ export function assistantTools({
   inbox: (() => Inbox) | null;
   approvalMode: () => ApprovalMode;
   skills: SkillReader;
-  /** Deep Research runs; its Google key also turns on web search. */
+  /** Deep Research runs; a Gemini key also turns on web search. */
   research: ResearchJobs;
 }): ToolSet {
-  const googleKey = research.apiKey();
+  const geminiKey = research.key();
   return {
     ...memoryTools(memory),
     ...reminderTools(agent, env),
     ...sandboxTools(sandbox, approvalMode),
     ...codeTools(env, sandbox, approvalMode),
     ...researchTools(env),
-    ...(googleKey ? webTools(env, googleKey, research) : {}),
+    ...(geminiKey ? webTools(env, geminiKey, research) : {}),
     ...(skills.list().length ? skillTools(skills) : {}),
     ...(inbox ? emailTools(inbox) : {})
   };
