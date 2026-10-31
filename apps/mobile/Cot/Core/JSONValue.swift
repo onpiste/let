@@ -3,7 +3,7 @@ import Foundation
 /// Any JSON document. Chat messages stay in this form so that what the app
 /// sends back to the server keeps every field the AI SDK put there, including
 /// ones this app doesn't render.
-enum JSONValue: Codable, Equatable, Sendable {
+enum JSONValue: Codable, Equatable {
     case null
     case bool(Bool)
     case number(Double)
