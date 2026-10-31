@@ -16,6 +16,19 @@ export type ApnsConfig = {
 export function apnsConfig(env: Env): ApnsConfig | null {
   const { APNS_KEY: key } = env as Env & { APNS_KEY?: string };
   const { APNS_KEY_ID: keyId, APNS_TEAM_ID: teamId, APNS_TOPIC: topic } = env;
-  if (!key || !keyId || !teamId || !topic) return null;
-  return { key, keyId, teamId, topic };
+  if (key && keyId && teamId && topic) return { key, keyId, teamId, topic };
+  // Half a setup is a mistake worth seeing (a dashboard save can blank vars);
+  // none at all is a deployment that simply doesn't use push.
+  const missing = Object.entries({
+    APNS_KEY: key,
+    APNS_KEY_ID: keyId,
+    APNS_TEAM_ID: teamId,
+    APNS_TOPIC: topic
+  })
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+  if (missing.length < 4) {
+    console.warn(`APNs push is off: ${missing.join(", ")} not set`);
+  }
+  return null;
 }

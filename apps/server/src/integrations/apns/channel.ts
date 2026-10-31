@@ -2,7 +2,7 @@ import type { PushDevice, PushStatus } from "@cot/shared";
 
 import { apnsConfig } from "./config";
 import type { PushDevices } from "./devices";
-import { sendPush, type PushAlert } from "./send";
+import { describeDevice, logPush, sendPush, type PushAlert } from "./send";
 
 /**
  * Push notifications to the owner's iPhones, so reminders and mail arrive
@@ -27,7 +27,11 @@ export class PushChannel {
       throw new Error("Unknown APNs environment.");
     }
     this.options.devices.save(device);
-    return { enabled: this.config !== null };
+    const enabled = this.config !== null;
+    logPush(
+      `device registered: ${describeDevice(device)}, push ${enabled ? "on" : "off"}`
+    );
+    return { enabled };
   }
 
   /** Sends to every registered phone; never throws. */
@@ -35,13 +39,23 @@ export class PushChannel {
     const config = this.config;
     if (!config) return;
     const { devices } = this.options;
+    const targets = devices.list();
+    if (targets.length === 0) {
+      logPush("push skipped: no registered devices");
+      return;
+    }
     await Promise.all(
-      devices.list().map(async (device) => {
+      targets.map(async (device) => {
         try {
           const result = await sendPush(config, device, alert);
-          if (result === "gone") devices.remove(device.token);
+          if (result === "gone") {
+            devices.remove(device.token);
+            logPush(`device removed: ${describeDevice(device)}`);
+          }
         } catch (error) {
-          console.error(`APNs push failed: ${String(error)}`);
+          console.error(
+            `APNs push to ${describeDevice(device)} failed: ${String(error)}`
+          );
         }
       })
     );

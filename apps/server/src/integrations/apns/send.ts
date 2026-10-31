@@ -34,13 +34,28 @@ export async function sendPush(
       body: JSON.stringify({ aps: { alert, sound: "default" } })
     }
   );
-  if (response.ok) return "sent";
+  const who = describeDevice(device);
+  if (response.ok) {
+    logPush(`push sent to ${who}`);
+    return "sent";
+  }
   const reason = await response.text();
+  console.error(`APNs ${response.status} for ${who}: ${reason}`);
   // 410: the app was deleted or signed out. BadDeviceToken: a token from the
   // other environment, which re-registering from the right build replaces.
   if (response.status === 410 || reason.includes("BadDeviceToken")) {
     return "gone";
   }
-  console.error(`APNs ${response.status}: ${reason}`);
   return "failed";
+}
+
+/** Enough of a token to tell devices apart in the logs. */
+export function describeDevice(device: PushDevice) {
+  return `…${device.token.slice(-8)} (${device.environment})`;
+}
+
+/** A push step that went fine, for `wrangler tail` and Workers Logs. */
+export function logPush(message: string) {
+  // oxlint-disable-next-line no-console -- a push that never arrives leaves no other trace; these lines show how far it got
+  console.log(`APNs ${message}`);
 }
