@@ -1,5 +1,7 @@
 import { AUTH_ROUTES, type User } from "@cot/shared";
 
+import { clearChatCache } from "./chat-cache";
+
 // The Worker routes /chat and /pi to the signed-in user's own assistant
 // instance, so the session cookie is the only identity the client holds.
 
@@ -15,5 +17,6 @@ export async function fetchCurrentUser(): Promise<User | null> {
 }
 
 export async function signOut() {
+  clearChatCache();
   await fetch(AUTH_ROUTES.logout, { method: "POST" }).catch(() => {});
 }

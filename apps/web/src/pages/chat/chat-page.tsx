@@ -22,6 +22,7 @@ import {
   readAttachment,
   type Attachment
 } from "../../lib/attachments";
+import { loadChatCache, saveChatCache } from "../../lib/chat-cache";
 import { errorText } from "../../lib/errors";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { setUpWebPush } from "../../lib/web-push";
@@ -123,10 +124,25 @@ export function ChatPage({
   const { messages, sendMessage, stop, status, addToolApprovalResponse } =
     useAgentChat({
       agent,
-      experimental_throttle: 50
+      experimental_throttle: 50,
+      // Show the cached chat at once; the socket sends the real list on
+      // connect. Without a cache, fetch it like the SDK does.
+      getInitialMessages: async ({ url }) => {
+        const cached = loadChatCache(user.id);
+        if (cached) return cached;
+        if (!url) return [];
+        const res = await fetch(`${url}/get-messages`).catch(() => null);
+        // Trust boundary: the server's UIMessage list.
+        return res?.ok ? ((await res.json()) as UIMessage[]) : [];
+      }
     });
 
   const busy = status === "streaming" || status === "submitted";
+
+  // Not mid-stream: that would write the whole chat on every chunk.
+  useEffect(() => {
+    if (!busy) saveChatCache(user.id, messages);
+  }, [busy, messages, user.id]);
   const last = messages[messages.length - 1];
   const waiting = busy && (!last || last.role === "user");
   const empty = messages.length === 0;
