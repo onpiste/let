@@ -29,14 +29,15 @@ final class ChatStore {
     private(set) var queue: [Queued] = []
     private(set) var status: Status = .ready
     private(set) var connected = false
-    /// False until the server has sent the conversation once, so the empty
-    /// start page doesn't flash before the last chat arrives.
+    /// False until the server has sent the conversation once; with nothing
+    /// cached the empty start page waits for it instead of flashing.
     private(set) var loaded = false
     private(set) var mcp: McpState?
     private(set) var errorText: String?
     var notice: Notice?
 
     let socket: AgentSocket
+    private let userID: String?
     var onConnectionLost: (() -> Void)?
 
     private var requestID: String?
@@ -49,7 +50,11 @@ final class ChatStore {
         status != .ready
     }
 
-    init(token: @escaping () -> String?) {
+    init(userID: String? = nil, token: @escaping () -> String?) {
+        self.userID = userID
+        if let userID {
+            messages = ChatCache.load(userID: userID)
+        }
         socket = AgentSocket(url: Config.socketURL(basePath: "chat"), token: token)
         socket.onFrame = { [weak self] in self?.handle($0) }
         socket.onOpen = { [weak self] in self?.opened() }
@@ -203,6 +208,7 @@ final class ChatStore {
         case "cf_agent_chat_clear":
             messages = []
             loaded = true
+            cache()
             finishTurn()
         case "cf_agent_message_updated":
             if let message = frame["message"].flatMap(ChatMessage.init(json:)) {
@@ -237,6 +243,13 @@ final class ChatStore {
             }
         }
         messages = incoming
+        cache()
+    }
+
+    private func cache() {
+        if let userID {
+            ChatCache.save(messages, userID: userID)
+        }
     }
 
     private func update(_ message: ChatMessage) {
@@ -328,6 +341,7 @@ final class ChatStore {
     }
 
     private func finishTurn() {
+        cache()
         status = .ready
         streamingMessageID = nil
         requestID = nil

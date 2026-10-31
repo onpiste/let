@@ -19,7 +19,7 @@ struct ChatView: View {
     init(user: User, auth: AuthModel) {
         self.user = user
         self.auth = auth
-        _store = State(initialValue: ChatStore(token: { auth.token }))
+        _store = State(initialValue: ChatStore(userID: user.id, token: { auth.token }))
     }
 
     private var waiting: Bool {
