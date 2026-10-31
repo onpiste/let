@@ -59,7 +59,12 @@ export async function gemini<T>(
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 500);
+    // Gateway failures such as a 524 timeout come back as an HTML page,
+    // which would only flood the model's context.
+    const json = response.headers.get("content-type")?.includes("json");
+    const detail = json
+      ? (await response.text()).slice(0, 500)
+      : response.statusText || "non-JSON error page";
     throw new Error(`Gemini API ${response.status}: ${detail}`);
   }
   // Trust boundary: the shape is Google's documented response for `path`.
