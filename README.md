@@ -70,24 +70,23 @@ Cot is meant to be forked and changed. The usual first steps:
      user's own API key don't count.
    - `MAX_REMINDERS` (default 50): scheduled reminders per assistant.
 
-   **Web search and Deep Research.** Give the deployment a Gemini key and
-   every user, whatever model they chat with, gains `searchWeb` (Google
-   Search grounding) and `deepResearch` (Gemini's Deep Research agent,
-   which runs for several minutes and posts a cited report into the chat,
-   with a notification). Both call the Gemini REST API with plain `fetch`.
-   The deployment pays, so set it up one of two ways:
-   - **Through Cloudflare AI Gateway** (recommended: logs, cost analytics,
-     rate limits). Create a gateway, store your Google AI Studio key in it
-     (or use unified billing), turn on authentication, then set
-     `AI_GATEWAY_ID` in `wrangler.jsonc` and the `CF_AIG_TOKEN` secret.
-   - **Directly**: put the key in the `GEMINI_API_KEY` secret. It also
-     works through a gateway that doesn't store the key.
+   **Web search and Deep Research.** Every user, whatever model they chat
+   with, gets `searchWeb` (Google Search grounding) and `deepResearch`
+   (Gemini's Deep Research agent, which runs for several minutes and posts
+   a cited report into the chat, with a notification). Both call the
+   Gemini REST API with plain `fetch`, always through Cloudflare AI
+   Gateway, never straight to Google. The deployment pays:
+   1. Create an AI Gateway, store your Google AI Studio key in it (or use
+      unified billing) and turn on authentication.
+   2. Set its name as `AI_GATEWAY_ID` in `apps/server/wrangler.jsonc`.
+   3. `bunx wrangler secret put CF_AIG_TOKEN` with the gateway's token.
 
    `DAILY_SEARCH_LIMIT` (default 100) and `DAILY_RESEARCH_LIMIT` (default 3) cap each account per UTC day. A user who saves their own Google key
-   in **Settings** uses it instead, without limits. With no key anywhere,
-   neither tool appears. The model and agent ids are the
-   `GEMINI_SEARCH_MODEL` and `GEMINI_RESEARCH_AGENT` `vars`; bump the agent
-   id when Google ships a new preview.
+   in **Settings** has it sent through the gateway instead, without
+   limits. With no gateway, or no token and no user key, neither tool
+   appears. The model and agent ids are the `GEMINI_SEARCH_MODEL` and
+   `GEMINI_RESEARCH_AGENT` `vars`; bump the agent id when Google ships a
+   new preview.
 
    Each turn makes at most 10 tool-call rounds, and an account's sandbox
    container stops after 2 minutes without a command. Rate limits on the
