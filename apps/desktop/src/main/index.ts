@@ -134,9 +134,13 @@ async function main() {
   );
   tray.on("click", showWindow);
   updateTray(controller.state());
+  // Opening the app by hand shows the window (the tray icon is easy to miss,
+  // e.g. behind the notch); starting at login stays quiet unless sign-in is
+  // needed.
+  const atLogin = app.getLoginItemSettings().wasOpenedAtLogin;
+  if (!atLogin) showWindow();
   await controller.start();
-  // First run: the window is where the owner signs in.
-  if (controller.state().needsSignIn) showWindow();
+  if (atLogin && controller.state().needsSignIn) showWindow();
 }
 
 // Closing the window keeps the app (and the bridge) running in the tray.
