@@ -1,5 +1,19 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "electron-vite";
+import type { Plugin } from "vite";
+
+// The dev server injects CSS as inline <style> tags and talks to its HMR
+// client over a WebSocket, both of which the strict CSP in index.html blocks.
+// Loosen it for `dev` only; the built app keeps the strict policy.
+const devCsp: Plugin = {
+  name: "cot-dev-csp",
+  apply: "serve",
+  transformIndexHtml: (html) =>
+    html.replace(
+      "style-src 'self'",
+      "style-src 'self' 'unsafe-inline'; connect-src 'self' ws:"
+    )
+};
 
 // The main process bundles every dependency, including the workspace package
 // @cot/shared (TypeScript source), so the installer ships no node_modules.
@@ -25,6 +39,6 @@ export default defineConfig({
     build: {
       rollupOptions: { input: { index: "src/renderer/index.html" } }
     },
-    plugins: [react()]
+    plugins: [react(), devCsp]
   }
 });
