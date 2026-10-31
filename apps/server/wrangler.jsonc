@@ -30,6 +30,10 @@
   // auth key (its .p8 goes in the APNS_KEY secret) and the app's bundle id
   // (PRODUCT_BUNDLE_IDENTIFIER in apps/mobile/project.yml). Any of them
   // empty, or no APNS_KEY, turns push off.
+  // WEB_PUSH_* send browser push notifications: the VAPID public key (the
+  // private one goes in the WEB_PUSH_PRIVATE_KEY secret; make a pair with
+  // `bun run web-push-keys` in apps/server) and a contact for push services
+  // (mailto: or your https:// origin). Empty turns Web Push off.
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "02eec653ae3b648ef566c2469e7fb68e",
     "NATIVE_REDIRECT_URI": "cot://auth/callback",
@@ -38,6 +42,8 @@
     "APNS_KEY_ID": "22M6GZS8L8",
     "APNS_TEAM_ID": "F2BGJTV3Y4",
     "APNS_TOPIC": "runlet.GoodMenu",
+    "WEB_PUSH_PUBLIC_KEY": "BERuelxoSn0CHSAEGk1YbtzUWTYtnnpzyoldlChIKST-fKHDh8XNXtE-LQsrKxdHiqPlB4dkyqDhkbEjFWopROw",
+    "WEB_PUSH_SUBJECT": "https://runlet.us",
     "DAILY_MESSAGE_LIMIT": "500",
     "MINUTE_MESSAGE_LIMIT": "20",
     "MAX_REMINDERS": "50"

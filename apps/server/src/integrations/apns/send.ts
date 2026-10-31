@@ -1,10 +1,9 @@
 import type { PushDevice } from "@cot/shared";
 
+import { logInfo } from "../log";
+import type { PushAlert } from "../push";
 import type { ApnsConfig } from "./config";
 import { providerToken } from "./jwt";
-
-/** A notification's visible text. */
-export type PushAlert = { title: string; body: string };
 
 /** "gone" means the token is dead and should be forgotten. */
 type PushResult = "sent" | "gone" | "failed";
@@ -36,7 +35,7 @@ export async function sendPush(
   );
   const who = describeDevice(device);
   if (response.ok) {
-    logPush(`push sent to ${who}`);
+    logInfo(`APNs push sent to ${who}`);
     return "sent";
   }
   const reason = await response.text();
@@ -52,10 +51,4 @@ export async function sendPush(
 /** Enough of a token to tell devices apart in the logs. */
 export function describeDevice(device: PushDevice) {
   return `…${device.token.slice(-8)} (${device.environment})`;
-}
-
-/** A push step that went fine, for `wrangler tail` and Workers Logs. */
-export function logPush(message: string) {
-  // oxlint-disable-next-line no-console -- a push that never arrives leaves no other trace; these lines show how far it got
-  console.log(`APNs ${message}`);
 }

@@ -1,6 +1,6 @@
 import type { ChatSummary } from "./chats";
 import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
-import type { PushDevice, PushStatus } from "./push";
+import type { PushDevice, PushStatus, WebPushSubscription } from "./push";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { Skill } from "./skills";
 import type { ScheduledTask } from "./tasks";
@@ -48,6 +48,10 @@ export interface AssistantRpc {
   updateEmailPolicy(policy: EmailPolicy): Promise<EmailStatus>;
   /** Saves a phone's APNs token so reminders and mail reach it when the app is closed. */
   registerPushDevice(device: PushDevice): Promise<PushStatus>;
+  /** The VAPID public key browsers subscribe with; null when Web Push is off. */
+  getWebPushKey(): Promise<string | null>;
+  /** Saves a browser's Web Push subscription, the web app's counterpart of registerPushDevice. */
+  registerWebPush(subscription: WebPushSubscription): Promise<PushStatus>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */

@@ -18,3 +18,7 @@ CLOUDFLARE_API_KEY=
 # Optional: an APNs auth key (.p8 contents) for iOS push notifications. Also
 # set APNS_KEY_ID, APNS_TEAM_ID and APNS_TOPIC in wrangler.jsonc. Empty: no push.
 APNS_KEY=
+
+# Optional: the VAPID private key for Web Push (`bun run web-push-keys`). The
+# public key and WEB_PUSH_SUBJECT are in wrangler.jsonc. Empty: no Web Push.
+WEB_PUSH_PRIVATE_KEY=

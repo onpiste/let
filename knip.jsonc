@@ -21,6 +21,9 @@
       ]
     },
     "apps/web": {
+      // The browser loads the service worker by URL (navigator.serviceWorker
+      // .register("/sw.js")), so nothing imports it.
+      "ignore": ["public/sw.js"],
       "ignoreDependencies": [
         // Loaded by the `agents/vite` plugin to compile decorators.
         "@babel/plugin-proposal-decorators",

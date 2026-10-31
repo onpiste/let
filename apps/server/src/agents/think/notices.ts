@@ -2,8 +2,7 @@ import type { Agent } from "agents";
 
 import type { ServerEvent } from "@cot/shared";
 
-import type { PushChannel } from "../../integrations/apns/channel";
-import type { PushAlert } from "../../integrations/apns/send";
+import type { OwnerPush, PushAlert } from "../../integrations/push";
 import type { TelegramChannel } from "../../integrations/telegram/channel";
 
 /** Something to tell the owner; a null `push` keeps it to open clients. */
@@ -28,12 +27,12 @@ export function reminderNotice(description: string): OwnerNotice {
 
 /**
  * Tells the owner on every channel: open clients get the event, Telegram the
- * text, phones the alert. A broadcast rather than a chat message, so a
+ * text, phones and browsers the alert. A broadcast rather than a chat message, so a
  * notice never enters the history or starts a model turn.
  */
 export async function notifyOwner(
   agent: Pick<Agent<Env>, "broadcast">,
-  channels: { telegram: TelegramChannel; push: PushChannel },
+  channels: { telegram: TelegramChannel; push: OwnerPush },
   notice: OwnerNotice
 ) {
   agent.broadcast(JSON.stringify(notice.event));

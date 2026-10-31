@@ -37,7 +37,7 @@ Features:
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant
 - **Chat history**: every conversation is saved; the clock icon lists them, and you can open, delete or start a new one. One conversation is active at a time, and Telegram continues in that one
 - **Tasks page** (calendar icon, `/tasks`): every scheduled reminder, with pause, resume and delete buttons. Change one in words: press Edit (or just ask in chat) and say e.g. "move it to 9am"
-- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a browser notification, a push notification on the iOS app (once APNs is set up, see [iOS push notifications](#ios-push-notifications)) and, if you connected a bot, a Telegram message
+- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a push notification in the browser and on the iOS app even when they're closed (once set up, see [Web Push](#web-push) and [iOS push notifications](#ios-push-notifications)) and, if you connected a bot, a Telegram message
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (same conversation, memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:
   - **Assistant**: name, reply language and custom instructions, used by the assistant
@@ -119,6 +119,24 @@ Each user brings their own bot; the deployment needs no Telegram configuration.
 
 Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant, which can hand coding jobs to Pi (these need approval in the app, so Telegram turns skip them). `TELEGRAM_API_BASE_URL` in `apps/server/wrangler.jsonc` can point at a self-hosted Bot API server.
 
+## Web Push
+
+Without this, the web app notifies only while a tab is open. With a VAPID
+key pair the Worker pushes reminders and new mail to every browser that
+allowed notifications, even with the tab closed. Optional; nothing breaks
+without it.
+
+1. Make a key pair: `cd apps/server && bun run web-push-keys`.
+2. Put the public key in `WEB_PUSH_PUBLIC_KEY` in `apps/server/wrangler.jsonc`,
+   and set `WEB_PUSH_SUBJECT` to your origin (`https://<your domain>`) or a
+   `mailto:` address.
+3. Store the private key as a secret (not a dashboard Text variable, which the
+   next deploy removes): `bunx wrangler secret put WEB_PUSH_PRIVATE_KEY`.
+
+The browser asks for permission on the first message. On iPhone and iPad,
+Safari only delivers Web Push to a site added to the Home Screen; the iOS
+app uses APNs instead.
+
 ## iOS app
 
 `apps/mobile` is a native SwiftUI app (iOS 17+): system Google sign-in,
@@ -190,6 +208,7 @@ apps/server/               # @cot/server — Cloudflare Worker
   src/agents/common/       #   persona/memory prompt and reminders shared by both
   src/integrations/telegram/ # per-user Telegram bots
   src/integrations/apns/   #   iOS push notifications
+  src/integrations/webpush/ #  browser push notifications (VAPID)
   src/tools/               #   sandbox (Container), code runner, knowledge search, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
 apps/mobile/               # native SwiftUI iOS app (XcodeGen, not a Bun workspace)

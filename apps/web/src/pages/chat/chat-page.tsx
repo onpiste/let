@@ -2,7 +2,7 @@ import { useAgentChat } from "@cloudflare/think/react";
 import type { MCPServersState } from "agents";
 import { useAgent } from "agents/react";
 import type { UIMessage } from "ai";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
@@ -24,6 +24,7 @@ import {
 } from "../../lib/attachments";
 import { errorText } from "../../lib/errors";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
+import { setUpWebPush } from "../../lib/web-push";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
 import { HistoryPanel } from "./history-panel";
@@ -108,6 +109,17 @@ export function ChatPage({
 
   useReconnectOnResume(agent);
 
+  const setUpPush = useCallback(() => {
+    setUpWebPush(api(agent)).catch((error: unknown) =>
+      console.warn(`Web Push setup failed: ${String(error)}`)
+    );
+  }, [agent]);
+
+  // Every connection re-registers this browser, like the iOS app does.
+  useEffect(() => {
+    if (connected) setUpPush();
+  }, [connected, setUpPush]);
+
   const { messages, sendMessage, stop, status, addToolApprovalResponse } =
     useAgentChat({
       agent,
@@ -144,7 +156,7 @@ export function ChatPage({
   const send = (text = input) => {
     const t = text.trim();
     if (!t && attachments.length === 0) return;
-    requestNotificationPermission();
+    requestNotificationPermission(setUpPush);
     const parts: UIMessage["parts"] = attachments.map((a) => a.part);
     if (t) parts.push({ type: "text", text: t });
     setInput("");

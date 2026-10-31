@@ -9,7 +9,8 @@ the root README ("iOS push notifications"); without `APNS_KEY` and the
    connection. The assistant keeps the newest ten in `push_devices`.
 2. When a reminder fires or mail is triaged, the assistant's `notifyOwner`
    (`agents/think/notices.ts`) broadcasts the event to open clients, messages
-   Telegram and calls `PushChannel.notify`.
+   Telegram and calls `OwnerPush.notify` (`../push.ts`), which sends to APNs
+   and Web Push.
 3. `notify` posts the alert to every token. A token APNs reports as gone (410,
    or `BadDeviceToken`) is deleted; the app registers a fresh one next time.
 

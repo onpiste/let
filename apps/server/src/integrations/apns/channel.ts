@@ -1,8 +1,10 @@
 import type { PushDevice, PushStatus } from "@cot/shared";
 
+import { logInfo } from "../log";
+import type { PushAlert } from "../push";
 import { apnsConfig } from "./config";
 import type { PushDevices } from "./devices";
-import { describeDevice, logPush, sendPush, type PushAlert } from "./send";
+import { describeDevice, sendPush } from "./send";
 
 /**
  * Push notifications to the owner's iPhones, so reminders and mail arrive
@@ -28,8 +30,8 @@ export class PushChannel {
     }
     this.options.devices.save(device);
     const enabled = this.config !== null;
-    logPush(
-      `device registered: ${describeDevice(device)}, push ${enabled ? "on" : "off"}`
+    logInfo(
+      `APNs device registered: ${describeDevice(device)}, push ${enabled ? "on" : "off"}`
     );
     return { enabled };
   }
@@ -41,7 +43,7 @@ export class PushChannel {
     const { devices } = this.options;
     const targets = devices.list();
     if (targets.length === 0) {
-      logPush("push skipped: no registered devices");
+      logInfo("APNs push skipped: no registered devices");
       return;
     }
     await Promise.all(
@@ -50,7 +52,7 @@ export class PushChannel {
           const result = await sendPush(config, device, alert);
           if (result === "gone") {
             devices.remove(device.token);
-            logPush(`device removed: ${describeDevice(device)}`);
+            logInfo(`APNs device removed: ${describeDevice(device)}`);
           }
         } catch (error) {
           console.error(

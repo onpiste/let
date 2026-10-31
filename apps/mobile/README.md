@@ -133,7 +133,6 @@ All in `project.yml`:
 
 - Without an APNs key on the server, notices arrive over the WebSocket only,
   so a reminder reaches the phone only while the app is running or recently
-  backgrounded. The web app has no Web Push yet either: it shows reminders
-  while a tab is open.
+  backgrounded.
 - MCP servers that need OAuth must be authorized once in the web app: the
   OAuth callback is a web page that needs the browser's session cookie.

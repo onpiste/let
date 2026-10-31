@@ -20,7 +20,7 @@ function limit(value: string | undefined) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
-export function usageLimits(env: Env): UsageLimits {
+function usageLimits(env: Env): UsageLimits {
   return {
     perDay: limit(env.DAILY_MESSAGE_LIMIT),
     perMinute: limit(env.MINUTE_MESSAGE_LIMIT)
@@ -31,7 +31,7 @@ export function usageLimits(env: Env): UsageLimits {
  * Counts one turn against the limits. Returns the updated record, or a
  * refusal to show the user when the turn is over a limit (and isn't counted).
  */
-export function takeTurn(
+function takeTurn(
   record: UsageRecord | null,
   limits: UsageLimits,
   now = Date.now()
@@ -63,4 +63,25 @@ export function takeTurn(
     },
     refusal: null
   };
+}
+
+/**
+ * Counts a turn against the account's message limits. Turns on the user's
+ * own API key are free to the deployment, so they aren't limited. Returns a
+ * refusal to show instead of answering.
+ */
+export function countTurn(
+  store: {
+    ensureTables(): void;
+    getUsage(): UsageRecord | null;
+    saveUsage(record: UsageRecord): void;
+  },
+  env: Env,
+  paid: boolean
+) {
+  if (paid) return null;
+  store.ensureTables();
+  const { record, refusal } = takeTurn(store.getUsage(), usageLimits(env));
+  store.saveUsage(record);
+  return refusal;
 }

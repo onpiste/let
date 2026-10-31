@@ -11,23 +11,23 @@ import {
   type EmailPolicy,
   type PushDevice,
   type SettingsPatch,
-  type Skill
+  type Skill,
+  type WebPushSubscription
 } from "@cot/shared";
 
 import { isAllowed } from "../../auth/session";
-import { PushChannel } from "../../integrations/apns/channel";
-import { PushDevices } from "../../integrations/apns/devices";
 import { EmailChannel } from "../../integrations/email/channel";
 import { emailAddress } from "../../integrations/email/config";
 import { Inbox } from "../../integrations/email/inbox";
 import { emailNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
 import { triageEmail, type Triage } from "../../integrations/email/triage";
+import { OwnerPush } from "../../integrations/push";
 import {
   TelegramChannel,
   type TelegramUpdateResult
 } from "../../integrations/telegram/channel";
-import { takeTurn, usageLimits } from "../common/usage";
+import { countTurn } from "../common/usage";
 import { cannedReply } from "./canned-reply";
 import { ChatHistory, stampCreatedAt } from "./history";
 import { mcpPopupResult } from "./mcp-popup";
@@ -85,7 +85,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   private get push() {
-    return new PushChannel({ env: this.env, devices: new PushDevices(this) });
+    return new OwnerPush(this.env, this);
   }
 
   /** The owner's email while it is still in ALLOWED_EMAILS. */
@@ -127,7 +127,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       !ctx.continuation &&
       !ctx.trigger.startsWith("recovery");
     if (newTurn) {
-      const refusal = this.countTurn(paidByUser(this.store.getSettings()));
+      const paid = paidByUser(this.store.getSettings());
+      const refusal = countTurn(this.store, this.env, paid);
       if (refusal) return { model: cannedReply(refusal), activeTools: [] };
     }
     if (!ctx.messenger) return;
@@ -298,11 +299,21 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return this.telegram.receive(secret, body);
   }
 
-  // ── Push notifications (callable) ───────────────────────────────────
+  // ── Push notifications (callables) ──────────────────────────────────
 
   @callable()
   async registerPushDevice(device: PushDevice) {
-    return this.push.register(device);
+    return this.push.apns.register(device);
+  }
+
+  @callable()
+  async getWebPushKey() {
+    return this.push.web.publicKey();
+  }
+
+  @callable()
+  async registerWebPush(subscription: WebPushSubscription) {
+    return this.push.web.register(subscription);
   }
 
   // ── Email (callables + Worker RPC) ──────────────────────────────────
@@ -361,7 +372,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     await this.notify(emailNotice({ ...email, triage, preview: null }));
   }
 
-  /** Tells the owner outside the chat: open clients, Telegram, phones. */
+  /** Tells the owner outside the chat: open clients, Telegram, push. */
   private notify(notice: Parameters<typeof notifyOwner>[2]) {
     const channels = { telegram: this.telegram, push: this.push };
     return notifyOwner(this, channels, notice);
@@ -384,21 +395,6 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   async removeMemory(id: number) {
     this.store.removeMemory(id);
-  }
-
-  /**
-   * Counts a turn against the account's message limits. Turns on the user's own API key are
-   * free to the deployment, so they aren't limited. Returns a refusal to show instead of answering.
-   */
-  countTurn(paid: boolean) {
-    if (paid) return null;
-    this.store.ensureTables();
-    const { record, refusal } = takeTurn(
-      this.store.getUsage(),
-      usageLimits(this.env)
-    );
-    this.store.saveUsage(record);
-    return refusal;
   }
 
   // ── Scheduled reminders fire here ───────────────────────────────────

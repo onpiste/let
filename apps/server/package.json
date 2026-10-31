@@ -7,6 +7,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p .",
+    "web-push-keys": "bun scripts/web-push-keys.ts",
     "types": "wrangler types env.d.ts",
     "types:check": "wrangler types env.d.ts --check"
   },

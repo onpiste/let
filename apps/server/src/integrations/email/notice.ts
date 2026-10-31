@@ -1,6 +1,6 @@
 import type { ServerEvent } from "@cot/shared";
 
-import type { PushAlert } from "../apns/send";
+import type { PushAlert } from "../push";
 import type { Triage } from "./triage";
 
 /**
