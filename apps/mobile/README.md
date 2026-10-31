@@ -85,10 +85,9 @@ phone with the TestFlight app. One-time setup:
 4. Run the workflow from the **Actions** tab. Once App Store Connect has
    processed the build, add yourself under **TestFlight → Internal Testing**.
 
-The workflow also runs once a day on its own when `apps/mobile` changed in the
-last 24 hours; a small Linux job checks first, so quiet days cost no macOS
-minutes. Its build number is the run number; bump `MARKETING_VERSION` in
-`project.yml` for a new version.
+After that it runs on every push to `main` that changes `apps/mobile`. The
+build number is a UTC timestamp; bump `MARKETING_VERSION` in `project.yml` for
+a new version.
 
 ### From your own Mac
 
@@ -96,10 +95,10 @@ With Xcode installed, `scripts/testflight.sh` archives and uploads from your
 Mac instead, with no runner minutes. Put `TEAM_ID=<your team id>` in
 `~/.config/cot/testflight.env`; it signs with the Apple account in Xcode
 (or set `ASC_KEY_PATH`, `ASC_KEY_ID` and `ASC_ISSUER_ID` there to use an API
-key). Its build number is a timestamp, so it stays above the workflow's.
-`scripts/nightly.sh --install` runs it, with the iOS lint and tests, three
-times a day whenever the app changed; then you can drop the workflow's
-`schedule`.
+key). It uses the same timestamp build numbers as the workflow, so the two
+can be mixed. `scripts/nightly.sh` runs it too when
+`COT_NIGHTLY_TESTFLIGHT=1` is set in that file; then you may want to drop the
+workflow's `push` trigger.
 
 ### Manual signing (recommended)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The slow checks that don't run on every push, run on this Mac instead of on
-# paid CI runners: iOS lint and simulator tests, the desktop build, and a
-# TestFlight upload when the iOS app changed.
+# CI runners: iOS lint and simulator tests, the desktop build, and optionally
+# a TestFlight upload when the iOS app changed.
 #
 # It works in its own worktree on the latest origin/main, so your checkout and
 # uncommitted changes are never touched, and skips a run when main hasn't
@@ -12,7 +12,8 @@
 #   scripts/nightly.sh --install  run it at 09:00, 14:00 and 21:00 (launchd)
 #   scripts/nightly.sh --uninstall
 #
-# Set COT_NIGHTLY_TESTFLIGHT=0 in ~/.config/cot/testflight.env to skip uploads.
+# The TestFlight workflow uploads on every iOS change; to upload from here
+# instead, set COT_NIGHTLY_TESTFLIGHT=1 in ~/.config/cot/testflight.env.
 set -euo pipefail
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -92,8 +93,7 @@ step "Install" "bun install --frozen-lockfile"
 step "Desktop build" "bun run --filter @cot/desktop build"
 step "Swift format" "cd apps/mobile && swiftformat --lint ."
 # The other iOS steps need full Xcode (simctl, sourcekitd), not just the Command
-# Line Tools; without it they are skipped and the TestFlight workflow's daily
-# schedule uploads instead.
+# Line Tools; without it they are skipped.
 if xcrun --find simctl >/dev/null 2>&1; then
   step "Swift lint" "cd apps/mobile && swiftlint lint --strict"
   # Steps run inside `if`, where `set -e` is off, so chain them with &&.
@@ -109,7 +109,7 @@ if xcrun --find simctl >/dev/null 2>&1; then
   # shellcheck source=/dev/null
   [ -f "$config" ] && . "$config"
   uploaded=$(cat "$state/last-uploaded" 2>/dev/null || true)
-  if [ "${COT_NIGHTLY_TESTFLIGHT:-1}" != 0 ] && [ ${#failed[@]} -eq 0 ] &&
+  if [ "${COT_NIGHTLY_TESTFLIGHT:-0}" = 1 ] && [ ${#failed[@]} -eq 0 ] &&
     { [ -z "$uploaded" ] || ! git diff --quiet "$uploaded" "$head" -- apps/mobile; }; then
     step "TestFlight" "scripts/testflight.sh"
     if [ ${#failed[@]} -eq 0 ]; then echo "$head" > "$state/last-uploaded"; fi

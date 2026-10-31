@@ -29,9 +29,9 @@ fi
 cd "$root/apps/mobile"
 xcodegen generate
 
-# The build number must grow with every upload. A timestamp does, and stays
-# above the GitHub run numbers earlier builds used.
-build=$(date +%Y%m%d%H%M)
+# The build number must grow with every upload. A UTC timestamp does, and
+# matches the TestFlight workflow, so local and CI uploads interleave.
+build=$(date -u +%Y%m%d%H%M)
 xcodebuild archive \
   -project Cot.xcodeproj \
   -scheme Cot \

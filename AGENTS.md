@@ -104,11 +104,12 @@ pre-push hook runs `bun run check` (plus SwiftFormat/SwiftLint when
 
 ### CI minutes
 
-Runner minutes cost money, macOS ones most, so slow checks that don't gate a
-deploy run on a Mac instead: `scripts/nightly.sh` (desktop build, iOS lint and
-tests, TestFlight upload when the app changed) on the latest `main`, three
-times a day once installed with `scripts/nightly.sh --install`. Keep new
-workflows on Linux and on pull requests unless they must run per push.
+Workflows use standard GitHub-hosted runners, which are free for public
+repositories; don't switch to larger or third-party runners, which are billed.
+A fork kept private pays for minutes, macOS ones most; it can move the slow
+checks to a Mac with `scripts/nightly.sh` (desktop build, iOS lint and tests,
+optional TestFlight upload), run three times a day after
+`scripts/nightly.sh --install`.
 
 ## Web and iOS parity
 

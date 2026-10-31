@@ -1,11 +1,9 @@
 name: TestFlight
 
 # Archives the iOS app on a macOS runner, signs it and uploads it to
-# TestFlight, so no local Mac is needed. It runs once a day if the iOS app
-# changed in the last 24 hours (a cheap Linux job decides, so an idle day costs
-# no macOS minutes), or by hand from the Actions tab. With Xcode on a Mac,
-# scripts/testflight.sh (or scripts/nightly.sh) does the same for free; then
-# remove the schedule.
+# TestFlight, so no local Mac is needed. Runs on pushes to main that change
+# the iOS app, or by hand from the Actions tab. scripts/testflight.sh does the
+# same from a Mac.
 #
 # Always needs these repository secrets (see apps/mobile/README.md):
 #   APPLE_TEAM_ID                 10-character Team ID from developer.apple.com
@@ -21,36 +19,20 @@ name: TestFlight
 #   IOS_DIST_CERT_PASSWORD        the .p12's password
 #   IOS_PROVISIONING_PROFILE      base64 of the App Store .mobileprovision
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/testflight.yml"
   workflow_dispatch:
-  schedule:
-    - cron: "17 13 * * *"
 
 concurrency:
   group: testflight
   cancel-in-progress: false
 
 jobs:
-  changed:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      ios: ${{ steps.diff.outputs.ios }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - id: diff
-        run: |
-          if [ "${{ github.event_name }}" = workflow_dispatch ] ||
-            [ -n "$(git log --since='24 hours ago' --format=%H -- apps/mobile)" ]; then
-            echo "ios=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ios=false" >> "$GITHUB_OUTPUT"
-          fi
-
   upload:
-    needs: changed
-    if: needs.changed.outputs.ios == 'true'
     # App Store Connect only accepts builds made with the iOS 26 SDK or later
     # (Xcode 26), which macos-15 doesn't have by default.
     runs-on: macos-26
@@ -130,7 +112,8 @@ jobs:
           echo "PROFILE_NAME=$name" >> "$GITHUB_ENV"
           echo "SIGNING_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
 
-      # The build number must grow with every upload; the run number does.
+      # The build number must grow with every upload. A UTC timestamp does,
+      # and matches scripts/testflight.sh, so local and CI uploads interleave.
       - name: Archive
         working-directory: apps/mobile
         run: |
@@ -156,7 +139,7 @@ jobs:
             -destination "generic/platform=iOS" \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             DEVELOPMENT_TEAM="$TEAM_ID" \
-            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CURRENT_PROJECT_VERSION="$(date -u +%Y%m%d%H%M)" \
             "${signing[@]}"
 
       # destination=upload sends the signed build straight to App Store
