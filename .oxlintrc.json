@@ -132,9 +132,9 @@
       }
     },
     {
-      // Clients talk to the server only through its HTTP/WebSocket surface,
-      // described by @cot/shared. Never import server code.
-      "files": ["apps/web/src/**"],
+      // Clients (web, desktop) talk to the server only through its HTTP/WebSocket
+      // surface, described by @cot/shared. Never import server code.
+      "files": ["apps/web/src/**", "apps/desktop/src/**"],
       "rules": {
         "no-restricted-imports": [
           "error",

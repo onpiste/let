@@ -33,9 +33,15 @@ const CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
 type NativeLogin = { redirectUri: string; challenge: string };
 type NativeCode = { user: User; challenge: string; exp: number };
 
+// RFC 8252 §7.3: desktop apps listen on a random loopback port, so only the
+// host and path are fixed. The PKCE verifier still protects the code.
+const LOOPBACK_REDIRECT = /^http:\/\/127\.0\.0\.1:[0-9]{2,5}\/callback$/;
+
 function allowedRedirect(redirectUri: string, env: Env) {
   const configured = env.NATIVE_REDIRECT_URI.trim();
-  return configured !== "" && redirectUri === configured;
+  // An empty NATIVE_REDIRECT_URI turns native sign-in off for desktop too.
+  if (configured === "") return false;
+  return redirectUri === configured || LOOPBACK_REDIRECT.test(redirectUri);
 }
 
 /**

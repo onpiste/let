@@ -137,6 +137,15 @@ The browser asks for permission on the first message. On iPhone and iPad,
 Safari only delivers Web Push to a site added to the Home Screen; the iOS
 app uses APNs instead.
 
+## Use your own computer
+
+Install [Cot Desktop](apps/desktop/README.md) on a laptop. It signs in to your
+account, opens a Cloudflare Tunnel and registers itself as an MCP server, so
+the assistant can use your calendar, files and command-line tools (ffmpeg,
+Claude Code, Codex, Pi) from the web app, iOS or Telegram. No deployment
+change is needed beyond `NATIVE_REDIRECT_URI`, which already enables native
+sign-in.
+
 ## iOS app
 
 `apps/mobile` is a native SwiftUI app (iOS 17+): system Google sign-in,

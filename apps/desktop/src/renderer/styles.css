@@ -1,0 +1,126 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f6f7f9;
+  --card: #fff;
+  --text: #15171a;
+  --muted: #667085;
+  --line: #e4e7ec;
+  --accent: #2563eb;
+  --danger: #b42318;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101214;
+    --card: #1a1d21;
+    --text: #eef0f2;
+    --muted: #98a2b3;
+    --line: #2a2f36;
+    --accent: #5b8def;
+    --danger: #f97066;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+}
+.page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+h3 {
+  font-size: 13px;
+  margin: 12px 0 4px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 16px;
+}
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+}
+.error {
+  color: var(--danger);
+}
+.row {
+  display: flex;
+  gap: 8px;
+}
+label {
+  display: block;
+  margin: 8px 0;
+}
+label.check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+input:not([type="checkbox"]),
+select {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+button {
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+.list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+code {
+  overflow-wrap: anywhere;
+}

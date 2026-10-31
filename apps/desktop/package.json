@@ -1,0 +1,34 @@
+{
+  "name": "@cot/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Desktop tray app: lets the assistant use this computer (calendar, files, local CLIs) through a Cloudflare Tunnel",
+  "license": "MIT",
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "package": "electron-vite build && electron-builder",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@cot/shared": "workspace:*",
+    "@cot/tsconfig": "workspace:*",
+    "@modelcontextprotocol/node": "2.1.2",
+    "@modelcontextprotocol/server": "2.3.1",
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/ws": "^8.18.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vite": "^8.0.0",
+    "ws": "^8.22.0",
+    "zod": "^4.4.3"
+  }
+}

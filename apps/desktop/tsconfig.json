@@ -1,0 +1,9 @@
+{
+  "extends": "@cot/tsconfig/base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "jsx": "react-jsx",
+    "types": ["node", "vite/client"]
+  },
+  "include": ["src", "electron.vite.config.ts"]
+}

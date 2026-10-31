@@ -46,6 +46,7 @@ Bun workspaces monorepo. Deployables live in `apps/`, reusable code in
 apps/
   server/     @cot/server  Cloudflare Worker: HTTP router, auth, Durable Object agents, tools
   web/        @cot/web     React SPA; its Vite build also bundles the server Worker and deploys both
+  desktop/    @cot/desktop Electron tray app: local MCP bridge (calendar, files, CLIs) reached through Cloudflare Tunnel
   mobile/     (Swift)      Native SwiftUI iOS app; talks to the Worker over HTTP/WebSocket, not a Bun workspace
 packages/
   shared/     @cot/shared  Runtime-agnostic contract: types, route constants, RPC interface, pure logic

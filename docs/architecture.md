@@ -79,6 +79,20 @@ source layout has to change.
 - Add new server paths it needs to `@cot/shared/routes.ts` and to
   `assets.run_worker_first`.
 
+### Desktop (`apps/desktop`)
+
+- An Electron tray app (a Bun workspace, bundled with electron-vite) that
+  imports `@cot/shared`. It is both a client and a tool provider: it signs in
+  like the iOS app (PKCE, bearer token) but with a loopback redirect
+  `http://127.0.0.1:<port>/callback`, which `apps/server/src/auth/native.ts`
+  accepts whenever native sign-in is enabled.
+- It runs an MCP server on loopback, exposes it through a Cloudflare Tunnel
+  and registers the URL with `addMcp`/`removeMcp` over the agent WebSocket
+  (`{type:"rpc"}` frames, as in `apps/mobile`). Cot then treats it like any
+  other per-user MCP server, so no web or iOS change is needed.
+- What the assistant may do is a local policy on the device, never settable
+  from a tool call. See [apps/desktop/README.md](../apps/desktop/README.md).
+
 ### iOS (`apps/mobile`)
 
 - A native SwiftUI app, not a Bun workspace: it can't import `@cot/shared`,
