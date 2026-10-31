@@ -70,6 +70,16 @@ Cot is meant to be forked and changed. The usual first steps:
      user's own API key don't count.
    - `MAX_REMINDERS` (default 50): scheduled reminders per assistant.
 
+   **Web search and Deep Research.** Once a user saves a Google (Gemini)
+   key in **Settings**, whatever model they chat with gains `searchWeb`
+   (Google Search grounding) and `deepResearch` (Gemini's Deep Research
+   agent, which runs for several minutes and posts a cited report into the
+   chat, with a notification). Both call the Gemini REST API directly and
+   are billed to that user's key. Without a key, neither tool appears. The
+   model and agent ids are the `GEMINI_SEARCH_MODEL` and
+   `GEMINI_RESEARCH_AGENT` `vars`; bump the agent id when Google ships a
+   new preview.
+
    Each turn makes at most 10 tool-call rounds, and an account's sandbox
    container stops after 2 minutes without a command. Rate limits on the
    public paths (`/auth/*`, `/messengers/*`) and billing alerts are set in

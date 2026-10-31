@@ -5,6 +5,7 @@ import type { ApprovalMode } from "@cot/shared";
 import type { Inbox } from "../../../integrations/email/inbox";
 import type { Sandbox } from "../../../tools/sandbox";
 import type { ReminderAgent } from "../../common/reminders";
+import type { ResearchJobs } from "../research-jobs";
 import { codeTools } from "./code";
 import { emailTools } from "./email";
 import { memoryTools, type MemoryWriter } from "./memory";
@@ -12,6 +13,7 @@ import { reminderTools } from "./reminders";
 import { researchTools } from "./research";
 import { sandboxTools } from "./sandbox";
 import { skillTools, type SkillReader } from "./skills";
+import { webTools } from "./web";
 
 /**
  * Tools that wait for the user to approve them in the chat. Telegram has no
@@ -31,7 +33,8 @@ export function assistantTools({
   sandbox,
   inbox,
   approvalMode,
-  skills
+  skills,
+  research
 }: {
   env: Env;
   agent: ReminderAgent;
@@ -41,13 +44,17 @@ export function assistantTools({
   inbox: (() => Inbox) | null;
   approvalMode: () => ApprovalMode;
   skills: SkillReader;
+  /** Deep Research runs; its Google key also turns on web search. */
+  research: ResearchJobs;
 }): ToolSet {
+  const googleKey = research.apiKey();
   return {
     ...memoryTools(memory),
     ...reminderTools(agent, env),
     ...sandboxTools(sandbox, approvalMode),
     ...codeTools(env, sandbox, approvalMode),
     ...researchTools(env),
+    ...(googleKey ? webTools(env, googleKey, research) : {}),
     ...(skills.list().length ? skillTools(skills) : {}),
     ...(inbox ? emailTools(inbox) : {})
   };

@@ -57,6 +57,8 @@ export interface AssistantRpc {
 /** Messages the server pushes to connected clients outside the chat stream. */
 export type ServerEvent =
   | { type: "reminder"; description: string; timestamp: string }
+  /** A Deep Research run ended; its report (or error) is now in the chat. */
+  | { type: "research"; topic: string; ok: boolean; timestamp: string }
   | {
       type: "email";
       from: string;

@@ -1,7 +1,32 @@
+import type { LanguageModel } from "ai";
+
 import type { ServerEvent } from "@cot/shared";
 
 import type { PushAlert } from "../push";
-import type { Triage } from "./triage";
+import type { Inbox } from "./inbox";
+import { triageEmail, type Triage } from "./triage";
+
+/**
+ * Reads a filed email, records what it is, and returns the notice for the
+ * owner (without the summary if the model couldn't read it).
+ */
+export async function triagedNotice(
+  inbox: Inbox,
+  model: () => LanguageModel,
+  id: number
+) {
+  const email = inbox.get(id);
+  if (!email) return null;
+  let triage: Triage | null = null;
+  try {
+    triage = await triageEmail(model(), email);
+    inbox.setTriage(id, triage.category, triage.summary);
+  } catch (error) {
+    // Still tell the owner, just without the summary.
+    console.error(`Email triage failed: ${String(error)}`);
+  }
+  return emailNotice({ ...email, triage, preview: null });
+}
 
 /**
  * What the owner is told about a new email: the event for open clients, and

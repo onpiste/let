@@ -1,6 +1,6 @@
 import UIKit
 
-/// The server's `reminder` and `email` events (ServerEvent in @cot/shared),
+/// The server's `reminder`, `research` and `email` events (ServerEvent in @cot/shared),
 /// shown as the in-app banner.
 extension ChatStore {
     func handleNotice(_ frame: JSONValue) {
@@ -8,6 +8,11 @@ extension ChatStore {
         case "reminder":
             if let text = frame["description"]?.string {
                 present(Notice(icon: "⏰", title: "Reminder", text: text))
+            }
+        case "research":
+            if let topic = frame["topic"]?.string {
+                let title = frame["ok"]?.bool == true ? "Research ready" : "Research failed"
+                present(Notice(icon: "🔎", title: title, text: topic))
             }
         case "email":
             // Spam the assistant sorted out stays in the inbox without a banner.

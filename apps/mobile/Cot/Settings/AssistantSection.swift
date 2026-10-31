@@ -35,7 +35,7 @@ struct AssistantSection: View {
         } footer: {
             Text(Self.approvalHint(approvalMode))
         }
-        Section("Model") {
+        Section {
             Picker("Provider", selection: $provider) {
                 ForEach(Providers.all) { Text($0.label).tag($0.id) }
             }
@@ -73,6 +73,11 @@ struct AssistantSection: View {
             }
             Button("Save") { Task { await save() } }
                 .disabled(model.busy)
+        } header: {
+            Text("Model")
+        } footer: {
+            // Mirrors the API keys note in assistant-settings.tsx.
+            Text("Keys are stored in your assistant only. A Google key also turns on web search and Deep Research, whichever model you chat with.")
         }
         .onAppear(perform: load)
     }

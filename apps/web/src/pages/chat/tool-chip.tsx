@@ -12,6 +12,8 @@ const TOOL_LABELS: Record<string, string> = {
   writeSandboxFile: "Wrote file",
   readSandboxFile: "Read file",
   browseWeb: "Opened web page",
+  searchWeb: "Searched the web",
+  deepResearch: "Started deep research",
   searchKnowledge: "Searched knowledge base",
   runCode: "Ran code",
   codeTask: "Coding agent",

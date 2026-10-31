@@ -25,6 +25,19 @@ export function reminderNotice(description: string): OwnerNotice {
   };
 }
 
+export function researchNotice(topic: string, ok: boolean): OwnerNotice {
+  const title = ok ? "🔎 Research ready" : "🔎 Research failed";
+  return {
+    event: {
+      type: "research",
+      topic,
+      ok,
+      timestamp: new Date().toISOString()
+    },
+    push: { text: `${title}: ${topic}`, alert: { title, body: topic } }
+  };
+}
+
 /**
  * Tells the owner on every channel: open clients get the event, Telegram the
  * text, phones and browsers the alert. A broadcast rather than a chat message, so a

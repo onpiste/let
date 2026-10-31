@@ -208,7 +208,9 @@ export function AssistantSettings({ agent }: { agent: AgentHandle }) {
 
       <h3>API keys</h3>
       <p className="muted">
-        Stored in your assistant only and never shown again in full.
+        Stored in your assistant only and never shown again in full. A Google
+        key also turns on web search and Deep Research, whichever model you chat
+        with.
       </p>
       {KEYED_PROVIDERS.map((p) => {
         const pending = newKeys[p];

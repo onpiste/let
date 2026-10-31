@@ -225,7 +225,7 @@ final class ChatStore {
             handleResponse(frame)
         case "cf_agent_mcp_servers":
             mcp = frame["mcp"].flatMap { try? $0.decoded(as: McpState.self) }
-        case "reminder", "email":
+        case "reminder", "research", "email":
             handleNotice(frame)
         default:
             break

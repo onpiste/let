@@ -84,6 +84,11 @@ export function ChatPage({
           setToast({ icon: "⏰", title: "Reminder", text: data.description });
           notify("Cot reminder", data.description);
         }
+        if (data.type === "research" && data.topic) {
+          const title = data.ok ? "Research ready" : "Research failed";
+          setToast({ icon: "🔎", title, text: data.topic });
+          notify(`Cot: ${title.toLowerCase()}`, data.topic);
+        }
         // Spam the assistant sorted out stays in the inbox without a toast.
         if (
           data.type === "email" &&

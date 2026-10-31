@@ -19,9 +19,8 @@ import { isAllowed } from "../../auth/session";
 import { EmailChannel } from "../../integrations/email/channel";
 import { emailAddress } from "../../integrations/email/config";
 import { Inbox } from "../../integrations/email/inbox";
-import { emailNotice } from "../../integrations/email/notice";
+import { emailNotice, triagedNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
-import { triageEmail, type Triage } from "../../integrations/email/triage";
 import { OwnerPush } from "../../integrations/push";
 import {
   TelegramChannel,
@@ -32,7 +31,8 @@ import { cannedReply } from "./canned-reply";
 import { ChatHistory, stampCreatedAt } from "./history";
 import { mcpPopupResult } from "./mcp-popup";
 import { languageModelFor, modelFor, paidByUser } from "./model";
-import { notifyOwner, reminderNotice } from "./notices";
+import { notifyOwner, reminderNotice, researchNotice } from "./notices";
+import { ResearchJobs } from "./research-jobs";
 import { deleteSkill, saveSkill } from "./skill-save";
 import { AssistantStore } from "./store";
 import { buildSystemPrompt } from "./system-prompt";
@@ -86,6 +86,12 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   private get push() {
     return new OwnerPush(this.env, this);
+  }
+
+  private get research() {
+    return new ResearchJobs(this, this.env, this.store, (topic, ok) =>
+      this.notify(researchNotice(topic, ok))
+    );
   }
 
   /** The owner's email while it is still in ALLOWED_EMAILS. */
@@ -152,7 +158,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       sandbox: this.env.SANDBOX.getByName(this.name),
       inbox: this.emailAddress() ? () => new Inbox(this) : null,
       approvalMode: () => this.store.getSettings().approvalMode,
-      skills: { list: () => this.store.listSkills() }
+      skills: { list: () => this.store.listSkills() },
+      research: this.research
     });
   }
 
@@ -357,19 +364,9 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   /** Reads a new email and tells the owner what it is, without being asked. */
   async triageNewEmail(id: number) {
     this.store.ensureTables();
-    const inbox = new Inbox(this);
-    const email = inbox.get(id);
-    if (!email) return;
-    let triage: Triage | null = null;
-    try {
-      const model = languageModelFor(this.store.getSettings(), this.env);
-      triage = await triageEmail(model, email);
-      inbox.setTriage(id, triage.category, triage.summary);
-    } catch (error) {
-      // Still tell the owner, just without the summary.
-      console.error(`Email triage failed: ${String(error)}`);
-    }
-    await this.notify(emailNotice({ ...email, triage, preview: null }));
+    const model = () => languageModelFor(this.store.getSettings(), this.env);
+    const notice = await triagedNotice(new Inbox(this), model, id);
+    if (notice) await this.notify(notice);
   }
 
   /** Tells the owner outside the chat: open clients, Telegram, push. */
@@ -401,5 +398,10 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   async executeTask(description: string) {
     await this.notify(reminderNotice(description));
+  }
+
+  /** Polls a Deep Research run until its report is in the chat. */
+  async checkResearch(id: string) {
+    await this.research.check(id);
   }
 }
