@@ -3,7 +3,7 @@ import Foundation
 /// An AI SDK `UIMessage`. The parts stay as raw JSON (see `JSONValue`) so the
 /// whole conversation can be sent back to the server unchanged; the accessors
 /// below read what the UI needs.
-struct ChatMessage: Identifiable, Equatable, Sendable {
+struct ChatMessage: Identifiable, Equatable {
     var id: String
     var role: String
     var parts: [JSONValue]
