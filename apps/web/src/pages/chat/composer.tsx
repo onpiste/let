@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 import { ArrowUp, Mic, Plus, Square } from "../../components/icons";
 import type { Attachment } from "../../lib/attachments";
@@ -37,39 +37,42 @@ export function Composer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const autosize = () => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
-    // Only scroll once the text outgrows the cap; otherwise browsers show an
-    // empty scrollbar on a one-line box.
-    el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
-  };
-
   // The transcript lands after an async upload; append to the live text.
   const valueRef = useRef(value);
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
+
   const voice = useVoiceInput((text) => {
     const current = valueRef.current;
     onChange(current ? `${current} ${text}` : text);
-    requestAnimationFrame(() => {
-      autosize();
-      textareaRef.current?.focus();
-    });
+    requestAnimationFrame(() => textareaRef.current?.focus());
   }, onError);
+  // Size the box from its text whenever the text changes, however it changed:
+  // typing, a prefill from a task or reminder, a transcript, or a send that
+  // clears it. It remounts after the voice bar, so re-measure then too.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    const autosize = () => {
+      el.style.height = "auto";
+      el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
+      // Only scroll once the text outgrows the cap; otherwise browsers show
+      // an empty scrollbar on a short box.
+      el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
+    };
+    autosize();
+    // A narrower window wraps the same text onto more lines.
+    window.addEventListener("resize", autosize);
+    return () => window.removeEventListener("resize", autosize);
+  }, [value, voice.state]);
 
   const canSend = value.trim() !== "" || attachments.length > 0;
 
   const send = () => {
     if (!canSend) return;
     onSend();
-    requestAnimationFrame(() => {
-      autosize();
-      textareaRef.current?.focus();
-    });
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   return (
@@ -133,7 +136,6 @@ export function Composer({
               placeholder="Message Cot…"
               onChange={(e) => {
                 onChange(e.target.value);
-                autosize();
               }}
               onKeyDown={(e) => {
                 if (
