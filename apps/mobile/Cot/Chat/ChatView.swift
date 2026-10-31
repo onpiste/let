@@ -31,7 +31,7 @@ struct ChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 18) {
-                        if store.messages.isEmpty {
+                        if store.loaded, store.messages.isEmpty {
                             EmptyStateView(user: user, onSuggestion: send)
                         }
                         ForEach(

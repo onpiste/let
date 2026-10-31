@@ -29,6 +29,9 @@ final class ChatStore {
     private(set) var queue: [Queued] = []
     private(set) var status: Status = .ready
     private(set) var connected = false
+    /// False until the server has sent the conversation once, so the empty
+    /// start page doesn't flash before the last chat arrives.
+    private(set) var loaded = false
     private(set) var mcp: McpState?
     private(set) var errorText: String?
     var notice: Notice?
@@ -196,8 +199,10 @@ final class ChatStore {
         switch frame["type"]?.string {
         case "cf_agent_chat_messages":
             replaceMessages(with: frame["messages"]?.array ?? [])
+            loaded = true
         case "cf_agent_chat_clear":
             messages = []
+            loaded = true
             finishTurn()
         case "cf_agent_message_updated":
             if let message = frame["message"].flatMap(ChatMessage.init(json:)) {
