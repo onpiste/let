@@ -68,6 +68,10 @@ struct ChatView: View {
                     .padding(.vertical, 12)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                // The cached chat is there from the first frame, so no
+                // messages change fires; start at the newest message.
+                .defaultScrollAnchor(.bottom)
+                .onAppear { scrollToEnd(proxy) }
                 // Dragging toward older messages takes over from auto-scroll,
                 // including mid-stream; it resumes once the end is back in view.
                 .simultaneousGesture(
