@@ -109,6 +109,16 @@ the same change; don't land it on one and leave the other behind. If the
 other client genuinely can't support it yet, say so in the commit message and
 in `apps/mobile/README.md`, and note the gap rather than hiding it.
 
+They should also **look alike**. Keep the rough layout and styling of each
+screen the same on both: the same controls in the same order and places
+(e.g. the composer is a round attach button, then a pill holding the text
+and one trailing button that is a mic while empty and send/stop otherwise),
+similar shapes, sizes and spacing, and the same colour roles. Each platform
+may use its native widgets, fonts and icons; it may not rearrange the
+screen. When you change the layout on one client, change the other in the
+same commit, and say in a comment which counterpart a component mirrors
+(e.g. `composer.tsx` ↔ `ComposerView.swift`).
+
 ## Architecture rules
 
 These are enforced by `no-restricted-imports` in `.oxlintrc.json`; don't
