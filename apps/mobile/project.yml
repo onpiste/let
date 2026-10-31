@@ -31,6 +31,10 @@ targets:
           APS_ENVIRONMENT: development
         Release:
           APS_ENVIRONMENT: production
+    # Debug only: includes the gitignored Local.xcconfig, which can point the
+    # app at a local `bun run dev` server (see Local.xcconfig.example).
+    configFiles:
+      Debug: Debug.xcconfig
     # Push notifications (APNs). The App ID needs the Push Notifications
     # capability, and a manual provisioning profile must be made after it is
     # turned on (see README.md).
@@ -57,6 +61,13 @@ targets:
         # Your deployment: the Worker's origin (the `routes` pattern in
         # apps/server/wrangler.jsonc). Read by Cot/Config.swift.
         CotServerURL: https://runlet.us
+        # Debug builds only: host:port of a local dev server, from
+        # Local.xcconfig. Empty means CotServerURL.
+        CotDevServer: $(COT_DEV_SERVER)
+        # Plain HTTP to localhost and .local hosts, for that dev server. ATS
+        # still applies to every other host.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         # Native sign-in returns here; must equal NATIVE_REDIRECT_URI in
         # apps/server/wrangler.jsonc.
         CotRedirectURI: cot://auth/callback

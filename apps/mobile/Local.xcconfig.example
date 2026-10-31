@@ -1,0 +1,4 @@
+// Copy to Local.xcconfig (gitignored) to run Debug builds in the simulator
+// against `bun run dev` on this Mac instead of production. Host and port only:
+// the app adds http://, and `//` would start a comment here.
+COT_DEV_SERVER = localhost:5173

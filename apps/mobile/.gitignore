@@ -5,3 +5,6 @@ DerivedData/
 xcuserdata/
 Cot/Info.plist
 Cot/Cot.entitlements
+
+# Per-developer Debug server (see Local.xcconfig.example)
+Local.xcconfig

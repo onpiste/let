@@ -47,11 +47,26 @@ and press Run. Run `xcodegen generate` again after editing `project.yml`.
 ⌘U runs the unit tests (`CotTests`), which cover the stream reducer, the
 message round trip and the Markdown reader.
 
-The app talks to the production Worker by default. To use `bun run dev`
-instead, set `CotServerURL` in `project.yml` to `http://<your-mac-LAN-ip>:5173`
-(and allow cleartext HTTP for that host in an `NSAppTransportSecurity`
-exception). The server needs `NATIVE_REDIRECT_URI` set (it is in
-`apps/server/wrangler.jsonc`).
+The app talks to the production Worker (`CotServerURL`) by default.
+
+### Against a local server
+
+To debug in the simulator against `bun run dev` on the same Mac:
+
+```bash
+cp Local.xcconfig.example Local.xcconfig   # COT_DEV_SERVER = localhost:5173
+xcodegen generate
+```
+
+then run the Debug build. `Local.xcconfig` is gitignored and only Debug builds
+read it (through `Debug.xcconfig`), so Release and TestFlight builds always use
+`CotServerURL`. `NSAllowsLocalNetworking` lets the app use plain HTTP for
+local hosts (localhost, `.local`) only. Sign-in needs `http://localhost:5173/auth/callback` among the
+OAuth client's redirect URIs, as for the web app, and `NATIVE_REDIRECT_URI` on
+the server (it is in `apps/server/wrangler.jsonc`).
+
+A physical device can't sign in this way: Google accepts plain-HTTP redirect
+URIs only for `localhost`, so a phone would need the dev server behind HTTPS.
 
 ## TestFlight without a Mac
 

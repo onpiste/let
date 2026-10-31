@@ -1,0 +1,4 @@
+// Debug builds only (wired up in project.yml). Pulls in Local.xcconfig when it
+// exists; it is gitignored, so each developer can point Debug builds at their
+// own `bun run dev` server. Release builds never read it.
+#include? "Local.xcconfig"
