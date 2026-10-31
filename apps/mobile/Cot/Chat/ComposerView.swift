@@ -3,7 +3,8 @@ import SwiftUI
 
 /// The message box. Return adds a line; the button sends (queues while the
 /// assistant is replying), or stops the turn when the box is empty. The plus
-/// button attaches files or photos.
+/// button attaches files or photos. The web counterpart is
+/// `apps/web/src/pages/chat/composer.tsx`; keep their layouts alike.
 struct ComposerView: View {
     @Binding var text: String
     @Binding var attachments: [Attachment]

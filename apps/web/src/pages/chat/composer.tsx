@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { ArrowUp, Mic, Paperclip, Square } from "../../components/icons";
+import { ArrowUp, Mic, Plus, Square } from "../../components/icons";
 import type { Attachment } from "../../lib/attachments";
 import { useVoiceInput } from "./use-voice-input";
 import { VoiceBar } from "./voice-bar";
@@ -9,7 +9,9 @@ const MAX_HEIGHT = 200;
 
 /**
  * The message box. Enter sends, Shift+Enter adds a line, and IME
- * composition (e.g. Chinese input) never sends early.
+ * composition (e.g. Chinese input) never sends early. Laid out like the iOS
+ * `ComposerView`: a round attach button outside the pill, and inside it the
+ * text plus one trailing button (mic while empty, send, queue or stop).
  */
 export function Composer({
   value,
@@ -40,6 +42,9 @@ export function Composer({
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, MAX_HEIGHT)}px`;
+    // Only scroll once the text outgrows the cap; otherwise browsers show an
+    // empty scrollbar on a one-line box.
+    el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
   };
 
   // The transcript lands after an async upload; append to the live text.
@@ -56,7 +61,10 @@ export function Composer({
     });
   }, onError);
 
+  const canSend = value.trim() !== "" || attachments.length > 0;
+
   const send = () => {
+    if (!canSend) return;
     onSend();
     requestAnimationFrame(() => {
       autosize();
@@ -115,58 +123,56 @@ export function Composer({
             aria-label="Attach files"
             title="Attach files"
           >
-            <Paperclip />
+            <Plus />
           </button>
-          {voice.supported && (
-            <button
-              type="button"
-              className="attach-btn"
-              onClick={voice.start}
-              aria-label="Voice input"
-              title="Voice input"
-            >
-              <Mic />
-            </button>
-          )}
-          <textarea
-            ref={textareaRef}
-            value={value}
-            rows={1}
-            placeholder="Message Cot…"
-            onChange={(e) => {
-              onChange(e.target.value);
-              autosize();
-            }}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                !e.shiftKey &&
-                !e.nativeEvent.isComposing
-              ) {
-                e.preventDefault();
-                send();
-              }
-            }}
-          />
-          {busy && !value.trim() && attachments.length === 0 ? (
-            <button
-              type="button"
-              className="send-btn"
-              onClick={onStop}
-              aria-label="Stop"
-            >
-              <Square />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="send-btn"
-              disabled={!value.trim() && attachments.length === 0}
-              aria-label="Send"
-            >
-              <ArrowUp />
-            </button>
-          )}
+          <div className="composer-box">
+            <textarea
+              ref={textareaRef}
+              value={value}
+              rows={1}
+              placeholder="Message Cot…"
+              onChange={(e) => {
+                onChange(e.target.value);
+                autosize();
+              }}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing
+                ) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+            />
+            {canSend ? (
+              <button type="submit" className="send-btn" aria-label="Send">
+                <ArrowUp />
+              </button>
+            ) : busy ? (
+              <button
+                type="button"
+                className="send-btn"
+                onClick={onStop}
+                aria-label="Stop"
+              >
+                <Square />
+              </button>
+            ) : (
+              voice.supported && (
+                <button
+                  type="button"
+                  className="mic-btn"
+                  onClick={voice.start}
+                  aria-label="Voice input"
+                  title="Voice input"
+                >
+                  <Mic />
+                </button>
+              )
+            )}
+          </div>
         </form>
       )}
     </footer>
