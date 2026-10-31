@@ -55,39 +55,38 @@ struct ComposerView: View {
                     voice.confirm(token: token, onText: append, onError: onError)
                 }
             } else {
+                // The plus lives inside the field, as in Muse; the padding
+                // keeps a single line comfortably tall.
                 HStack(alignment: .bottom, spacing: 8) {
                     Menu {
                         Button("Choose file", systemImage: "doc") { pickingFile = true }
                         Button("Choose photo", systemImage: "photo") { pickingPhoto = true }
                     } label: {
                         Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(.primary)
-                            .frame(width: 38, height: 38)
-                            .background(Color(.secondarySystemBackground), in: Circle())
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 32, height: 32)
                     }
                     .accessibilityLabel("Attach files")
 
-                    HStack(alignment: .bottom, spacing: 6) {
-                        TextField("Message Cot…", text: $text, axis: .vertical)
-                            .lineLimit(1 ... 6)
-                            .focused($focused)
-                            .padding(.leading, 14)
-                            .padding(.vertical, 8)
+                    TextField("Message Cot…", text: $text, axis: .vertical)
+                        .lineLimit(1 ... 6)
+                        .focused($focused)
+                        .padding(.vertical, 5)
 
-                        trailingButton
-                    }
-                    .padding(.trailing, 4)
-                    // Filled with a hairline outline, as in iMessage.
-                    .background(
-                        Color(.secondarySystemBackground),
-                        in: RoundedRectangle(cornerRadius: 19, style: .continuous)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 19, style: .continuous)
-                            .strokeBorder(Color(.systemGray4), lineWidth: 1)
-                    )
+                    trailingButton
                 }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 10)
+                // Filled with a hairline outline, as in iMessage.
+                .background(
+                    Color(.secondarySystemBackground),
+                    in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
+                        .strokeBorder(Color(.systemGray4), lineWidth: 1)
+                )
             }
         }
         .padding(.horizontal, 12)
@@ -131,11 +130,10 @@ struct ComposerView: View {
                 }
             } label: {
                 Image(systemName: stopping ? "stop.circle.fill" : "arrow.up.circle.fill")
-                    .font(.system(size: 30))
+                    .font(.system(size: 32))
                     .symbolRenderingMode(.hierarchical)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 32, height: 32)
             }
-            .padding(.bottom, 4)
             .accessibilityLabel(stopping ? "Stop" : busy ? "Queue message" : "Send")
         } else {
             Button {
@@ -144,9 +142,8 @@ struct ComposerView: View {
                 Image(systemName: "mic")
                     .font(.system(size: 18))
                     .foregroundStyle(.secondary)
-                    .frame(width: 30, height: 30)
+                    .frame(width: 32, height: 32)
             }
-            .padding(.bottom, 4)
             .accessibilityLabel("Voice input")
         }
     }
