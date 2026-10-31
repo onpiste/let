@@ -44,9 +44,10 @@ struct ChatMessage: Identifiable, Equatable, Sendable {
         if !text.isEmpty {
             parts.append(.object(["type": .string("text"), "text": .string(text)]))
         }
+        let createdAt = Date().timeIntervalSince1970 * 1000
         return ChatMessage(
             id: randomID(), role: "user", parts: parts,
-            extra: ["metadata": .object(["createdAt": .number(Date().timeIntervalSince1970 * 1000)])]
+            extra: ["metadata": .object(["createdAt": .number(createdAt)])]
         )
     }
 

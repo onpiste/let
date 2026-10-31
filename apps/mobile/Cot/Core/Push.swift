@@ -11,15 +11,13 @@ enum Push {
     static var serverSends = false
     static var onToken: ((String) -> Void)?
 
-    /// Builds run from Xcode get sandbox tokens; TestFlight and App Store
-    /// builds production ones.
-    static var environment: String {
-        #if DEBUG
-            return "sandbox"
-        #else
-            return "production"
-        #endif
-    }
+    // Which APNs gateway the token belongs to: builds run from Xcode get
+    // sandbox tokens; TestFlight and App Store builds production ones.
+    #if DEBUG
+        static let environment = "sandbox"
+    #else
+        static let environment = "production"
+    #endif
 
     /// Asks iOS for a token once per launch; the answer arrives in `AppDelegate`.
     static func register() {

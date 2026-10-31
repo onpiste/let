@@ -17,7 +17,8 @@ struct ProviderInfo: Identifiable {
 enum Providers {
     static let all: [ProviderInfo] = [
         ProviderInfo(
-            id: "workers-ai", label: "Workers AI", defaultModel: "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
+            id: "workers-ai", label: "Workers AI",
+            defaultModel: "@cf/deepseek-ai/deepseek-v4.1-flash-1017",
             suggestions: [
                 "@cf/moonshotai/kimi-k2.7-code",
                 "@cf/moonshotai/kimi-k2.6",

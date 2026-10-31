@@ -34,7 +34,10 @@ struct ChatView: View {
                         if store.messages.isEmpty {
                             EmptyStateView(user: user, onSuggestion: send)
                         }
-                        ForEach(Array(store.messages.enumerated()), id: \.element.id) { index, message in
+                        ForEach(
+                            Array(store.messages.enumerated()),
+                            id: \.element.id
+                        ) { index, message in
                             if let sent = message.createdAt, index > 0,
                                let before = store.messages[index - 1].createdAt,
                                sent.timeIntervalSince(before) >= 15 * 60
@@ -69,13 +72,29 @@ struct ChatView: View {
                 // including mid-stream; it resumes once the end is back in view.
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 8)
-                        .onChanged { if $0.translation.height > 0 { following = false } }
-                        .onEnded { _ in if endVisible { following = true } }
+                        .onChanged {
+                            if $0.translation.height > 0 {
+                                following = false
+                            }
+                        }
+                        .onEnded { _ in
+                            if endVisible {
+                                following = true
+                            }
+                        }
                 )
-                .onChange(of: store.messages) { if following { scrollToEnd(proxy) } }
-                .onChange(of: waiting) { if following { scrollToEnd(proxy) } }
+                .onChange(of: store.messages) {
+                    if following {
+                        scrollToEnd(proxy)
+                    }
+                }
+                .onChange(of: waiting) {
+                    if following {
+                        scrollToEnd(proxy)
+                    }
+                }
                 .overlay(alignment: .bottom) {
-                    if !following && !endVisible {
+                    if !following, !endVisible {
                         Button {
                             following = true
                             scrollToEnd(proxy)

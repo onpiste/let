@@ -2,8 +2,8 @@ import PhotosUI
 import SwiftUI
 
 /// The message box. Return adds a line; the button sends (queues while the
-/// assistant is replying), or stops the turn when the box is empty. The plus button attaches files or
-/// photos.
+/// assistant is replying), or stops the turn when the box is empty. The plus
+/// button attaches files or photos.
 struct ComposerView: View {
     @Binding var text: String
     @Binding var attachments: [Attachment]

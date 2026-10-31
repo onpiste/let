@@ -214,35 +214,10 @@ final class ChatStore {
             handleResponse(frame)
         case "cf_agent_mcp_servers":
             mcp = frame["mcp"].flatMap { try? $0.decoded(as: McpState.self) }
-        case "reminder":
-            if let text = frame["description"]?.string {
-                present(Notice(icon: "⏰", title: "Reminder", text: text))
-            }
-        case "email":
-            // Spam the assistant sorted out stays in the inbox without a banner.
-            let category = frame["category"]?.string
-            if let subject = frame["subject"]?.string, category != "ignore" {
-                let from = frame["from"]?.string ?? "Someone"
-                let sender = frame["trusted"]?.bool == false ? "\(from) (unknown sender)" : from
-                let detail = frame["summary"]?.string ?? subject
-                let action = category == "action"
-                present(Notice(
-                    icon: action ? "⚠️" : "📧",
-                    title: action ? "Email needs action" : "New email",
-                    text: "\(sender): \(detail)"
-                ))
-            }
+        case "reminder", "email":
+            handleNotice(frame)
         default:
             break
-        }
-    }
-
-    private func present(_ notice: Notice) {
-        self.notice = notice
-        // In the foreground the banner in the app is enough; in the
-        // background the server's push already shows it, if it sends one.
-        if UIApplication.shared.applicationState != .active, !Push.serverSends {
-            Reminders.notify(title: notice.title, body: notice.text)
         }
     }
 
@@ -315,7 +290,9 @@ final class ChatStore {
                 replay: replay,
                 continuation: continuation
             )
-            if let id = streamingMessageID, let index = messages.firstIndex(where: { $0.id == id }) {
+            if let id = streamingMessageID,
+               let index = messages.firstIndex(where: { $0.id == id })
+            {
                 messages[index].stamp(with: chunk["messageMetadata"])
             }
         case "error":
