@@ -18,7 +18,7 @@ concurrency:
 jobs:
   # One job, so lint and build share a single (costly) macOS runner.
   build:
-    runs-on: blacksmith-6vcpu-macos-15
+    runs-on: macos-15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
