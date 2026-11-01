@@ -115,6 +115,7 @@ struct ChatView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 0) {
+                    ResearchView(jobs: store.researchJobs)
                     QueuedView(queue: store.queue, onRemove: store.removeQueued)
                     ComposerView(
                         text: $input, attachments: $attachments, busy: store.busy,

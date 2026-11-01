@@ -35,6 +35,8 @@ final class ChatStore {
     private(set) var mcp: McpState?
     private(set) var errorText: String?
     var notice: Notice?
+    /// Deep Research runs still going; set from ChatStore+Research.swift.
+    var researchJobs: [ResearchJob] = []
 
     let socket: AgentSocket
     private let userID: String?
@@ -188,6 +190,7 @@ final class ChatStore {
             ])
         )
         registerPush()
+        loadResearch()
     }
 
     private func closed() {
@@ -225,7 +228,7 @@ final class ChatStore {
             handleResponse(frame)
         case "cf_agent_mcp_servers":
             mcp = frame["mcp"].flatMap { try? $0.decoded(as: McpState.self) }
-        case "reminder", "research", "email":
+        case "reminder", "research", "research-jobs", "email":
             handleNotice(frame)
         default:
             break

@@ -4,7 +4,6 @@ import { callable, getCurrentAgent } from "agents";
 import type { LanguageModel, ToolSet } from "ai";
 
 import {
-  applySettingsPatch,
   MCP_CALLBACK_PATH,
   toPublicSettings,
   type AssistantRpc,
@@ -236,9 +235,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   @callable()
   async updateSettings(patch: SettingsPatch) {
-    const next = applySettingsPatch(this.store.getSettings(), patch);
-    this.store.saveSettings(next);
-    return toPublicSettings(next);
+    return toPublicSettings(this.store.updateSettings(patch));
   }
 
   // ── Skills (callables) ──────────────────────────────────────────────
@@ -283,9 +280,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   @callable()
   async connectTelegram(token: string) {
-    const uri = getCurrentAgent().connection?.uri;
-    const origin = uri ? new URL(uri).origin.replace(/^ws/, "http") : null;
-    return this.telegram.connect(token, origin);
+    return this.telegram.connect(token, getCurrentAgent().connection?.uri);
   }
 
   @callable()
@@ -399,6 +394,11 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   async executeTask(description: string) {
     await this.notify(reminderNotice(description));
+  }
+
+  @callable()
+  async listResearch() {
+    return this.research.list();
   }
 
   /** Polls a Deep Research run until its report is in the chat. */

@@ -1,7 +1,7 @@
 import UIKit
 
 /// The server's `reminder`, `research` and `email` events (ServerEvent in @cot/shared),
-/// shown as the in-app banner.
+/// shown as the in-app banner, plus `research-jobs`, the running research.
 extension ChatStore {
     func handleNotice(_ frame: JSONValue) {
         switch frame["type"]?.string {
@@ -14,6 +14,8 @@ extension ChatStore {
                 let title = frame["ok"]?.bool == true ? "Research ready" : "Research failed"
                 present(Notice(icon: "🔎", title: title, text: topic))
             }
+        case "research-jobs":
+            handleResearchJobs(frame)
         case "email":
             // Spam the assistant sorted out stays in the inbox without a banner.
             let category = frame["category"]?.string

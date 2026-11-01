@@ -57,6 +57,9 @@ export function ToolChip({
     (input?.path as string) ||
     (input?.content as string) ||
     (input?.description as string) ||
+    (input?.topic as string) ||
+    (input?.query as string) ||
+    (input?.url as string) ||
     "";
   const approval =
     part.state === "approval-requested" ? getToolApproval(part) : undefined;

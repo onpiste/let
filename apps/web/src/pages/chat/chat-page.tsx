@@ -32,9 +32,11 @@ import { HistoryPanel } from "./history-panel";
 import { MessageList } from "./message-list";
 import { NoticeToast, type Notice } from "./notice-toast";
 import { QueuedList } from "./queued-list";
+import { ResearchList } from "./research-list";
 import { mcpToolLabels } from "./tool-chip";
 import { useFollowScroll } from "./use-follow-scroll";
 import { useReconnectOnResume } from "./use-reconnect";
+import { useResearchJobs } from "./use-research-jobs";
 import { useSendQueue } from "./use-send-queue";
 
 export function ChatPage({
@@ -59,6 +61,8 @@ export function ChatPage({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState<Notice | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
+  const research = useResearchJobs();
+  const { onEvent: onResearchEvent, load: loadResearch } = research;
 
   const agent = useAgent({
     agent: ASSISTANT.agent,
@@ -77,40 +81,44 @@ export function ChatPage({
       // A closed socket may mean the session expired.
       onAuthCheck();
     }, [onAuthCheck]),
-    onMessage: useCallback((message: MessageEvent) => {
-      try {
-        const data = JSON.parse(String(message.data)) as Partial<ServerEvent>;
-        if (data.type === "reminder" && data.description) {
-          setToast({ icon: "⏰", title: "Reminder", text: data.description });
-          notify("Cot reminder", data.description);
+    onMessage: useCallback(
+      (message: MessageEvent) => {
+        try {
+          const data = JSON.parse(String(message.data)) as Partial<ServerEvent>;
+          onResearchEvent(data);
+          if (data.type === "reminder" && data.description) {
+            setToast({ icon: "⏰", title: "Reminder", text: data.description });
+            notify("Cot reminder", data.description);
+          }
+          if (data.type === "research" && data.topic) {
+            const title = data.ok ? "Research ready" : "Research failed";
+            setToast({ icon: "🔎", title, text: data.topic });
+            notify(`Cot: ${title.toLowerCase()}`, data.topic);
+          }
+          // Spam the assistant sorted out stays in the inbox without a toast.
+          if (
+            data.type === "email" &&
+            data.subject &&
+            data.category !== "ignore"
+          ) {
+            const from = data.from ?? "Someone";
+            const sender =
+              data.trusted === false ? `${from} (unknown sender)` : from;
+            const text = `${sender}: ${data.summary ?? data.subject}`;
+            const action = data.category === "action";
+            setToast({
+              icon: action ? "⚠️" : "📧",
+              title: action ? "Email needs action" : "New email",
+              text
+            });
+            notify(action ? "Cot: email needs action" : "Cot: new email", text);
+          }
+        } catch {
+          // Not JSON — ignore.
         }
-        if (data.type === "research" && data.topic) {
-          const title = data.ok ? "Research ready" : "Research failed";
-          setToast({ icon: "🔎", title, text: data.topic });
-          notify(`Cot: ${title.toLowerCase()}`, data.topic);
-        }
-        // Spam the assistant sorted out stays in the inbox without a toast.
-        if (
-          data.type === "email" &&
-          data.subject &&
-          data.category !== "ignore"
-        ) {
-          const from = data.from ?? "Someone";
-          const sender =
-            data.trusted === false ? `${from} (unknown sender)` : from;
-          const text = `${sender}: ${data.summary ?? data.subject}`;
-          const action = data.category === "action";
-          setToast({
-            icon: action ? "⚠️" : "📧",
-            title: action ? "Email needs action" : "New email",
-            text
-          });
-          notify(action ? "Cot: email needs action" : "Cot: new email", text);
-        }
-      } catch {
-        // Not JSON — ignore.
-      }
-    }, [])
+      },
+      [onResearchEvent]
+    )
   });
 
   useReconnectOnResume(agent);
@@ -123,8 +131,10 @@ export function ChatPage({
 
   // Every connection re-registers this browser, like the iOS app does.
   useEffect(() => {
-    if (connected) setUpPush();
-  }, [connected, setUpPush]);
+    if (!connected) return;
+    setUpPush();
+    loadResearch(api(agent));
+  }, [connected, setUpPush, loadResearch, agent]);
 
   const { messages, sendMessage, stop, status, addToolApprovalResponse } =
     useAgentChat({
@@ -297,6 +307,7 @@ export function ChatPage({
         )}
       </main>
 
+      <ResearchList jobs={research.jobs} />
       <QueuedList queue={queued.queue} onRemove={queued.remove} />
       <Composer
         value={input}

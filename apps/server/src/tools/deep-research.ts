@@ -6,6 +6,7 @@ type Interaction = {
   status: string;
   steps?: {
     type?: string;
+    text?: string;
     content?: {
       type?: string;
       text?: string;
@@ -16,7 +17,8 @@ type Interaction = {
 };
 
 export type ResearchState =
-  | { status: "running" }
+  /** `progress` is Gemini's latest thought summary, when the poll has one. */
+  | { status: "running"; progress: string | null }
   | { status: "done"; report: string }
   | { status: "failed"; error: string };
 
@@ -26,12 +28,25 @@ export type ResearchState =
  * poll it with `researchState`.
  */
 export async function startResearch(env: Env, key: GeminiKey, topic: string) {
-  const interaction = await gemini<Interaction>(env, key, "interactions", {
+  const request = {
     agent: env.GEMINI_RESEARCH_AGENT,
     input: topic,
     background: true
-  });
-  return interaction.id;
+  };
+  // Thought summaries are off by default; with them a run may show what it
+  // is working on. They are optional, so an agent that rejects the setting
+  // still gets the run.
+  const withSummaries = {
+    ...request,
+    agent_config: { type: "deep-research", thinking_summaries: "auto" }
+  };
+  try {
+    return (await gemini<Interaction>(env, key, "interactions", withSummaries))
+      .id;
+  } catch (error) {
+    if (!String(error).includes("Gemini API 400")) throw error;
+    return (await gemini<Interaction>(env, key, "interactions", request)).id;
+  }
 }
 
 export async function researchState(
@@ -46,7 +61,7 @@ export async function researchState(
   );
   switch (interaction.status) {
     case "in_progress":
-      return { status: "running" };
+      return { status: "running", progress: latestThought(interaction) };
     case "completed":
       return { status: "done", report: reportOf(interaction) };
     default:
@@ -57,6 +72,22 @@ export async function researchState(
           `The research ended as ${interaction.status}.`
       };
   }
+}
+
+/**
+ * The newest thought summary. Google documents these for streamed runs;
+ * a poll may or may not carry them, so this is best effort.
+ */
+function latestThought(interaction: Interaction) {
+  const thoughts = (interaction.steps ?? []).filter(
+    (s) => s.type === "thought"
+  );
+  const thought = thoughts[thoughts.length - 1];
+  const text =
+    thought?.content?.find((c) => c.text)?.text ?? thought?.text ?? "";
+  // A summary often opens with a bold title; that line is the gist.
+  const gist = text.trim().split("\n")[0]?.replace(/\*\*/g, "").trim();
+  return gist ? gist.slice(0, 160) : null;
 }
 
 /** The final model output, with its cited pages listed at the end. */

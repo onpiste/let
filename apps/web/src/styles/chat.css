@@ -148,7 +148,8 @@
   background: var(--surface);
   color: var(--muted);
 }
-.tool-chip .dot {
+.tool-chip .dot,
+.research .dot {
   width: 6px;
   height: 6px;
   border-radius: 999px;
@@ -160,8 +161,13 @@
 .tool-chip .dot.failed {
   background: #e5484d;
 }
-.tool-chip .dot.pending {
+.tool-chip .dot.pending,
+.research .dot.pending {
   background: var(--accent);
+  animation: pulse 1s infinite;
+}
+.research .dot.warn {
+  background: #e5a00d;
   animation: pulse 1s infinite;
 }
 
@@ -490,6 +496,45 @@
   flex-wrap: wrap;
   gap: 6px;
   opacity: 0.75;
+}
+
+/* Deep Research runs still going, above the composer (ResearchView.swift). */
+.research {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 16px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.research-job {
+  padding: 6px 12px;
+  border-radius: 14px;
+  font-size: 12.5px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+}
+.research-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.research-time {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.research-note {
+  margin-top: 2px;
+  padding-left: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.research-note.warn {
+  color: #e5a00d;
 }
 
 .time-divider {

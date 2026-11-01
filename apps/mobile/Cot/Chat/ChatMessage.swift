@@ -198,7 +198,7 @@ struct ToolCall: Equatable {
 
     /// The first argument worth showing next to the tool's name.
     var detail: String {
-        for key in ["command", "path", "content", "description"] {
+        for key in ["command", "path", "content", "description", "topic", "query", "url"] {
             if let text = input?[key]?.string, !text.isEmpty {
                 return text
             }

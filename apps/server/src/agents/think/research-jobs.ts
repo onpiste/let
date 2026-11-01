@@ -1,7 +1,7 @@
 import type { Agent } from "agents";
 import type { UIMessage } from "ai";
 
-import type { Settings } from "@cot/shared";
+import type { ResearchJob, ServerEvent, Settings } from "@cot/shared";
 
 import { researchState, startResearch } from "../../tools/deep-research";
 import { geminiKey, type GeminiKey } from "../../tools/gemini";
@@ -24,6 +24,10 @@ type JobRow = {
   started_at: number;
   /** 1 when the run is on the user's own key, 0 on the deployment's. */
   own_key: number;
+  progress: string | null;
+  problem: string | null;
+  /** Polls that failed in a row. */
+  failures: number;
 };
 
 const POLL_SECONDS = 30;
@@ -31,6 +35,8 @@ const POLL_SECONDS = 30;
 const MAX_RUN_MS = 60 * 60 * 1000;
 /** Each run is billed, so cap how many go at once. */
 const MAX_RUNNING = 3;
+/** Polls that may fail in a row (5 minutes) before the run is given up. */
+const MAX_FAILURES = 10;
 
 /**
  * Gemini Deep Research runs, tracked in the assistant's SQLite. A run lives
@@ -72,8 +78,39 @@ export class ResearchJobs {
       id TEXT PRIMARY KEY,
       topic TEXT NOT NULL,
       started_at INTEGER NOT NULL,
-      own_key INTEGER NOT NULL
+      own_key INTEGER NOT NULL,
+      progress TEXT,
+      problem TEXT,
+      failures INTEGER NOT NULL DEFAULT 0
     )`;
+    // Tables created before progress was tracked lack these columns.
+    const columns = this.host.sql<{ name: string }>`
+      SELECT name FROM pragma_table_info('research_jobs')`;
+    if (!columns.some((column) => column.name === "failures")) {
+      this.host.sql`ALTER TABLE research_jobs ADD COLUMN progress TEXT`;
+      this.host.sql`ALTER TABLE research_jobs ADD COLUMN problem TEXT`;
+      this.host.sql`ALTER TABLE research_jobs
+        ADD COLUMN failures INTEGER NOT NULL DEFAULT 0`;
+    }
+  }
+
+  /** The runs still going, oldest first, for the chat's progress strip. */
+  list(): ResearchJob[] {
+    this.ensureTables();
+    return this.host.sql<JobRow>`
+      SELECT * FROM research_jobs ORDER BY started_at`.map((job) => ({
+      id: job.id,
+      topic: job.topic,
+      startedAt: job.started_at,
+      progress: job.progress,
+      problem: job.problem
+    }));
+  }
+
+  /** Tells open clients the runs changed, so they can show progress. */
+  private broadcast() {
+    const event: ServerEvent = { type: "research-jobs", jobs: this.list() };
+    this.host.broadcast(JSON.stringify(event));
   }
 
   /**
@@ -97,14 +134,14 @@ export class ResearchJobs {
     this.host.sql`INSERT INTO research_jobs (id, topic, started_at, own_key)
       VALUES (${id}, ${topic}, ${Date.now()}, ${key.ownKey ? 1 : 0})`;
     await this.host.schedule(POLL_SECONDS, "checkResearch", id);
+    this.broadcast();
     return "Deep research started. It usually takes several minutes; the report will be added to this chat and the user notified when it's ready. Tell the user that, briefly, and don't wait for it.";
   }
 
   async check(id: string) {
     this.ensureTables();
     const [job] = this.host.sql<JobRow>`
-      SELECT id, topic, started_at, own_key FROM research_jobs
-      WHERE id = ${id}`;
+      SELECT * FROM research_jobs WHERE id = ${id}`;
     if (!job) return;
     // A run belongs to the key that started it, so poll with that one.
     const key = this.key();
@@ -117,18 +154,38 @@ export class ResearchJobs {
       if (state.status === "failed") {
         return this.finish(job, state.error, false);
       }
+      // Keep the last summary when a poll has none, so the strip doesn't blink.
+      this.host.sql`UPDATE research_jobs
+        SET progress = COALESCE(${state.progress}, progress),
+          problem = NULL, failures = 0
+        WHERE id = ${id}`;
     } catch (error) {
-      // A failed poll is retried on the next one until the run times out.
-      console.error(`Research poll failed: ${String(error)}`);
+      // A failed poll is retried, but not for the whole hour: a bad key or a
+      // gateway that keeps failing would otherwise look like a stuck run.
+      const problem = String(error).slice(0, 300);
+      console.error(`Research ${id} poll failed: ${problem}`);
+      if (job.failures + 1 >= MAX_FAILURES) {
+        return this.finish(
+          job,
+          `checking on it kept failing (${problem})`,
+          false
+        );
+      }
+      this.host.sql`UPDATE research_jobs
+        SET problem = ${problem}, failures = failures + 1
+        WHERE id = ${id}`;
     }
     if (Date.now() - job.started_at > MAX_RUN_MS) {
       return this.finish(job, "it ran for over an hour", false);
     }
+    this.broadcast();
     await this.host.schedule(POLL_SECONDS, "checkResearch", id);
   }
 
   private async finish(job: JobRow, body: string, ok: boolean) {
     this.host.sql`DELETE FROM research_jobs WHERE id = ${job.id}`;
+    if (!ok) console.warn(`Research ${job.id} failed: ${body.slice(0, 300)}`);
+    this.broadcast();
     const text = ok
       ? `**Deep research: ${job.topic}**\n\n${body}`
       : `Deep research on "${job.topic}" failed: ${body}`;

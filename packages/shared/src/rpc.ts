@@ -1,6 +1,7 @@
 import type { ChatSummary } from "./chats";
 import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
 import type { PushDevice, PushStatus, WebPushSubscription } from "./push";
+import type { ResearchJob } from "./research";
 import type { PublicSettings, SettingsPatch } from "./settings";
 import type { Skill } from "./skills";
 import type { ScheduledTask } from "./tasks";
@@ -52,6 +53,8 @@ export interface AssistantRpc {
   getWebPushKey(): Promise<string | null>;
   /** Saves a browser's Web Push subscription, the web app's counterpart of registerPushDevice. */
   registerWebPush(subscription: WebPushSubscription): Promise<PushStatus>;
+  /** Deep Research runs still going, oldest first. */
+  listResearch(): Promise<ResearchJob[]>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */
@@ -59,6 +62,8 @@ export type ServerEvent =
   | { type: "reminder"; description: string; timestamp: string }
   /** A Deep Research run ended; its report (or error) is now in the chat. */
   | { type: "research"; topic: string; ok: boolean; timestamp: string }
+  /** The running Deep Research runs changed: one started, was checked or ended. */
+  | { type: "research-jobs"; jobs: ResearchJob[] }
   | {
       type: "email";
       from: string;

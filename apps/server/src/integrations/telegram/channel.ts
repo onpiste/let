@@ -70,12 +70,16 @@ export class TelegramChannel {
   }
 
   /**
-   * Connects a bot by its @BotFather token. `origin` is the app's public
-   * origin; Telegram only delivers to https://, so on local http dev the bot
-   * is saved but its webhook has to be pointed at a tunnel by hand.
+   * Connects a bot by its @BotFather token. `socketUri` is the settings
+   * page's socket, whose origin is the app's public one; Telegram only
+   * delivers to https://, so on local http dev the bot is saved but its
+   * webhook has to be pointed at a tunnel by hand.
    */
-  async connect(token: string, origin: string | null) {
+  async connect(token: string, socketUri: string | null | undefined) {
     const { env } = this.options;
+    const origin = socketUri
+      ? new URL(socketUri).origin.replace(/^ws/, "http")
+      : null;
     token = token.trim();
     if (!/^\d+:[\w-]{20,}$/.test(token)) {
       throw new Error("That doesn't look like a bot token from @BotFather.");

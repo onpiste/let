@@ -1,6 +1,12 @@
 import type { Agent } from "agents";
 
-import { DEFAULT_SETTINGS, type Settings, type Skill } from "@cot/shared";
+import {
+  applySettingsPatch,
+  DEFAULT_SETTINGS,
+  type Settings,
+  type SettingsPatch,
+  type Skill
+} from "@cot/shared";
 
 import type { EmailConfig } from "../../integrations/email/config";
 import type { TelegramConfig } from "../../integrations/telegram/config";
@@ -68,8 +74,11 @@ export class AssistantStore {
       : DEFAULT_SETTINGS;
   }
 
-  saveSettings(settings: Settings) {
-    this.write("settings", JSON.stringify(settings));
+  /** Applies a patch from the settings page and returns the result. */
+  updateSettings(patch: SettingsPatch) {
+    const next = applySettingsPatch(this.getSettings(), patch);
+    this.write("settings", JSON.stringify(next));
+    return next;
   }
 
   getOwnerEmail() {
