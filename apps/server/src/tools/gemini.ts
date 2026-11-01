@@ -42,6 +42,18 @@ export async function gemini<T>(
   path: string,
   body?: unknown
 ): Promise<T> {
+  const response = await geminiFetch(env, key, path, { body });
+  // Trust boundary: the shape is Google's documented response for `path`.
+  return (await response.json()) as T;
+}
+
+/** The raw response, for streams; throws unless it is a 2xx. */
+export async function geminiFetch(
+  env: Env,
+  key: GeminiKey,
+  path: string,
+  { body, signal }: { body?: unknown; signal?: AbortSignal } = {}
+) {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     // Search must be fresh, and a cached poll would never see a run finish.
@@ -56,7 +68,8 @@ export async function gemini<T>(
   const response = await fetch(`${gateway.replace(/\/$/, "")}/v1beta/${path}`, {
     method: body === undefined ? "GET" : "POST",
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body)
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal
   });
   if (!response.ok) {
     // Gateway failures such as a 524 timeout come back as an HTML page,
@@ -67,6 +80,5 @@ export async function gemini<T>(
       : response.statusText || "non-JSON error page";
     throw new Error(`Gemini API ${response.status}: ${detail}`);
   }
-  // Trust boundary: the shape is Google's documented response for `path`.
-  return (await response.json()) as T;
+  return response;
 }

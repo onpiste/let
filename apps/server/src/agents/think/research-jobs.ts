@@ -5,6 +5,7 @@ import type { ResearchJob, ServerEvent, Settings } from "@cot/shared";
 
 import { researchState, startResearch } from "../../tools/deep-research";
 import { geminiKey, type GeminiKey } from "../../tools/gemini";
+import { followResearch } from "../../tools/research-stream";
 import {
   countWebUse,
   webUseRefusal,
@@ -31,6 +32,13 @@ type JobRow = {
 };
 
 const POLL_SECONDS = 30;
+/**
+ * How long one check follows the run's stream for thoughts. The schedule
+ * runs in the alarm, so keep it short enough not to hold up reminders.
+ */
+const FOLLOW_MS = 60 * 1000;
+/** Clients get at most one progress update this often. */
+const PROGRESS_MS = 2000;
 /** Deep Research takes minutes; give up on one that runs past this. */
 const MAX_RUN_MS = 60 * 60 * 1000;
 /** Each run is billed, so cap how many go at once. */
@@ -133,7 +141,8 @@ export class ResearchJobs {
     this.count("research", key);
     this.host.sql`INSERT INTO research_jobs (id, topic, started_at, own_key)
       VALUES (${id}, ${topic}, ${Date.now()}, ${key.ownKey ? 1 : 0})`;
-    await this.host.schedule(POLL_SECONDS, "checkResearch", id);
+    // Start following soon, so the first thoughts show without a long wait.
+    await this.host.schedule(5, "checkResearch", id);
     this.broadcast();
     return "Deep research started. It usually takes several minutes; the report will be added to this chat and the user notified when it's ready. Tell the user that, briefly, and don't wait for it.";
   }
@@ -148,20 +157,23 @@ export class ResearchJobs {
     if (!key || key.ownKey !== Boolean(job.own_key)) {
       return this.finish(job, "the Google API key changed", false);
     }
+    // Follow the stream again at once if it was cut off only by the window;
+    // a stream that closed by itself waits for the next poll.
+    let delay = POLL_SECONDS;
     try {
+      const ended = await this.follow(id, key);
+      if (!ended) delay = 1;
       const state = await researchState(this.env, key, id);
       if (state.status === "done") return this.finish(job, state.report, true);
       if (state.status === "failed") {
         return this.finish(job, state.error, false);
       }
-      // Keep the last summary when a poll has none, so the strip doesn't blink.
       this.host.sql`UPDATE research_jobs
-        SET progress = COALESCE(${state.progress}, progress),
-          problem = NULL, failures = 0
-        WHERE id = ${id}`;
+        SET problem = NULL, failures = 0 WHERE id = ${id}`;
     } catch (error) {
       // A failed poll is retried, but not for the whole hour: a bad key or a
       // gateway that keeps failing would otherwise look like a stuck run.
+      delay = POLL_SECONDS;
       const problem = String(error).slice(0, 300);
       console.error(`Research ${id} poll failed: ${problem}`);
       if (job.failures + 1 >= MAX_FAILURES) {
@@ -179,7 +191,29 @@ export class ResearchJobs {
       return this.finish(job, "it ran for over an hour", false);
     }
     this.broadcast();
-    await this.host.schedule(POLL_SECONDS, "checkResearch", id);
+    await this.host.schedule(delay, "checkResearch", id);
+  }
+
+  /**
+   * Follows the run's thoughts for a while, saving and broadcasting each new
+   * one. The stream replays earlier thoughts first, so updates are throttled.
+   */
+  private async follow(id: string, key: GeminiKey) {
+    let latest: string | null = null;
+    let sentAt = 0;
+    const save = () => {
+      this.host.sql`UPDATE research_jobs SET progress = ${latest}
+        WHERE id = ${id}`;
+      this.broadcast();
+      sentAt = Date.now();
+    };
+    const ended = await followResearch(this.env, key, id, FOLLOW_MS, (gist) => {
+      if (gist === latest) return;
+      latest = gist;
+      if (Date.now() - sentAt >= PROGRESS_MS) save();
+    });
+    if (latest !== null) save();
+    return ended;
   }
 
   private async finish(job: JobRow, body: string, ok: boolean) {
