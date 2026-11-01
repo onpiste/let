@@ -88,8 +88,17 @@ struct HistoryView: View {
                 }
                 .font(.caption)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
         .foregroundStyle(.primary)
+        // The row fills the drawer edge to edge, so its separators can too;
+        // the default insets leave a gap on both sides.
+        .listRowInsets(EdgeInsets())
+        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
+        .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
         .listRowBackground(chat.id == store.chatID ? Color(.secondarySystemBackground) : nil)
         .swipeActions {
             Button("Delete", role: .destructive) {
