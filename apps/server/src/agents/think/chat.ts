@@ -28,6 +28,9 @@ export class Chat extends Think<Env> {
   /** The latest turn's setup; tools read settings from it at call time. */
   private setup: TurnSetup | null = null;
 
+  /** Whether the turn in progress came from Telegram. */
+  private messengerTurn = false;
+
   /** The owning assistant's name (`google:<sub>`). */
   private get ownerName() {
     const owner = this.parentPath[0];
@@ -87,6 +90,7 @@ export class Chat extends Think<Env> {
       ctx.trigger !== undefined &&
       !ctx.continuation &&
       !ctx.trigger.startsWith("recovery");
+    this.messengerTurn = Boolean(ctx.messenger);
     const setup = await this.services.turn(newTurn, Boolean(ctx.messenger));
     this.setup = setup;
     if (setup.refusal) {
@@ -113,6 +117,28 @@ export class Chat extends Think<Env> {
 
   override async onChatResponse() {
     await this.report(true);
+  }
+
+  /**
+   * Think's messenger delivery posts nothing when a turn fails (it only
+   * apologizes for failures on its own side), so a Telegram message would
+   * get no answer at all. Tell the owner there, with the reason.
+   */
+  override onChatError(error: unknown) {
+    console.error("Chat turn failed", error);
+    if (this.messengerTurn) void this.tellMessenger(error);
+    return error;
+  }
+
+  private async tellMessenger(error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    try {
+      await this.services.messengerFailed(
+        `Sorry, I couldn't answer that: ${reason}`
+      );
+    } catch (notifyError) {
+      console.error(notifyError);
+    }
   }
 
   private async report(turnEnded: boolean) {

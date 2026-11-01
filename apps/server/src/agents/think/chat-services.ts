@@ -42,6 +42,8 @@ export type ChatServicesHost = {
   inbox: Inbox | null;
   emailAddress: string | null;
   mcp: MCPClientManager;
+  /** Messages the owner on Telegram, outside the chat. */
+  notifyMessenger: (text: string) => Promise<void>;
 };
 
 /**
@@ -96,6 +98,11 @@ export class ChatServices extends RpcTarget implements AssistantServices {
         }
       }))
     };
+  }
+
+  /** A Telegram turn failed; Think itself posts nothing then (chat.ts). */
+  async messengerFailed(text: string) {
+    await this.host.notifyMessenger(text);
   }
 
   /** The chat's messages after a turn ended (or a report was added). */

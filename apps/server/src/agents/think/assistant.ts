@@ -192,7 +192,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       research: this.research,
       inbox: address ? new Inbox(this) : null,
       emailAddress: address,
-      mcp: this.mcp
+      mcp: this.mcp,
+      notifyMessenger: (text) => this.telegram.notify(text)
     });
   }
 
