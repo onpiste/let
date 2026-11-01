@@ -55,6 +55,11 @@ final class ChatStore {
     private var streamingMessageID: String?
     private var reducer = ChunkReducer()
     private var appliedSeq: [String: Int] = [:]
+    /// The server's latest transcript, which the reply being streamed here
+    /// overrides until its stream ends.
+    private var serverMessages: [ChatMessage] = []
+    /// The turn in flight when the last resume probe went out.
+    private var turnAtProbe: String?
     private var lastAuthCheck = Date.distantPast
 
     var busy: Bool {
@@ -155,12 +160,14 @@ final class ChatStore {
             "messages": .array(messages.map(\.json)),
             "trigger": .string("submit-message")
         ])
+        // Queued while the chat reconnects, so the message isn't lost.
         chatSocket?.send(
             .object([
                 "type": .string("cf_agent_use_chat_request"),
                 "id": .string(id),
                 "init": .object(["method": .string("POST"), "body": .string(body.serialized())])
-            ])
+            ]),
+            queue: true
         )
     }
 
@@ -201,6 +208,7 @@ final class ChatStore {
 
     private func opened() {
         connected = true
+        turnAtProbe = requestID
         chatSocket?.send(
             .object([
                 "type": .string("cf_agent_stream_resume_request"),
@@ -258,6 +266,8 @@ final class ChatStore {
             if let message = frame["message"].flatMap(ChatMessage.init(json:)) {
                 update(message)
             }
+        case "cf_agent_stream_resume_none":
+            streamEnded()
         case "cf_agent_stream_resuming":
             if let id = frame["id"]?.string {
                 requestID = id
@@ -272,9 +282,23 @@ final class ChatStore {
         }
     }
 
+    /// After a reconnect the server has no stream for this chat: the reply
+    /// ended (or failed) while the socket was down, so its final version is
+    /// in the transcript just sent. Without this the turn spun forever.
+    private func streamEnded() {
+        // A message sent after the probe went out is a new turn; leave it.
+        guard status != .ready, requestID == turnAtProbe else { return }
+        streamingMessageID = nil
+        if loaded {
+            messages = serverMessages
+        }
+        finishTurn()
+    }
+
     /// The server's list is the truth, except for the reply still streaming.
     private func replaceMessages(with json: [JSONValue]) {
         var incoming = json.compactMap(ChatMessage.init(json:))
+        serverMessages = incoming
         if let id = streamingMessageID, let local = messages.first(where: { $0.id == id }) {
             if let index = incoming.firstIndex(where: { $0.id == id }) {
                 incoming[index] = local
@@ -382,6 +406,8 @@ final class ChatStore {
 
     private func resetTurn() {
         status = .ready
+        serverMessages = []
+        turnAtProbe = nil
         streamingMessageID = nil
         requestID = nil
         reducer = ChunkReducer()

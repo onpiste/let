@@ -30,8 +30,12 @@ final class AgentSocket {
     private var failures = 0
     private var wantsConnection = false
     private var pending: [String: CheckedContinuation<JSONValue, Error>] = [:]
-    /// RPCs issued while the socket is down go out once it opens.
-    private var outbox: [String] = []
+    /// RPCs written to the current connection; a dropped connection takes
+    /// their answers with it, so they fail rather than wait forever.
+    private var inFlight: Set<String> = []
+    /// Frames (RPCs, chat requests) issued while the socket is down go out
+    /// once it opens.
+    private var outbox: [(id: String?, text: String)] = []
 
     init(url: URL, token: @escaping () -> String?) {
         self.url = url
@@ -56,16 +60,28 @@ final class AgentSocket {
         failPending(RPCError(message: "Disconnected"))
     }
 
-    /// Reconnects now if the socket is down (e.g. after the app resumed).
+    /// Reconnects now if the socket is down (e.g. after the app resumed). A
+    /// socket that still looks open is pinged: after a network change it is
+    /// often dead without having noticed.
     func reconnectIfNeeded() {
-        guard wantsConnection, !isOpen else { return }
+        guard wantsConnection else { return }
+        if isOpen, let task {
+            ping(task)
+            return
+        }
         retry?.cancel()
         connect()
     }
 
-    func send(_ frame: JSONValue) {
-        guard isOpen else { return }
-        task?.send(.string(frame.serialized())) { _ in }
+    /// Sends a frame on this connection. `queue` keeps it for the next one
+    /// when the socket is down (a new message must not be lost); frames tied
+    /// to a connection (resume probes and acks) are dropped instead.
+    func send(_ frame: JSONValue, queue: Bool = false) {
+        if isOpen {
+            task?.send(.string(frame.serialized())) { _ in }
+        } else if queue, wantsConnection {
+            outbox.append((nil, frame.serialized()))
+        }
     }
 
     func call(_ method: String, _ args: [JSONValue] = []) async throws -> JSONValue {
@@ -78,9 +94,10 @@ final class AgentSocket {
         return try await withCheckedThrowingContinuation { continuation in
             pending[id] = continuation
             if isOpen {
+                inFlight.insert(id)
                 task?.send(.string(frame.serialized())) { _ in }
             } else {
-                outbox.append(frame.serialized())
+                outbox.append((id, frame.serialized()))
             }
         }
     }
@@ -99,6 +116,9 @@ final class AgentSocket {
         request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 10
         let task = session.webSocketTask(with: request)
+        // The default 1 MiB limit fails the whole socket on a chat with
+        // attachments (the server sends the full transcript on connect).
+        task.maximumMessageSize = 64 * 1024 * 1024
         self.task = task
         task.resume()
         receive(from: task)
@@ -111,6 +131,7 @@ final class AgentSocket {
         old?.cancel(with: .goingAway, reason: nil)
         if isOpen {
             isOpen = false
+            failInFlight()
             onClose?()
         }
     }
@@ -141,12 +162,14 @@ final class AgentSocket {
         {
             if frame["success"]?.bool == false {
                 pending[id] = nil
+                inFlight.remove(id)
                 continuation.resume(
                     throwing: RPCError(message: frame["error"]?.string ?? "Request failed")
                 )
             } else if frame["done"]?.bool != false {
                 // Streaming calls (done == false) aren't used by the app.
                 pending[id] = nil
+                inFlight.remove(id)
                 continuation.resume(returning: frame["result"] ?? .null)
             }
             return
@@ -158,8 +181,11 @@ final class AgentSocket {
         guard task === socket, !isOpen else { return }
         isOpen = true
         failures = 0
-        for frame in outbox {
-            socket.send(.string(frame)) { _ in }
+        for (id, text) in outbox {
+            if let id {
+                inFlight.insert(id)
+            }
+            socket.send(.string(text)) { _ in }
         }
         outbox.removeAll()
         startKeepAlive(socket)
@@ -174,6 +200,7 @@ final class AgentSocket {
         // Also reported when it never opened (offline, or the session was
         // refused), so the owner can re-check the session.
         isOpen = false
+        failInFlight()
         onClose?()
         guard wantsConnection else { return }
         failures += 1
@@ -185,25 +212,48 @@ final class AgentSocket {
         }
     }
 
-    /// A backgrounded phone can leave a socket that looks open but is dead;
-    /// a failed ping closes it so the retry path takes over.
+    /// A backgrounded phone or a network change can leave a socket that
+    /// looks open but is dead; a ping that fails, or gets no pong in time,
+    /// closes it so the retry path takes over.
     private func startKeepAlive(_ socket: URLSessionWebSocketTask) {
         keepAlive = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(20))
                 guard !Task.isCancelled else { return }
-                socket.sendPing { error in
-                    if error != nil {
-                        Task { @MainActor in self?.closed(socket) }
-                    }
+                self?.ping(socket)
+            }
+        }
+    }
+
+    private func ping(_ socket: URLSessionWebSocketTask) {
+        // A dead connection may never call the pong handler at all.
+        let timeout = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            self?.closed(socket)
+        }
+        socket.sendPing { error in
+            Task { @MainActor [weak self] in
+                timeout.cancel()
+                if error != nil {
+                    self?.closed(socket)
                 }
             }
         }
     }
 
+    private func failInFlight() {
+        let error = RPCError(message: "Connection lost; try again.")
+        for id in inFlight {
+            pending.removeValue(forKey: id)?.resume(throwing: error)
+        }
+        inFlight.removeAll()
+    }
+
     private func failPending(_ error: Error) {
         let calls = pending
         pending.removeAll()
+        inFlight.removeAll()
         outbox.removeAll()
         for continuation in calls.values {
             continuation.resume(throwing: error)

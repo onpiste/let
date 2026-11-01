@@ -50,6 +50,27 @@ final class ChatStoreTests: XCTestCase {
         XCTAssertEqual(store.messages.map(\.id), ["u", "a"])
         XCTAssertEqual(store.messages[1].parts[0]["text"]?.string, "Hi")
     }
+
+    /// The socket dropped mid-reply and the reply finished meanwhile: on
+    /// reconnect the server sends the transcript and says no stream is left.
+    func testReplyThatEndedWhileDisconnectedFinishesTheTurn() {
+        let store = ChatStore(token: { nil })
+        store.handle(response(id: "r", chunk: #"{"type":"start","messageId":"a"}"#))
+        store.handle(response(id: "r", chunk: #"{"type":"text-start","id":"t"}"#))
+        store.handle(response(id: "r", chunk: #"{"type":"text-delta","id":"t","delta":"Hi"}"#))
+        store
+            .handle(
+                frame(
+                    #"{"type":"cf_agent_chat_messages","messages":[{"id":"u","role":"user","parts":[]},{"id":"a","role":"assistant","parts":[{"type":"text","text":"Hi there"}]}]}"#
+                )
+            )
+        XCTAssertEqual(store.status, .streaming)
+        store.handle(frame(#"{"type":"cf_agent_stream_resume_none","probeId":"p"}"#))
+
+        XCTAssertEqual(store.status, .ready)
+        XCTAssertEqual(store.messages.map(\.id), ["u", "a"])
+        XCTAssertEqual(store.messages[1].parts[0]["text"]?.string, "Hi there")
+    }
 }
 
 final class AttachmentTests: XCTestCase {
