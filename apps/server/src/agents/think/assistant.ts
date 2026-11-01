@@ -21,10 +21,7 @@ import { Inbox } from "../../integrations/email/inbox";
 import { emailNotice, triagedNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
 import { OwnerPush } from "../../integrations/push";
-import {
-  TelegramChannel,
-  type TelegramUpdateResult
-} from "../../integrations/telegram/channel";
+import { TelegramChannel } from "../../integrations/telegram/channel";
 import { countTurn } from "../common/usage";
 import { cannedReply } from "./canned-reply";
 import { ChatHistory, stampCreatedAt } from "./history";
@@ -146,7 +143,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   override async onChatResponse() {
-    await this.history.autoTitle(this.env.AI);
+    await new ChatHistory(this).autoTitle(this.env.AI);
   }
 
   override getTools(): ToolSet {
@@ -154,7 +151,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       env: this.env,
       agent: this,
       memory: this,
-      chats: this.history,
+      chats: new ChatHistory(this),
       sandbox: this.env.SANDBOX.getByName(this.name),
       inbox: this.emailAddress() ? () => new Inbox(this) : null,
       approvalMode: () => this.store.getSettings().approvalMode,
@@ -181,28 +178,29 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   // ── Chat history (callables) ────────────────────────────────────────
 
-  private get history() {
-    return new ChatHistory(this);
-  }
-
   @callable()
   async listChats() {
-    return this.history.list();
+    return new ChatHistory(this).list();
   }
 
   @callable()
   async newChat() {
-    return this.history.create();
+    return new ChatHistory(this).create();
   }
 
   @callable()
   async openChat(id: string) {
-    return this.history.open(id);
+    return new ChatHistory(this).open(id);
   }
 
   @callable()
   async deleteChat(id: string) {
-    return this.history.remove(id);
+    return new ChatHistory(this).remove(id);
+  }
+
+  @callable()
+  async searchChats(query: string) {
+    return new ChatHistory(this).find(query);
   }
 
   // ── Scheduled tasks (callables) ─────────────────────────────────────
@@ -295,10 +293,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   /** Called by the Worker for each webhook update. */
-  async receiveTelegramUpdate(
-    secret: string,
-    body: string
-  ): Promise<TelegramUpdateResult> {
+  async receiveTelegramUpdate(secret: string, body: string) {
     this.store.ensureTables();
     return this.telegram.receive(secret, body);
   }

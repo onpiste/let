@@ -133,11 +133,11 @@ struct ChatView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbar }
         }
+        .sideDrawer(isOpen: $showHistory) {
+            HistoryView(store: store, isOpen: showHistory) { showHistory = false }
+        }
         .sheet(isPresented: $showTasks) {
             TasksView(store: store) { input = $0 }
-        }
-        .sheet(isPresented: $showHistory) {
-            HistoryView(store: store)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(user: user, auth: auth)
@@ -157,9 +157,10 @@ struct ChatView: View {
 
     @ToolbarContentBuilder
     private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .principal) {
-            HStack(spacing: 6) {
-                Text("Cot").font(.headline)
+        ToolbarItem(placement: .topBarLeading) {
+            HStack(spacing: 8) {
+                Button("History", systemImage: "clock") { showHistory = true }
+                    .labelStyle(.iconOnly)
                 Circle()
                     .fill(store.connected ? Color.green : Color.gray)
                     .frame(width: 8, height: 8)
@@ -168,7 +169,6 @@ struct ChatView: View {
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button("Tasks", systemImage: "calendar") { showTasks = true }
-            Button("History", systemImage: "clock") { showHistory = true }
             if !store.messages.isEmpty {
                 Button("New chat", systemImage: "square.and.pencil", action: store.startNewChat)
             }

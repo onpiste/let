@@ -6,7 +6,6 @@ import { useCallback, useEffect, useState } from "react";
 
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
-import { Brand } from "../../components/brand";
 import {
   ArrowDown,
   Calendar,
@@ -205,12 +204,6 @@ export function ChatPage({
   return (
     <div className="app">
       <header className="topbar">
-        <Brand>
-          <span
-            className={`status ${connected ? "on" : "off"}`}
-            title={connected ? "Connected" : "Reconnecting…"}
-          />
-        </Brand>
         <div className="flex items-center gap-1">
           <button
             className="icon-btn"
@@ -220,6 +213,12 @@ export function ChatPage({
           >
             <Clock />
           </button>
+          <span
+            className={`status ${connected ? "on" : "off"}`}
+            title={connected ? "Connected" : "Reconnecting…"}
+          />
+        </div>
+        <div className="flex items-center gap-1">
           {!empty && (
             <button
               className="icon-btn"

@@ -124,7 +124,7 @@ final class ChatStore {
         finishTurn()
     }
 
-    // MARK: History (AssistantRpc listChats / newChat / openChat / deleteChat)
+    // MARK: History (AssistantRpc listChats / newChat / openChat / deleteChat / searchChats)
 
     /// The server swaps the conversation and broadcasts the new messages (or
     /// a clear), which `handle` applies like any other update.
@@ -148,8 +148,13 @@ final class ChatStore {
         try await history("deleteChat", id)
     }
 
-    private func history(_ method: String, _ id: String? = nil) async throws -> [ChatSummary] {
-        try await socket.call(method, id.map { [JSONValue.string($0)] } ?? [])
+    /// Chats whose title or text contains `query`, each with a snippet.
+    func searchChats(_ query: String) async throws -> [ChatSummary] {
+        try await history("searchChats", query)
+    }
+
+    private func history(_ method: String, _ arg: String? = nil) async throws -> [ChatSummary] {
+        try await socket.call(method, arg.map { [JSONValue.string($0)] } ?? [])
             .decoded(as: [ChatSummary].self)
     }
 

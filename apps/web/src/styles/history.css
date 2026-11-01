@@ -1,0 +1,97 @@
+/* The chat history drawer, sliding in from the left (HistoryView.swift). */
+
+.history-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgb(0 0 0 / 0.3);
+  animation: fade-in 0.2s ease-out;
+}
+.history {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 31;
+  width: min(340px, 85vw);
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: slide-in 0.2s ease-out;
+}
+@keyframes slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+.history-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.history-head strong {
+  flex: 1;
+}
+.history-search {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: inherit;
+  font: inherit;
+}
+.history-search:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.history ul {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.history li {
+  display: flex;
+  align-items: center;
+  border-radius: 10px;
+}
+.history li.on {
+  background: var(--user-bubble);
+}
+.history-item {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  text-align: left;
+}
+.history-item span,
+.history-item em {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-item em {
+  font-size: 13px;
+  font-style: normal;
+  color: var(--muted);
+}
+.history-item small {
+  color: var(--muted);
+}

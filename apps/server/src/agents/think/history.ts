@@ -4,6 +4,7 @@ import type { UIMessage } from "ai";
 import type { ChatSummary } from "@cot/shared";
 
 import { ChatIndex, INLINE_FILE } from "./chat-index";
+import { chatMatch, checkQuery } from "./chat-search";
 import { generateTitle } from "./title";
 
 /** The Think methods the history swaps conversations through. */
@@ -14,6 +15,7 @@ type Host = Pick<Agent<Env>, "sql"> & {
 };
 
 const TITLE_LENGTH = 60;
+const SEARCH_RESULTS = 50;
 
 /** The first user text (or attached file name), for the history list. */
 function chatTitle(messages: UIMessage[]) {
@@ -218,6 +220,26 @@ export class ChatHistory {
   search(query: string) {
     this.ensureTables();
     return this.index.search(query, this.activeId());
+  }
+
+  /**
+   * The history list filtered to chats whose title or text contains `query`
+   * (the `searchChats` callable), each with a snippet around the match.
+   */
+  async find(query: unknown): Promise<ChatSummary[]> {
+    const needle = checkQuery(query);
+    const all = await this.list();
+    if (!needle) return all;
+    const texts = this.index.firstMatches(needle);
+    // The active chat isn't indexed until it is archived.
+    const current = await this.host.getMessages();
+    const results: ChatSummary[] = [];
+    for (const chat of all) {
+      const content = chat.active ? current : texts.get(chat.id);
+      const snippet = chatMatch(chat.title, content, needle);
+      if (snippet !== null) results.push({ ...chat, snippet });
+    }
+    return results.slice(0, SEARCH_RESULTS);
   }
 
   /** The messages around `seq` in a saved chat. */

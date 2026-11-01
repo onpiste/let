@@ -173,6 +173,30 @@ export class ChatIndex {
     });
   }
 
+  /**
+   * The text of the first message in each saved chat that contains `query`
+   * as typed (case-insensitive), for the history list's search box.
+   */
+  firstMatches(query: string) {
+    // oxlint-disable-next-line no-misused-spread -- trigrams count code points
+    const length = [...query].length;
+    const rows =
+      length >= MIN_TERM
+        ? this.host.sql<{ chat_id: string; text: string }>`
+          SELECT chat_id, text FROM chat_search
+          WHERE chat_search MATCH ${`"${query.replace(/"/g, '""')}"`}
+          ORDER BY chat_id, seq`
+        : this.host.sql<{ chat_id: string; text: string }>`
+          SELECT chat_id, text FROM chat_search
+          WHERE text LIKE ${likePattern(query)} ESCAPE '\\'
+          ORDER BY chat_id, seq`;
+    const first = new Map<string, string>();
+    for (const row of rows) {
+      if (!first.has(row.chat_id)) first.set(row.chat_id, row.text);
+    }
+    return first;
+  }
+
   /** The messages around `seq` in a saved chat, as plain text. */
   read(chatId: string, seq: number) {
     const [chat] = this.host.sql<{ title: string; updated_at: string }>`

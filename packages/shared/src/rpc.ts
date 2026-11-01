@@ -26,6 +26,11 @@ export interface AssistantRpc {
   /** Saves the active conversation and makes a saved one active. */
   openChat(id: string): Promise<ChatSummary[]>;
   deleteChat(id: string): Promise<ChatSummary[]>;
+  /**
+   * Conversations whose title or text contains `query` (case-insensitive),
+   * newest first, each with a `snippet` around the match.
+   */
+  searchChats(query: string): Promise<ChatSummary[]>;
   /** Scheduled tasks, active ones by next run, then paused ones. */
   listTasks(): Promise<ScheduledTask[]>;
   pauseTask(id: string): Promise<ScheduledTask[]>;
