@@ -34,20 +34,16 @@ struct ChatView: View {
                         if store.loaded, store.messages.isEmpty {
                             EmptyStateView(user: user, onSuggestion: send)
                         }
-                        ForEach(
-                            Array(store.messages.enumerated()),
-                            id: \.element.id
-                        ) { index, message in
-                            if let sent = message.createdAt, index > 0,
-                               let before = store.messages[index - 1].createdAt,
+                        ForEach(ChatRow.rows(store.messages), id: \.message.id) { row in
+                            if let sent = row.message.createdAt, let before = row.previous,
                                sent.timeIntervalSince(before) >= 15 * 60
                             {
                                 TimeDivider(date: sent)
                             }
                             MessageRow(
-                                message: message,
+                                message: row.message,
                                 toolLabels: store.mcp?.toolLabels ?? [:],
-                                streaming: store.busy && message.id == store.messages.last?.id,
+                                streaming: store.busy && row.message.id == store.messages.last?.id,
                                 onApproval: store.respond(toApproval:approved:)
                             )
                         }
@@ -194,6 +190,21 @@ struct ChatView: View {
 }
 
 /// When the next message was sent, after a long gap in the conversation.
+/// A message and the time of the one before it, worked out together. A lazy
+/// row is built later than the list, so looking the neighbour up by index
+/// then could run past the end of a list that has since shrunk (switching or
+/// clearing chats, or the server sending a shorter one) and crash.
+private struct ChatRow {
+    let message: ChatMessage
+    let previous: Date?
+
+    static func rows(_ messages: [ChatMessage]) -> [ChatRow] {
+        zip(messages, [nil] + messages.map(\.createdAt)).map {
+            ChatRow(message: $0, previous: $1)
+        }
+    }
+}
+
 private struct TimeDivider: View {
     let date: Date
 
