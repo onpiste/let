@@ -64,6 +64,13 @@ struct ChatView: View {
                     .padding(.vertical, 12)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                // A chat not shown before has nothing cached: spin until the
+                // server sends it rather than show a blank screen.
+                .overlay {
+                    if !store.loaded, store.messages.isEmpty {
+                        ProgressView().controlSize(.large)
+                    }
+                }
                 // The cached chat is there from the first frame, so no
                 // messages change fires; start at the newest message.
                 .defaultScrollAnchor(.bottom)

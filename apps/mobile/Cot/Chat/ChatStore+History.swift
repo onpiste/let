@@ -18,9 +18,15 @@ extension ChatStore {
         show(chat: id)
     }
 
-    func openChat(_ id: String) async throws {
-        _ = try await history("openChat", id)
+    /// Shows the chat at once; marking it as the one in use (which Telegram
+    /// follows) happens in the background, so the switch never waits on it.
+    func openChat(_ id: String) {
         show(chat: id)
+        Task {
+            do { _ = try await history("openChat", id) } catch {
+                report(error.localizedDescription)
+            }
+        }
     }
 
     func deleteChat(_ id: String) async throws -> [ChatSummary] {

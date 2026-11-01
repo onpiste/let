@@ -68,11 +68,8 @@ struct HistoryView: View {
 
     private func row(_ chat: ChatSummary) -> some View {
         Button {
-            Task {
-                if await perform({ try await store.openChat(chat.id) }) {
-                    onClose()
-                }
-            }
+            store.openChat(chat.id)
+            onClose()
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(chat.title).lineLimit(1)

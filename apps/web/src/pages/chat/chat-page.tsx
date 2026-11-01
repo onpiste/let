@@ -1,6 +1,6 @@
 import type { MCPServersState } from "agents";
 import { useAgent } from "agents/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
@@ -11,6 +11,7 @@ import { loadChatCache } from "../../lib/chat-cache";
 import { errorText } from "../../lib/errors";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { setUpWebPush } from "../../lib/web-push";
+import { ChatLoading } from "./chat-loading";
 import { ChatPane } from "./chat-pane";
 import { HistoryPanel } from "./history-panel";
 import { NoticeToast, type Notice } from "./notice-toast";
@@ -216,19 +217,22 @@ export function ChatPage({
       )}
 
       {chatId ? (
-        <ChatPane
-          key={chatId}
-          user={user}
-          chatId={chatId}
-          draft={draft}
-          research={research.jobs}
-          toolLabels={mcpLabels}
-          onNotice={setToast}
-          onFirstSend={askForNotifications}
-          onMissing={openCurrent}
-        />
+        // A chat not shown before loads its messages first: spin meanwhile
+        // rather than show a blank page (ChatView.swift does the same).
+        <Suspense key={chatId} fallback={<ChatLoading />}>
+          <ChatPane
+            user={user}
+            chatId={chatId}
+            draft={draft}
+            research={research.jobs}
+            toolLabels={mcpLabels}
+            onNotice={setToast}
+            onFirstSend={askForNotifications}
+            onMissing={openCurrent}
+          />
+        </Suspense>
       ) : (
-        <main className="scroll" />
+        <ChatLoading />
       )}
 
       {toast && <NoticeToast notice={toast} onDismiss={dismissToast} />}

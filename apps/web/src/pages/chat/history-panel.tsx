@@ -37,14 +37,16 @@ export function HistoryPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const open = async (id: string) => {
-    try {
-      await api(agent).openChat(id);
-      onOpen(id);
-      onClose();
-    } catch (e) {
-      setError(errorText(e));
-    }
+  // Shows the chat at once; marking it as the one in use (which Telegram
+  // follows) happens in the background, so the switch never waits on it.
+  const open = (id: string) => {
+    onOpen(id);
+    onClose();
+    api(agent)
+      .openChat(id)
+      .catch((e: unknown) =>
+        console.warn(`Marking the open chat failed: ${String(e)}`)
+      );
   };
 
   const remove = async (id: string) => {
@@ -107,10 +109,7 @@ export function HistoryPanel({
         <ul>
           {chats?.map((chat) => (
             <li key={chat.id} className={chat.id === currentId ? "on" : ""}>
-              <button
-                className="history-item"
-                onClick={() => void open(chat.id)}
-              >
+              <button className="history-item" onClick={() => open(chat.id)}>
                 <span>{chat.title}</span>
                 {chat.snippet && <em>{chat.snippet}</em>}
                 <small>
