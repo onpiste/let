@@ -18,6 +18,11 @@ struct ComposerView: View {
     @State private var pickingPhoto = false
     @State private var photo: PhotosPickerItem?
     @State private var voice = VoiceRecorder()
+    /// Until when the box ignores text after a send. Clearing the binding
+    /// while the keyboard still holds uncommitted text (pinyin marked text, a
+    /// pending autocorrection) lets UIKit commit it right after, writing the
+    /// sent message back into the box.
+    @State private var sent: Date?
 
     private var canSend: Bool {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachments.isEmpty
@@ -104,6 +109,7 @@ struct ComposerView: View {
             case let .failure(error): onError(error.localizedDescription)
             }
         }
+        .onChange(of: text) { dropEcho() }
         .photosPicker(isPresented: $pickingPhoto, selection: $photo, matching: .images)
         .onChange(of: photo) {
             guard let item = photo else { return }
@@ -125,6 +131,9 @@ struct ComposerView: View {
         if canSend || busy {
             Button {
                 if canSend {
+                    if !text.isEmpty {
+                        sent = Date().addingTimeInterval(0.5)
+                    }
                     onSend()
                 } else {
                     onStop()
@@ -146,6 +155,18 @@ struct ComposerView: View {
                     .frame(width: 32, height: 32)
             }
             .accessibilityLabel("Voice input")
+        }
+    }
+
+    /// Clears the box again when the keyboard writes the sent message back.
+    /// The echo needn't match what was sent (pinyin becomes hanzi as it
+    /// commits), so anything arriving within half a second of a send counts;
+    /// nobody types that fast after tapping send.
+    private func dropEcho() {
+        guard let sent, !text.isEmpty else { return }
+        self.sent = nil
+        if Date() < sent {
+            text = ""
         }
     }
 
