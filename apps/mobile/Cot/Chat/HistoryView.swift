@@ -94,11 +94,9 @@ struct HistoryView: View {
             .contentShape(Rectangle())
         }
         .foregroundStyle(.primary)
-        // The row fills the drawer edge to edge, so its separators can too;
-        // the default insets leave a gap on both sides.
+        // No dividers between chats, like the web list.
         .listRowInsets(EdgeInsets())
-        .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
-        .alignmentGuide(.listRowSeparatorTrailing) { $0.width }
+        .listRowSeparator(.hidden)
         .listRowBackground(chat.id == store.chatID ? Color(.secondarySystemBackground) : nil)
         .swipeActions {
             Button("Delete", role: .destructive) {
