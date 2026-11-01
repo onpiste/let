@@ -1,4 +1,4 @@
-import { getAgentByName } from "agents";
+import { getAgentByName, routeSubAgentRequest } from "agents";
 
 import { ASSISTANT, AUTH_ROUTES, TRANSCRIBE_ROUTE } from "@cot/shared";
 
@@ -50,10 +50,21 @@ export const router = {
 
       // The Worker, not the browser, decides which assistant instance a
       // request reaches. There is deliberately no generic /agents/* route.
-      if (url.pathname.split("/")[1] === ASSISTANT.basePath) {
+      const segments = url.pathname.split("/");
+      if (segments[1] === ASSISTANT.basePath) {
         const user = await getUserFromRequest(request, env);
         if (!user) return new Response("Unauthorized", { status: 401 });
         const agent = await getAgentByName(env.Assistant, `google:${user.id}`);
+        // `/chat/sub/chat/<id>`: one of this user's chats, which the
+        // assistant's onBeforeSubAgent checks before waking it.
+        if (segments[2] === "sub") {
+          if (segments[3] !== ASSISTANT.chatPath) {
+            return new Response("Not found", { status: 404 });
+          }
+          return await routeSubAgentRequest(request, agent, {
+            fromPath: `/${segments.slice(2).join("/")}`
+          });
+        }
         if (request.headers.get("Upgrade") === "websocket") {
           await agent.setOwner(user.email, user.name);
         }

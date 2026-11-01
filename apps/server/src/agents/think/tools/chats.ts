@@ -4,8 +4,9 @@ import { z } from "zod";
 import type { ChatHit } from "../chat-index";
 
 export type ChatReader = {
-  search(query: string): ChatHit[];
-  read(id: string, seq: number): string;
+  /** Hits outside the chat the model is in. */
+  searchChats(query: string): Promise<ChatHit[]>;
+  readChat(id: string, seq: number): Promise<string>;
 };
 
 /** Look things up in the user's earlier conversations (see chat-index.ts). */
@@ -23,7 +24,7 @@ export function chatTools(chats: ChatReader) {
       }),
       execute: async ({ query }) => {
         try {
-          const hits = chats.search(query);
+          const hits = await chats.searchChats(query);
           return hits.length ? hits : "No earlier chat mentions that.";
         } catch (error) {
           return `Error searching earlier chats: ${String(error)}`;
@@ -40,7 +41,7 @@ export function chatTools(chats: ChatReader) {
       }),
       execute: async ({ chatId, seq }) => {
         try {
-          return chats.read(chatId, seq);
+          return await chats.readChat(chatId, seq);
         } catch (error) {
           return `Error reading that chat: ${String(error)}`;
         }

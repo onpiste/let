@@ -11,7 +11,8 @@ Each user brings their own bot.
    secret, keep to one-to-one chats, let `/start <code>` claim an unclaimed
    bot, and pass on only the owner's messages.
 3. Forwarded updates go to Think's messenger runtime, which replies in the
-   same conversation as the web chat.
+   chat last used in the web or iOS app (each chat is its own `Chat` agent;
+   the assistant's conversation resolver picks it).
 
 | File         | What it holds                                                    |
 | ------------ | ---------------------------------------------------------------- |

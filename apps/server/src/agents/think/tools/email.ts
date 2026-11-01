@@ -1,7 +1,17 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import type { Inbox } from "../../../integrations/email/inbox";
+import type {
+  InboxEmail,
+  InboxSummary
+} from "../../../integrations/email/inbox";
+
+/** The assistant's inbox, read from a chat over RPC. */
+export type InboxReader = {
+  listEmails(limit: number, offset: number): Promise<InboxSummary[]>;
+  searchEmails(query: string, limit: number): Promise<InboxSummary[]>;
+  readEmail(id: number): Promise<InboxEmail | null>;
+};
 
 /** How much of a body one readEmail call returns; `start` reads on. */
 const BODY_CHUNK = 20_000;
@@ -10,7 +20,7 @@ const BODY_CHUNK = 20_000;
  * Reading the assistant's own inbox. Email bodies are written by other
  * people, so they are fenced off as data the model must not obey.
  */
-export function emailTools(inbox: () => Inbox) {
+export function emailTools(inbox: InboxReader) {
   return {
     listEmails: tool({
       description:
@@ -20,7 +30,7 @@ export function emailTools(inbox: () => Inbox) {
         offset: z.number().int().min(0).default(0)
       }),
       execute: async ({ limit, offset }) => {
-        const emails = inbox().list(limit, offset);
+        const emails = await inbox.listEmails(limit, offset);
         if (emails.length > 0) return emails;
         return offset > 0 ? "No older emails." : "The inbox is empty.";
       }
@@ -34,7 +44,7 @@ export function emailTools(inbox: () => Inbox) {
         limit: z.number().int().min(1).max(50).default(10)
       }),
       execute: async ({ query, limit }) => {
-        const emails = inbox().search(query, limit);
+        const emails = await inbox.searchEmails(query, limit);
         return emails.length > 0 ? emails : `No emails match "${query}".`;
       }
     }),
@@ -52,7 +62,7 @@ export function emailTools(inbox: () => Inbox) {
           .describe("Character to start the body at, for long emails")
       }),
       execute: async ({ id, start }) => {
-        const email = inbox().get(id);
+        const email = await inbox.readEmail(id);
         if (!email) return `No email with id ${id}.`;
         const end = start + BODY_CHUNK;
         const more =

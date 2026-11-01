@@ -3,8 +3,12 @@ import Observation
 import UIKit
 
 /// The chat with the assistant: the message list, the turn in
-/// flight and the push notices, driven by the agent socket's frames. The
-/// frame types are the Agents SDK chat protocol (`cf_agent_*`).
+/// flight and the push notices. `socket` reaches the assistant itself (the
+/// callables and notices); each conversation is its own agent with its own
+/// socket (`chatSocket`), so switching chats closes it while the server keeps
+/// answering, and opening the chat again resumes the stream. The chat frame
+/// types are the Agents SDK chat protocol (`cf_agent_*`). Mirrors
+/// `chat-page.tsx` and `chat-pane.tsx`.
 @MainActor
 @Observable
 final class ChatStore {
@@ -39,6 +43,11 @@ final class ChatStore {
     var researchJobs: [ResearchJob] = []
 
     let socket: AgentSocket
+    /// The open conversation (ChatSummary.id); nil until the server names one.
+    private(set) var chatID: String?
+    private var chatSocket: AgentSocket?
+    private var askedCurrent = false
+    private let token: () -> String?
     private let userID: String?
     var onConnectionLost: (() -> Void)?
 
@@ -54,26 +63,70 @@ final class ChatStore {
 
     init(userID: String? = nil, token: @escaping () -> String?) {
         self.userID = userID
-        if let userID {
-            messages = ChatCache.load(userID: userID)
+        self.token = token
+        if let userID, let cached = ChatCache.load(userID: userID) {
+            chatID = cached.chatID
+            messages = cached.messages
         }
         socket = AgentSocket(url: Config.socketURL(basePath: "chat"), token: token)
-        socket.onFrame = { [weak self] in self?.handle($0) }
-        socket.onOpen = { [weak self] in self?.opened() }
+        socket.onFrame = { [weak self] in self?.handleAssistant($0) }
+        socket.onOpen = { [weak self] in self?.assistantOpened() }
         socket.onClose = { [weak self] in self?.closed() }
         Push.onToken = { [weak self] _ in self?.registerPush() }
     }
 
     func start() {
         socket.start()
+        if let chatID {
+            connectChat(chatID)
+        }
     }
 
     func disconnect() {
         socket.stop()
+        chatSocket?.stop()
     }
 
     func resume() {
         socket.reconnectIfNeeded()
+        chatSocket?.reconnectIfNeeded()
+    }
+
+    /// Shows another conversation. The old one's reply, if any, goes on.
+    func show(chat id: String) {
+        guard id != chatID || chatSocket == nil else { return }
+        chatSocket?.stop()
+        chatSocket = nil
+        chatID = id
+        messages = []
+        queue = []
+        loaded = false
+        errorText = nil
+        connected = false
+        resetTurn()
+        connectChat(id)
+    }
+
+    private func connectChat(_ id: String) {
+        // chatSocketPath in @cot/shared routes.ts; ids are UUIDs.
+        let chat = AgentSocket(
+            url: Config.socketURL(basePath: "chat/sub/chat/\(id)"), token: token
+        )
+        chat.onFrame = { [weak self, weak chat] frame in
+            guard let self, chat === chatSocket else { return }
+            handle(frame)
+        }
+        chat.onOpen = { [weak self, weak chat] in
+            guard let self, chat === chatSocket else { return }
+            opened()
+        }
+        chat.onClose = { [weak self, weak chat] in
+            guard let self, chat === chatSocket else { return }
+            connected = false
+            closed()
+        }
+        chatSocket = chat
+        chat.start()
     }
 
     // MARK: Actions
@@ -102,7 +155,7 @@ final class ChatStore {
             "messages": .array(messages.map(\.json)),
             "trigger": .string("submit-message")
         ])
-        socket.send(
+        chatSocket?.send(
             .object([
                 "type": .string("cf_agent_use_chat_request"),
                 "id": .string(id),
@@ -118,50 +171,10 @@ final class ChatStore {
 
     func stopTurn() {
         guard let requestID else { return }
-        socket.send(
+        chatSocket?.send(
             .object(["type": .string("cf_agent_chat_request_cancel"), "id": .string(requestID)])
         )
         finishTurn()
-    }
-
-    // MARK: History (AssistantRpc listChats / newChat / openChat / deleteChat / searchChats)
-
-    /// The server swaps the conversation and broadcasts the new messages (or
-    /// a clear), which `handle` applies like any other update.
-    func chats() async throws -> [ChatSummary] {
-        try await history("listChats")
-    }
-
-    func newChat() async throws -> [ChatSummary] {
-        queue = []
-        return try await history("newChat")
-    }
-
-    func openChat(_ id: String) async throws -> [ChatSummary] {
-        queue = []
-        return try await history("openChat", id)
-    }
-
-    func deleteChat(_ id: String) async throws
-        -> [ChatSummary]
-    {
-        try await history("deleteChat", id)
-    }
-
-    /// Chats whose title or text contains `query`, each with a snippet.
-    func searchChats(_ query: String) async throws -> [ChatSummary] {
-        try await history("searchChats", query)
-    }
-
-    private func history(_ method: String, _ arg: String? = nil) async throws -> [ChatSummary] {
-        try await socket.call(method, arg.map { [JSONValue.string($0)] } ?? [])
-            .decoded(as: [ChatSummary].self)
-    }
-
-    func startNewChat() {
-        Task {
-            do { _ = try await newChat() } catch { errorText = error.localizedDescription }
-        }
     }
 
     func respond(toApproval approvalID: String, approved: Bool) {
@@ -174,7 +187,7 @@ final class ChatStore {
         else { return }
         messages[index].parts[partIndex].set("state", .string("approval-responded"))
         status = .submitted
-        socket.send(
+        chatSocket?.send(
             .object([
                 "type": .string("cf_agent_tool_approval"),
                 "toolCallId": .string(callID),
@@ -188,18 +201,41 @@ final class ChatStore {
 
     private func opened() {
         connected = true
-        socket.send(
+        chatSocket?.send(
             .object([
                 "type": .string("cf_agent_stream_resume_request"),
                 "probeId": .string(randomID(length: 8))
             ])
         )
+    }
+
+    private func assistantOpened() {
         registerPush()
         loadResearch()
+        // Once per launch: open the chat last used on any device.
+        guard !askedCurrent else { return }
+        askedCurrent = true
+        Task {
+            do { try await show(chat: currentChat()) } catch {
+                errorText = error.localizedDescription
+            }
+        }
+    }
+
+    /// The assistant's own socket carries notices and the MCP state; its
+    /// chat frames (it holds no conversation) are ignored.
+    private func handleAssistant(_ frame: JSONValue) {
+        switch frame["type"]?.string {
+        case "cf_agent_mcp_servers":
+            mcp = frame["mcp"].flatMap { try? $0.decoded(as: McpState.self) }
+        case "reminder", "research", "research-jobs", "email":
+            handleNotice(frame)
+        default:
+            break
+        }
     }
 
     private func closed() {
-        connected = false
         // A closed socket may mean the session expired; checked at most
         // every 15 s so an offline phone doesn't hammer /auth/me.
         if Date().timeIntervalSince(lastAuthCheck) > 15 {
@@ -225,16 +261,12 @@ final class ChatStore {
         case "cf_agent_stream_resuming":
             if let id = frame["id"]?.string {
                 requestID = id
-                socket.send(
+                chatSocket?.send(
                     .object(["type": .string("cf_agent_stream_resume_ack"), "id": .string(id)])
                 )
             }
         case "cf_agent_use_chat_response":
             handleResponse(frame)
-        case "cf_agent_mcp_servers":
-            mcp = frame["mcp"].flatMap { try? $0.decoded(as: McpState.self) }
-        case "reminder", "research", "research-jobs", "email":
-            handleNotice(frame)
         default:
             break
         }
@@ -255,8 +287,8 @@ final class ChatStore {
     }
 
     private func cache() {
-        if let userID {
-            ChatCache.save(messages, userID: userID)
+        if let userID, let chatID {
+            ChatCache.save(messages, chatID: chatID, userID: userID)
         }
     }
 
@@ -346,6 +378,14 @@ final class ChatStore {
         } else {
             messages.append(ChatMessage(id: id, role: "assistant", parts: []))
         }
+    }
+
+    private func resetTurn() {
+        status = .ready
+        streamingMessageID = nil
+        requestID = nil
+        reducer = ChunkReducer()
+        appliedSeq = [:]
     }
 
     private func finishTurn() {

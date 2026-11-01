@@ -1,20 +1,18 @@
 import type { ToolSet } from "ai";
 
-import type { ApprovalMode } from "@cot/shared";
+import type { ApprovalMode, Skill } from "@cot/shared";
 
-import type { Inbox } from "../../../integrations/email/inbox";
 import type { Sandbox } from "../../../tools/sandbox";
-import type { ReminderAgent } from "../../common/reminders";
-import type { ResearchJobs } from "../research-jobs";
 import { chatTools, type ChatReader } from "./chats";
 import { codeTools } from "./code";
-import { emailTools } from "./email";
-import { memoryTools, type MemoryWriter } from "./memory";
-import { reminderTools } from "./reminders";
+import { emailTools, type InboxReader } from "./email";
+import type { MemoryWriter } from "./memory";
+import { memoryTools } from "./memory";
+import { reminderTools, type Reminders } from "./reminders";
 import { researchTools } from "./research";
 import { sandboxTools } from "./sandbox";
-import { skillTools, type SkillReader } from "./skills";
-import { webTools } from "./web";
+import { skillTools } from "./skills";
+import { webTools, type WebAccess } from "./web";
 
 /**
  * Tools that wait for the user to approve them in the chat. Telegram has no
@@ -26,41 +24,45 @@ export const NEEDS_APPROVAL = new Set([
   "codeTask"
 ]);
 
-/** Every built-in tool of the Think assistant. MCP tools are added by Think. */
-export function assistantTools({
+/** Tools a chat runs itself: stateless ones and the user's sandbox. */
+export function localTools({
   env,
-  agent,
-  memory,
-  chats,
   sandbox,
-  inbox,
-  approvalMode,
-  skills,
-  research
+  approvalMode
 }: {
   env: Env;
-  agent: ReminderAgent;
-  memory: MemoryWriter;
-  /** Saved conversations, searchable by the model. */
-  chats: ChatReader;
   sandbox: DurableObjectStub<Sandbox>;
-  /** The assistant's inbox, when it has an email address. */
-  inbox: (() => Inbox) | null;
   approvalMode: () => ApprovalMode;
-  skills: SkillReader;
-  /** Deep Research runs; a Gemini key also turns on web search. */
-  research: ResearchJobs;
 }): ToolSet {
-  const geminiKey = research.key();
   return {
-    ...memoryTools(memory),
-    ...chatTools(chats),
-    ...reminderTools(agent, env),
     ...sandboxTools(sandbox, approvalMode),
     ...codeTools(env, sandbox, approvalMode),
-    ...researchTools(env),
-    ...(geminiKey ? webTools(env, geminiKey, research) : {}),
-    ...(skills.list().length ? skillTools(skills) : {}),
-    ...(inbox ? emailTools(inbox) : {})
+    ...researchTools(env)
+  };
+}
+
+/** What the assistant does for its chats (see chat-services.ts). */
+export type AssistantServices = MemoryWriter &
+  ChatReader &
+  Reminders &
+  WebAccess &
+  InboxReader;
+
+/**
+ * Tools whose state lives in the assistant (memory, reminders, saved chats,
+ * Gemini limits, the inbox): each call goes back to it over RPC. The flags
+ * come from the turn's setup, so a tool is only offered when it works.
+ */
+export function assistantTools(
+  services: AssistantServices,
+  setup: { skills: Skill[]; webSearch: boolean; email: boolean }
+): ToolSet {
+  return {
+    ...memoryTools(services),
+    ...chatTools(services),
+    ...reminderTools(services),
+    ...(setup.webSearch ? webTools(services) : {}),
+    ...(setup.skills.length ? skillTools(setup.skills) : {}),
+    ...(setup.email ? emailTools(services) : {})
   };
 }

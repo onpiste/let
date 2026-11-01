@@ -1,16 +1,19 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import type { GeminiKey } from "../../../tools/gemini";
-import { searchWeb } from "../../../tools/web-search";
-import type { ResearchJobs } from "../research-jobs";
+/** Gemini calls, made by the assistant that holds the key and the limits. */
+export type WebAccess = {
+  searchWeb(query: string): Promise<string>;
+  /** Starts a run whose report is added to the calling chat. */
+  deepResearch(topic: string): Promise<string>;
+};
 
 /**
  * Web search and Deep Research through the Gemini API, whichever model the
  * user chats with. Only offered when there is a key: the user's own or the
  * deployment's (see tools/gemini.ts).
  */
-export function webTools(env: Env, key: GeminiKey, research: ResearchJobs) {
+export function webTools(web: WebAccess) {
   return {
     searchWeb: tool({
       description:
@@ -19,12 +22,7 @@ export function webTools(env: Env, key: GeminiKey, research: ResearchJobs) {
         query: z.string().describe("A question or search query")
       }),
       // Failures throw, so the call ends as an error the chat can show.
-      execute: async ({ query }) => {
-        research.allow("search", key);
-        const answer = await searchWeb(env, key, query);
-        research.count("search", key);
-        return answer;
-      }
+      execute: async ({ query }) => web.searchWeb(query)
     }),
 
     deepResearch: tool({
@@ -37,7 +35,7 @@ export function webTools(env: Env, key: GeminiKey, research: ResearchJobs) {
             "The full research brief: the question, scope, and what the report should cover"
           )
       }),
-      execute: async ({ topic }) => research.start(topic)
+      execute: async ({ topic }) => web.deepResearch(topic)
     })
   };
 }

@@ -1,23 +1,28 @@
 import { useEffect, useState } from "react";
 
-import { CHAT_QUERY_LENGTH, type ChatSummary } from "@cot/shared";
+import { CHAT_QUERY_LENGTH } from "@cot/shared";
 
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
 import { useChatSearch } from "./use-chat-search";
 
 /**
- * Saved conversations in a drawer from the left: search them, open one,
- * delete one, or start a new one. Mirrors `HistoryView.swift`.
+ * Conversations in a drawer from the left: search them, open one, delete
+ * one, or start a new one. A chat whose reply is still running says so;
+ * switching away never stops it. Mirrors `HistoryView.swift`.
  */
 export function HistoryPanel({
   agent,
-  onSwitch,
+  currentId,
+  onOpen,
+  onNew,
   onClose
 }: {
   agent: AgentHandle;
-  /** The open conversation changed (opened or new). */
-  onSwitch: () => void;
+  /** The chat this page shows. */
+  currentId: string | null;
+  onOpen: (id: string) => void;
+  onNew: () => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
@@ -32,13 +37,24 @@ export function HistoryPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const run = async (action: Promise<ChatSummary[]>, close: boolean) => {
+  const open = async (id: string) => {
     try {
-      const list = await action;
-      if (close) {
-        onSwitch();
-        onClose();
-      } else if (!searching) setChats(list);
+      await api(agent).openChat(id);
+      onOpen(id);
+      onClose();
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      const list = await api(agent).deleteChat(id);
+      // The open chat is gone: show the one the server picks next.
+      if (id === currentId) {
+        onOpen(await api(agent).currentChat());
+      }
+      if (!searching) setChats(list);
       else
         setChats(
           (old) => old?.filter((c) => list.some((n) => n.id === c.id)) ?? null
@@ -61,7 +77,10 @@ export function HistoryPanel({
           <strong>History</strong>
           <button
             className="link-btn"
-            onClick={() => void run(api(agent).newChat(), true)}
+            onClick={() => {
+              onNew();
+              onClose();
+            }}
           >
             New chat
           </button>
@@ -87,21 +106,24 @@ export function HistoryPanel({
         {!chats && !error && <p className="muted">Loading…</p>}
         <ul>
           {chats?.map((chat) => (
-            <li key={chat.id} className={chat.active ? "on" : ""}>
+            <li key={chat.id} className={chat.id === currentId ? "on" : ""}>
               <button
                 className="history-item"
-                onClick={() => void run(api(agent).openChat(chat.id), true)}
+                onClick={() => void open(chat.id)}
               >
                 <span>{chat.title}</span>
                 {chat.snippet && <em>{chat.snippet}</em>}
-                <small>{new Date(chat.updatedAt).toLocaleString()}</small>
+                <small>
+                  {chat.running && <b className="running">Answering… · </b>}
+                  {new Date(chat.updatedAt).toLocaleString()}
+                </small>
               </button>
               <button
                 className="icon-btn"
                 aria-label={`Delete ${chat.title}`}
                 onClick={() => {
                   if (confirm("Delete this conversation?")) {
-                    void run(api(agent).deleteChat(chat.id), false);
+                    void remove(chat.id);
                   }
                 }}
               >

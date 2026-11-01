@@ -1,42 +1,22 @@
-import { useAgentChat } from "@cloudflare/think/react";
 import type { MCPServersState } from "agents";
 import { useAgent } from "agents/react";
-import type { UIMessage } from "ai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
-import {
-  ArrowDown,
-  Calendar,
-  Clock,
-  Gear,
-  LogOut,
-  Plus
-} from "../../components/icons";
+import { Calendar, Clock, Gear, LogOut, Plus } from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
 import { api } from "../../lib/assistant-rpc";
-import {
-  checkTotalSize,
-  readAttachment,
-  type Attachment
-} from "../../lib/attachments";
-import { loadChatCache, saveChatCache } from "../../lib/chat-cache";
+import { loadChatCache } from "../../lib/chat-cache";
 import { errorText } from "../../lib/errors";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { setUpWebPush } from "../../lib/web-push";
-import { Composer } from "./composer";
-import { EmptyState } from "./empty-state";
+import { ChatPane } from "./chat-pane";
 import { HistoryPanel } from "./history-panel";
-import { MessageList } from "./message-list";
 import { NoticeToast, type Notice } from "./notice-toast";
-import { QueuedList } from "./queued-list";
-import { ResearchList } from "./research-list";
 import { mcpToolLabels } from "./tool-chip";
-import { useFollowScroll } from "./use-follow-scroll";
 import { useReconnectOnResume } from "./use-reconnect";
 import { useResearchJobs } from "./use-research-jobs";
-import { useSendQueue } from "./use-send-queue";
 
 export function ChatPage({
   user,
@@ -55,8 +35,10 @@ export function ChatPage({
   onOpenTasks: () => void;
 }) {
   const [connected, setConnected] = useState(false);
-  const [input, setInput] = useState(draft);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // The open chat: the cached one at once, then the server's choice.
+  const [chatId, setChatId] = useState(
+    () => loadChatCache(user.id)?.chatId ?? null
+  );
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState<Notice | null>(null);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
@@ -135,71 +117,39 @@ export function ChatPage({
     loadResearch(api(agent));
   }, [connected, setUpPush, loadResearch, agent]);
 
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } =
-    useAgentChat({
-      agent,
-      experimental_throttle: 50,
-      // Show the cached chat at once; the socket sends the real list on
-      // connect. Without a cache, fetch it like the SDK does.
-      getInitialMessages: async ({ url }) => {
-        const cached = loadChatCache(user.id);
-        if (cached) return cached;
-        if (!url) return [];
-        const res = await fetch(`${url}/get-messages`).catch(() => null);
-        // Trust boundary: the server's UIMessage list.
-        return res?.ok ? ((await res.json()) as UIMessage[]) : [];
-      }
-    });
-
-  const busy = status === "streaming" || status === "submitted";
-
-  // Not mid-stream: that would write the whole chat on every chunk.
+  // On the first connection, open the chat last used on any device.
+  const askedCurrent = useRef(false);
+  const openCurrent = useCallback(() => {
+    api(agent)
+      .currentChat()
+      .then(setChatId)
+      .catch((e: unknown) =>
+        setToast({ icon: "⚠️", title: "Can't open chat", text: errorText(e) })
+      );
+  }, [agent]);
   useEffect(() => {
-    if (!busy) saveChatCache(user.id, messages);
-  }, [busy, messages, user.id]);
-  const last = messages[messages.length - 1];
-  const waiting = busy && (!last || last.role === "user");
-  const empty = messages.length === 0;
-  const queued = useSendQueue(busy, (parts) => {
-    void sendMessage({
-      role: "user",
-      parts,
-      metadata: { createdAt: Date.now() }
-    });
-  });
+    if (!connected || askedCurrent.current) return;
+    askedCurrent.current = true;
+    openCurrent();
+  }, [connected, openCurrent]);
 
-  const { ref: scrollRef, away, onScroll, follow } = useFollowScroll(messages);
+  const startNewChat = () =>
+    void api(agent)
+      .newChat()
+      .then(setChatId)
+      .catch((e: unknown) =>
+        setToast({
+          icon: "⚠️",
+          title: "Can't start a new chat",
+          text: errorText(e)
+        })
+      );
 
   const dismissToast = useCallback(() => setToast(null), []);
-
-  const attach = async (files: File[]) => {
-    try {
-      const added = await Promise.all(files.map(readAttachment));
-      const next = [...attachments, ...added];
-      checkTotalSize(next);
-      setAttachments(next);
-    } catch (e) {
-      setToast({ icon: "⚠️", title: "Can't attach", text: errorText(e) });
-    }
-  };
-
-  const send = (text = input) => {
-    const t = text.trim();
-    if (!t && attachments.length === 0) return;
-    requestNotificationPermission(setUpPush);
-    const parts: UIMessage["parts"] = attachments.map((a) => a.part);
-    if (t) parts.push({ type: "text", text: t });
-    setInput("");
-    setAttachments([]);
-    follow();
-    if (busy) queued.enqueue(parts);
-    else
-      void sendMessage({
-        role: "user",
-        parts,
-        metadata: { createdAt: Date.now() }
-      });
-  };
+  const askForNotifications = useCallback(
+    () => requestNotificationPermission(setUpPush),
+    [setUpPush]
+  );
 
   return (
     <div className="app">
@@ -219,27 +169,14 @@ export function ChatPage({
           />
         </div>
         <div className="flex items-center gap-1">
-          {!empty && (
-            <button
-              className="icon-btn"
-              onClick={() =>
-                void api(agent)
-                  .newChat()
-                  .then(queued.clear)
-                  .catch((e: unknown) =>
-                    setToast({
-                      icon: "⚠️",
-                      title: "Can't start a new chat",
-                      text: errorText(e)
-                    })
-                  )
-              }
-              aria-label="New chat"
-              title="New chat"
-            >
-              <Plus />
-            </button>
-          )}
+          <button
+            className="icon-btn"
+            onClick={startNewChat}
+            aria-label="New chat"
+            title="New chat"
+          >
+            <Plus />
+          </button>
           <ThemeToggle />
           <button
             className="icon-btn"
@@ -271,56 +208,28 @@ export function ChatPage({
       {historyOpen && (
         <HistoryPanel
           agent={agent}
-          onSwitch={queued.clear}
+          currentId={chatId}
+          onOpen={setChatId}
+          onNew={startNewChat}
           onClose={() => setHistoryOpen(false)}
         />
       )}
 
-      <main className="scroll" ref={scrollRef} onScroll={onScroll}>
-        <div className="column">
-          {empty ? (
-            <EmptyState user={user} onSuggestion={send} />
-          ) : (
-            <MessageList
-              messages={messages}
-              busy={busy}
-              waiting={waiting}
-              toolLabels={mcpLabels}
-              onApproval={(id, approved) =>
-                void addToolApprovalResponse({ id, approved })
-              }
-            />
-          )}
-          <div className="h-4" />
-        </div>
-        {away && (
-          <div className="to-bottom">
-            <button
-              className="to-bottom-btn"
-              onClick={follow}
-              aria-label="Scroll to latest"
-            >
-              <ArrowDown />
-            </button>
-          </div>
-        )}
-      </main>
-
-      <ResearchList jobs={research.jobs} />
-      <QueuedList queue={queued.queue} onRemove={queued.remove} />
-      <Composer
-        value={input}
-        busy={busy}
-        attachments={attachments}
-        onChange={setInput}
-        onAttach={(files) => void attach(files)}
-        onError={(text) => setToast({ icon: "⚠️", title: "Voice input", text })}
-        onRemoveAttachment={(i) =>
-          setAttachments(attachments.filter((_, j) => j !== i))
-        }
-        onSend={() => send()}
-        onStop={() => void stop()}
-      />
+      {chatId ? (
+        <ChatPane
+          key={chatId}
+          user={user}
+          chatId={chatId}
+          draft={draft}
+          research={research.jobs}
+          toolLabels={mcpLabels}
+          onNotice={setToast}
+          onFirstSend={askForNotifications}
+          onMissing={openCurrent}
+        />
+      ) : (
+        <main className="scroll" />
+      )}
 
       {toast && <NoticeToast notice={toast} onDismiss={dismissToast} />}
     </div>

@@ -76,12 +76,14 @@ final class AttachmentTests: XCTestCase {
 final class ChatSummaryTests: XCTestCase {
     func testDecodesTheServersList() throws {
         let json = JSONValue.parse(
-            #"[{"id":"a","title":"Hello","updatedAt":"2026-10-28T04:41:34.123Z","active":true}]"#
+            #"[{"id":"a","title":"Hello","updatedAt":"2026-10-28T04:41:34.123Z","active":true,"running":true},{"id":"b","title":"Old","updatedAt":"2026-10-27T04:41:34.123Z","active":false}]"#
         )
         let chats = try XCTUnwrap(json).decoded(as: [ChatSummary].self)
 
-        XCTAssertEqual(chats.map(\.title), ["Hello"])
+        XCTAssertEqual(chats.map(\.title), ["Hello", "Old"])
         XCTAssertTrue(chats[0].active)
+        XCTAssertTrue(chats[0].running)
+        XCTAssertFalse(chats[1].running)
     }
 }
 

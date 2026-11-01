@@ -6,22 +6,37 @@ import type { UIMessage } from "ai";
 // account on the same browser never sees it. Mirrors ChatCache.swift.
 const KEY = "last-chat";
 
-export function loadChatCache(userId: string): UIMessage[] | null {
+export type CachedChat = { chatId: string; messages: UIMessage[] };
+
+export function loadChatCache(userId: string): CachedChat | null {
   try {
     const raw = localStorage.getItem(KEY);
     // Trust boundary: our own JSON from an earlier session.
     const saved = raw
-      ? (JSON.parse(raw) as { user?: string; messages?: UIMessage[] })
+      ? (JSON.parse(raw) as {
+          user?: string;
+          chatId?: string;
+          messages?: UIMessage[];
+        })
       : null;
-    return saved?.user === userId && saved.messages ? saved.messages : null;
+    return saved?.user === userId && saved.chatId && saved.messages
+      ? { chatId: saved.chatId, messages: saved.messages }
+      : null;
   } catch {
     return null;
   }
 }
 
-export function saveChatCache(userId: string, messages: UIMessage[]) {
+export function saveChatCache(
+  userId: string,
+  chatId: string,
+  messages: UIMessage[]
+) {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ user: userId, messages }));
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ user: userId, chatId, messages })
+    );
   } catch {
     // Storage full or blocked; the cache is only a speed-up.
   }

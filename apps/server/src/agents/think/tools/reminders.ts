@@ -2,12 +2,25 @@ import { scheduleSchema } from "agents/schedule";
 import { tool } from "ai";
 import { z } from "zod";
 
-import type { TaskSchedule } from "@cot/shared";
+import type { ScheduledTask, TaskSchedule } from "@cot/shared";
 
-import { setReminder, type ReminderAgent } from "../../common/reminders";
-import { Tasks } from "../tasks";
+/** The assistant's scheduled tasks, which a chat reaches over RPC. */
+export type Reminders = {
+  setReminder(
+    when: Date | string | number,
+    description: string
+  ): Promise<string>;
+  listTasks(): Promise<ScheduledTask[]>;
+  updateTask(
+    id: string,
+    change: { description?: string; schedule?: TaskSchedule }
+  ): Promise<ScheduledTask[]>;
+  pauseTask(id: string): Promise<ScheduledTask[]>;
+  resumeTask(id: string): Promise<ScheduledTask[]>;
+  deleteTask(id: string): Promise<ScheduledTask[]>;
+};
 
-export function reminderTools(agent: ReminderAgent, env: Env) {
+export function reminderTools(reminders: Reminders) {
   return {
     scheduleTask: tool({
       description:
@@ -27,7 +40,7 @@ export function reminderTools(agent: ReminderAgent, env: Env) {
                 : null;
         if (!input) return "Invalid schedule type";
         try {
-          return await setReminder(agent, env, input, description);
+          return await reminders.setReminder(input, description);
         } catch (error) {
           return `Error scheduling task: ${String(error)}`;
         }
@@ -39,7 +52,7 @@ export function reminderTools(agent: ReminderAgent, env: Env) {
         "List all scheduled tasks with their ids, schedules and whether they are paused",
       inputSchema: z.object({}),
       execute: async () => {
-        const tasks = new Tasks(agent).list();
+        const tasks = await reminders.listTasks();
         return tasks.length > 0 ? tasks : "No reminders scheduled.";
       }
     }),
@@ -66,7 +79,7 @@ export function reminderTools(agent: ReminderAgent, env: Env) {
               ? { kind: "cron", cron }
               : undefined;
         try {
-          await new Tasks(agent).update(taskId, { description, schedule });
+          await reminders.updateTask(taskId, { description, schedule });
           return `Task ${taskId} updated.`;
         } catch (error) {
           return `Error updating task: ${String(error)}`;
@@ -80,7 +93,7 @@ export function reminderTools(agent: ReminderAgent, env: Env) {
       inputSchema: z.object({ taskId: z.string() }),
       execute: async ({ taskId }) => {
         try {
-          await new Tasks(agent).pause(taskId);
+          await reminders.pauseTask(taskId);
           return `Task ${taskId} paused.`;
         } catch (error) {
           return `Error pausing task: ${String(error)}`;
@@ -93,7 +106,7 @@ export function reminderTools(agent: ReminderAgent, env: Env) {
       inputSchema: z.object({ taskId: z.string() }),
       execute: async ({ taskId }) => {
         try {
-          await new Tasks(agent).resume(taskId);
+          await reminders.resumeTask(taskId);
           return `Task ${taskId} resumed.`;
         } catch (error) {
           return `Error resuming task: ${String(error)}`;
@@ -108,7 +121,7 @@ export function reminderTools(agent: ReminderAgent, env: Env) {
       }),
       execute: async ({ taskId }) => {
         try {
-          await new Tasks(agent).remove(taskId);
+          await reminders.deleteTask(taskId);
           return `Task ${taskId} deleted.`;
         } catch (error) {
           return `Error deleting task: ${String(error)}`;

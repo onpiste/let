@@ -6,8 +6,6 @@ type Host = Pick<Agent<Env>, "sql">;
 /** A file pasted into a message as text; history and search keep its name. */
 export const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
 
-/** Bump to rebuild the index from the saved chats (e.g. after a format change). */
-const INDEX_VERSION = "1";
 /** The trigram tokenizer matches substrings of at least this many characters. */
 const MIN_TERM = 3;
 const MAX_TERMS = 8;
@@ -68,15 +66,15 @@ function likePattern(term: string) {
 
 /**
  * Full-text index over the saved chats, so the model can look up what was
- * said in earlier conversations. It mirrors `chat_messages` (see history.ts)
- * and is rewritten whenever a chat is archived or deleted. The trigram
+ * said in earlier conversations. Each chat's entries are rewritten after
+ * every turn in it (see history.ts) and dropped when it is deleted. The trigram
  * tokenizer finds substrings, which also works for languages written without
  * spaces (Chinese, Japanese).
  */
 export class ChatIndex {
   constructor(private readonly host: Host) {}
 
-  /** Needs history's tables; builds the index once for chats saved before it. */
+  /** Needs history's tables; chats are indexed as they report each turn. */
   ensure() {
     this.host.sql`CREATE VIRTUAL TABLE IF NOT EXISTS chat_search USING fts5(
       chat_id UNINDEXED,
@@ -85,22 +83,6 @@ export class ChatIndex {
       text,
       tokenize = 'trigram'
     )`;
-    const [row] = this.host.sql<{ value: string }>`
-      SELECT value FROM chat_state WHERE key = 'search_index'`;
-    if (row?.value === INDEX_VERSION) return;
-    this.host.sql`DELETE FROM chat_search`;
-    const chats = this.host.sql<{ id: string }>`SELECT id FROM chats`;
-    for (const { id } of chats) {
-      const rows = this.host.sql<{ json: string }>`
-        SELECT json FROM chat_messages WHERE chat_id = ${id} ORDER BY seq`;
-      // Parsed from our own snapshot of Think's messages.
-      this.put(
-        id,
-        rows.map((r) => JSON.parse(r.json) as UIMessage)
-      );
-    }
-    this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
-      VALUES ('search_index', ${INDEX_VERSION})`;
   }
 
   /** Replaces a chat's entries with `messages`. */

@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Saved conversations in the side drawer: search them, tap to open one,
-/// swipe to delete, or start a new one. Mirrors `history-panel.tsx`.
+/// Conversations in the side drawer: search them, tap to open one, swipe to
+/// delete, or start a new one. A chat whose reply is still running says so;
+/// switching away never stops it. Mirrors `history-panel.tsx`.
 struct HistoryView: View {
     let store: ChatStore
     /// Whether the drawer is showing; the list reloads each time it opens.
@@ -46,7 +47,7 @@ struct HistoryView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("New chat", systemImage: "square.and.pencil") {
                         Task {
-                            if await run({ try await store.newChat() }) {
+                            if await perform({ try await store.newChat() }) {
                                 onClose()
                             }
                         }
@@ -68,7 +69,7 @@ struct HistoryView: View {
     private func row(_ chat: ChatSummary) -> some View {
         Button {
             Task {
-                if await run({ try await store.openChat(chat.id) }) {
+                if await perform({ try await store.openChat(chat.id) }) {
                     onClose()
                 }
             }
@@ -78,12 +79,18 @@ struct HistoryView: View {
                 if let snippet = chat.snippet, !snippet.isEmpty {
                     Text(snippet).font(.footnote).foregroundStyle(.secondary).lineLimit(2)
                 }
-                Text(chat.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption).foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    if chat.running {
+                        Text("Answering… ·").fontWeight(.semibold).foregroundStyle(.tint)
+                    }
+                    Text(chat.updatedAt.formatted(date: .abbreviated, time: .shortened))
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
             }
         }
         .foregroundStyle(.primary)
-        .listRowBackground(chat.active ? Color(.secondarySystemBackground) : nil)
+        .listRowBackground(chat.id == store.chatID ? Color(.secondarySystemBackground) : nil)
         .swipeActions {
             Button("Delete", role: .destructive) {
                 Task {
@@ -113,6 +120,18 @@ struct HistoryView: View {
         try? await Task.sleep(for: .milliseconds(250))
         guard !Task.isCancelled else { return }
         _ = await run { try await store.searchChats(query) }
+    }
+
+    /// Runs a call that switches chats; false (with the error shown) on failure.
+    private func perform(_ action: () async throws -> Void) async -> Bool {
+        do {
+            try await action()
+            error = nil
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            return false
+        }
     }
 
     /// Runs a history call and shows the list it returns; false on failure.

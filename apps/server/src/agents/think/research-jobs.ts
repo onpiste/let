@@ -16,7 +16,8 @@ import {
 export type ResearchHost = Agent<Env> & {
   /** The schedule callback that polls a job. */
   checkResearch(id: string): Promise<void>;
-  addMessages(messages: UIMessage[]): Promise<void>;
+  /** Adds a message to a chat (null: the one in use) without a turn. */
+  postToChat(chatId: string | null, message: UIMessage): Promise<void>;
 };
 
 type JobRow = {
@@ -29,6 +30,8 @@ type JobRow = {
   problem: string | null;
   /** Polls that failed in a row. */
   failures: number;
+  /** The chat the report goes to; null for runs started before chats split. */
+  chat_id: string | null;
 };
 
 const POLL_SECONDS = 30;
@@ -49,8 +52,8 @@ const MAX_FAILURES = 10;
 /**
  * Gemini Deep Research runs, tracked in the assistant's SQLite. A run lives
  * on Google's side; the assistant polls it on a schedule (a Worker can't wait
- * minutes inside one turn) and, when it ends, adds the report to the chat as
- * an assistant message without starting a model turn.
+ * minutes inside one turn) and, when it ends, adds the report to the chat
+ * that started it as an assistant message, without starting a model turn.
  */
 export class ResearchJobs {
   constructor(
@@ -100,6 +103,9 @@ export class ResearchJobs {
       this.host.sql`ALTER TABLE research_jobs
         ADD COLUMN failures INTEGER NOT NULL DEFAULT 0`;
     }
+    if (!columns.some((column) => column.name === "chat_id")) {
+      this.host.sql`ALTER TABLE research_jobs ADD COLUMN chat_id TEXT`;
+    }
   }
 
   /** The runs still going, oldest first, for the chat's progress strip. */
@@ -125,7 +131,7 @@ export class ResearchJobs {
    * Starts a run. Throws when it can't, so the tool call ends as an error
    * and the chat shows it failed rather than started.
    */
-  async start(topic: string) {
+  async start(topic: string, chatId: string) {
     this.ensureTables();
     const key = this.key();
     if (!key) throw new Error("Deep research isn't set up on this deployment.");
@@ -139,8 +145,9 @@ export class ResearchJobs {
     this.allow("research", key);
     const id = await startResearch(this.env, key, topic);
     this.count("research", key);
-    this.host.sql`INSERT INTO research_jobs (id, topic, started_at, own_key)
-      VALUES (${id}, ${topic}, ${Date.now()}, ${key.ownKey ? 1 : 0})`;
+    this.host.sql`INSERT INTO research_jobs
+      (id, topic, started_at, own_key, chat_id)
+      VALUES (${id}, ${topic}, ${Date.now()}, ${key.ownKey ? 1 : 0}, ${chatId})`;
     // Start following soon, so the first thoughts show without a long wait.
     await this.host.schedule(5, "checkResearch", id);
     this.broadcast();
@@ -223,14 +230,12 @@ export class ResearchJobs {
     const text = ok
       ? `**Deep research: ${job.topic}**\n\n${body}`
       : `Deep research on "${job.topic}" failed: ${body}`;
-    await this.host.addMessages([
-      {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        parts: [{ type: "text", text }],
-        metadata: { createdAt: Date.now() }
-      }
-    ]);
+    await this.host.postToChat(job.chat_id, {
+      id: crypto.randomUUID(),
+      role: "assistant",
+      parts: [{ type: "text", text }],
+      metadata: { createdAt: Date.now() }
+    });
     await this.onFinished(job.topic, ok);
   }
 }

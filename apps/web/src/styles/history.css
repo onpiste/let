@@ -95,3 +95,9 @@
 .history-item small {
   color: var(--muted);
 }
+
+/* A chat whose reply is still running in the background. */
+.history-item .running {
+  color: var(--accent);
+  font-weight: 600;
+}

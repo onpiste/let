@@ -1,4 +1,7 @@
-import type { ThinkMessengers } from "@cloudflare/think/messengers";
+import type {
+  MessengerConversationResolver,
+  ThinkMessengers
+} from "@cloudflare/think/messengers";
 import telegramMessenger from "@cloudflare/think/messengers/telegram";
 
 import type { TelegramStatus } from "@cot/shared";
@@ -49,8 +52,11 @@ export class TelegramChannel {
     this.options.store.saveTelegramConfig(config);
   }
 
-  /** The messenger Think should run, if a bot is connected. */
-  messengers(): ThinkMessengers {
+  /**
+   * The messenger Think should run, if a bot is connected. `conversation`
+   * picks the chat each message goes to (the assistant's chat in use).
+   */
+  messengers(conversation: MessengerConversationResolver): ThinkMessengers {
     const config = this.config;
     if (!config) return {};
     return {
@@ -59,7 +65,7 @@ export class TelegramChannel {
         userName: config.botUsername,
         secretToken: config.webhookSecret,
         apiBaseUrl: this.options.env.TELEGRAM_API_BASE_URL || undefined,
-        conversation: "self",
+        conversation,
         respondTo: ["direct-message"]
       })
     };
@@ -161,7 +167,7 @@ export class TelegramChannel {
           env,
           config.token,
           decision.chatId,
-          "Connected ✓ This bot now talks to your assistant — same conversation, memory and reminders as the web app."
+          "Connected ✓ This bot now talks to your assistant — it writes into the chat you last used in the app, with the same memory and reminders."
         );
         return "handled";
       case "reject":

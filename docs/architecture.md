@@ -109,6 +109,31 @@ source layout has to change.
   (`cf_agent_*` chat frames, `{type:"rpc"}` for `AssistantRpc`). See
   [apps/mobile/README.md](../apps/mobile/README.md).
 
+## Chats
+
+Each signed-in account has one `Assistant` Durable Object, and each of its
+conversations is a `Chat` agent: a Think facet of the assistant with its own
+SQLite (see [ADR 0003](adr/0003-one-agent-per-chat.md)).
+
+```
+client ── /chat ──────────────► Assistant   callables, notices, MCP state, catalog
+       └─ /chat/sub/chat/<id> ─► Chat <id>   messages, turns, resumable stream
+                                    │  ChatServices (DO RPC): settings + prompt,
+                                    └─ memory, reminders, Gemini, inbox, MCP
+```
+
+- A client keeps two sockets: the assistant's (`AssistantRpc`, notices) and
+  the open chat's (`chatSocketPath` in `@cot/shared`). Switching chats only
+  swaps the second; a reply keeps running on the server and resumes when the
+  chat is opened again. `ChatSummary.running` marks it in the history list.
+- Before each turn the chat asks the assistant for its settings, system
+  prompt, usage-limit verdict and MCP tools (`ChatServices.turn`); after it,
+  the chat reports its messages, which update the catalog, the title and the
+  search index.
+- Telegram, reminders and Deep Research stay on the assistant. Telegram
+  writes into the chat last written in; a research report goes to the chat
+  that started it.
+
 ## Adding server capabilities
 
 See [apps/server/AGENTS.md](../apps/server/AGENTS.md): tools go in

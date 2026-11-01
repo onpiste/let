@@ -7,15 +7,15 @@ import { ChatIndex, INLINE_FILE } from "./chat-index";
 import { chatMatch, checkQuery } from "./chat-search";
 import { generateTitle } from "./title";
 
-/** The Think methods the history swaps conversations through. */
-type Host = Pick<Agent<Env>, "sql"> & {
-  getMessages(): Promise<UIMessage[]>;
-  clearMessages(): Promise<void>;
-  addMessages(messages: UIMessage[]): Promise<void>;
-};
+type Host = Pick<Agent<Env>, "sql">;
 
 const TITLE_LENGTH = 60;
 const SEARCH_RESULTS = 50;
+/**
+ * A chat still marked as answering after this long lost its turn without
+ * reporting back (e.g. deleted mid-turn); stop showing it as running.
+ */
+const RUNNING_TIMEOUT_MS = 15 * 60 * 1000;
 
 /** The first user text (or attached file name), for the history list. */
 function chatTitle(messages: UIMessage[]) {
@@ -38,8 +38,10 @@ function chatTitle(messages: UIMessage[]) {
 }
 
 /** Callable arguments arrive untyped from the client. */
-function checkId(id: unknown) {
-  if (typeof id !== "string" || id.length > 64) throw new Error("Bad chat id.");
+export function checkChatId(id: unknown): asserts id is string {
+  if (typeof id !== "string" || !id || id.length > 64) {
+    throw new Error("Bad chat id.");
+  }
 }
 
 /**
@@ -52,10 +54,10 @@ export function stampCreatedAt({ part }: { part: { type: string } }) {
 }
 
 /**
- * Saved conversations. Think holds one conversation, so history works by
- * swapping: the active one is snapshotted into SQLite (one row per message,
- * since a row is capped at 2 MB) and another is loaded back in its place.
- * Saved chats are also indexed (chat-index.ts) so the model can search them.
+ * The catalog of the user's chats, kept by the assistant. Each conversation
+ * lives in its own `Chat` agent (chat.ts); after every turn it reports its
+ * messages here, which updates the title, the history list and the search
+ * index (chat-index.ts) the model and the history drawer use.
  */
 export class ChatHistory {
   constructor(private readonly host: Host) {}
@@ -64,12 +66,14 @@ export class ChatHistory {
     return new ChatIndex(this.host);
   }
 
-  private ensureTables() {
+  ensureTables() {
     this.host.sql`CREATE TABLE IF NOT EXISTS chats (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`;
+    // Snapshots from when one conversation was swapped in and out; read once
+    // by chat-migration.ts and emptied.
     this.host.sql`CREATE TABLE IF NOT EXISTS chat_messages (
       chat_id TEXT NOT NULL,
       seq INTEGER NOT NULL,
@@ -80,20 +84,33 @@ export class ChatHistory {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     )`;
+    const columns = this.host.sql<{ name: string }>`
+      SELECT name FROM pragma_table_info('chats')`;
+    if (!columns.some((column) => column.name === "running_since")) {
+      this.host.sql`ALTER TABLE chats ADD COLUMN running_since INTEGER`;
+    }
     this.index.ensure();
   }
 
-  private activeId() {
+  /** The chat last written in, which Telegram talks into. */
+  activeId() {
     const [row] = this.host.sql<{ value: string }>`
       SELECT value FROM chat_state WHERE key = 'active'`;
     if (row) return row.value;
     return this.setActive(crypto.randomUUID());
   }
 
-  private setActive(id: string) {
+  setActive(id: string) {
     this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
       VALUES ('active', ${id})`;
     return id;
+  }
+
+  /** Ids of the chats that have messages. */
+  ids() {
+    return new Set(
+      this.host.sql<{ id: string }>`SELECT id FROM chats`.map((r) => r.id)
+    );
   }
 
   /** A title the model wrote, which wins over the first-message fallback. */
@@ -103,19 +120,39 @@ export class ChatHistory {
     return row?.value ?? null;
   }
 
-  private titleFor(id: string, messages: UIMessage[]) {
-    return this.namedTitle(id) ?? chatTitle(messages);
+  /**
+   * Saves what a chat now holds. `running` is true while a turn is in
+   * flight, false when one ended and null to leave it as it is.
+   */
+  record(id: string, messages: UIMessage[], running: boolean | null) {
+    if (messages.length === 0) return;
+    const title = this.namedTitle(id) ?? chatTitle(messages);
+    const now = new Date().toISOString();
+    this.host.sql`INSERT INTO chats (id, title, updated_at)
+      VALUES (${id}, ${title}, ${now})
+      ON CONFLICT (id) DO UPDATE SET title = excluded.title,
+        updated_at = excluded.updated_at`;
+    if (running !== null) this.setRunning(id, running);
+    this.index.put(id, messages);
+  }
+
+  /** Rewrites a chat's search entries without touching its date. */
+  reindex(id: string, messages: UIMessage[]) {
+    this.index.put(id, messages);
+  }
+
+  setRunning(id: string, running: boolean) {
+    this.host
+      .sql`UPDATE chats SET running_since = ${running ? Date.now() : null}
+      WHERE id = ${id}`;
   }
 
   /**
-   * Names the active chat once it has a first exchange. A failure keeps the
+   * Names a chat once it has a first exchange. A failure keeps the
    * first-message title, and the next reply tries again.
    */
-  async autoTitle(ai: Ai) {
-    this.ensureTables();
-    const id = this.activeId();
+  async autoTitle(ai: Ai, id: string, messages: UIMessage[]) {
     if (this.namedTitle(id)) return;
-    const messages = await this.host.getMessages();
     if (!messages.some((m) => m.role === "assistant")) return;
     let title: string | null = null;
     try {
@@ -124,119 +161,58 @@ export class ChatHistory {
       // Cosmetic: the list keeps the first-message title.
       console.error(`Chat title failed: ${String(error)}`);
     }
-    // The chat may have been swapped out while the model was thinking.
-    if (!title || id !== this.activeId()) return;
+    // The chat may have been deleted while the model was thinking.
+    if (!title || !this.ids().has(id)) return;
     this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
       VALUES (${`title:${id}`}, ${title})`;
+    this.host.sql`UPDATE chats SET title = ${title} WHERE id = ${id}`;
   }
 
-  async list(): Promise<ChatSummary[]> {
-    this.ensureTables();
+  list(): ChatSummary[] {
     const active = this.activeId();
-    const current = await this.host.getMessages();
-    const saved = this.host.sql<{
+    const now = Date.now();
+    return this.host.sql<{
       id: string;
       title: string;
       updated_at: string;
-    }>`SELECT id, title, updated_at FROM chats
-       WHERE id != ${active} ORDER BY updated_at DESC`;
-    const list: ChatSummary[] = saved.map((row) => ({
+      running_since: number | null;
+    }>`SELECT id, title, updated_at, running_since FROM chats
+       ORDER BY updated_at DESC`.map((row) => ({
       id: row.id,
       title: row.title,
       updatedAt: row.updated_at,
-      active: false
+      active: row.id === active,
+      running:
+        row.running_since !== null &&
+        now - row.running_since < RUNNING_TIMEOUT_MS
     }));
-    if (current.length > 0) {
-      list.unshift({
-        id: active,
-        title: this.titleFor(active, current),
-        updatedAt: new Date().toISOString(),
-        active: true
-      });
-    }
-    return list;
   }
 
-  /** Writes the active conversation to its snapshot (or drops it if empty). */
-  private async archive() {
-    const id = this.activeId();
-    const messages = await this.host.getMessages();
-    this.host.sql`DELETE FROM chat_messages WHERE chat_id = ${id}`;
-    if (messages.length === 0) {
-      this.host.sql`DELETE FROM chats WHERE id = ${id}`;
-      this.host.sql`DELETE FROM chat_state WHERE key = ${`title:${id}`}`;
-      this.index.drop(id);
-      return;
-    }
-    messages.forEach((message, seq) => {
-      this.host.sql`INSERT INTO chat_messages (chat_id, seq, json)
-        VALUES (${id}, ${seq}, ${JSON.stringify(message)})`;
-    });
-    this.host.sql`INSERT OR REPLACE INTO chats (id, title, updated_at)
-      VALUES (${id}, ${this.titleFor(id, messages)}, ${new Date().toISOString()})`;
-    this.index.put(id, messages);
-  }
-
-  async create() {
-    this.ensureTables();
-    await this.archive();
-    await this.host.clearMessages();
-    this.setActive(crypto.randomUUID());
-    return this.list();
-  }
-
-  async open(id: string) {
-    checkId(id);
-    this.ensureTables();
-    if (id === this.activeId()) return this.list();
-    const rows = this.host.sql<{ json: string }>`
-      SELECT json FROM chat_messages WHERE chat_id = ${id} ORDER BY seq`;
-    if (rows.length === 0) throw new Error("That chat no longer exists.");
-    await this.archive();
-    await this.host.clearMessages();
-    // Parsed from our own earlier snapshot of Think's messages.
-    await this.host.addMessages(
-      rows.map((row) => JSON.parse(row.json) as UIMessage)
-    );
-    this.setActive(id);
-    return this.list();
-  }
-
-  async remove(id: string) {
-    checkId(id);
-    this.ensureTables();
-    if (id === this.activeId()) {
-      await this.host.clearMessages();
-      this.setActive(crypto.randomUUID());
-    }
+  remove(id: string) {
     this.host.sql`DELETE FROM chat_messages WHERE chat_id = ${id}`;
     this.host.sql`DELETE FROM chats WHERE id = ${id}`;
     this.host.sql`DELETE FROM chat_state WHERE key = ${`title:${id}`}`;
     this.index.drop(id);
-    return this.list();
+    if (id === this.activeId()) this.setActive(crypto.randomUUID());
   }
 
-  /** Earlier chats matching `query`; the active one is already in context. */
-  search(query: string) {
-    this.ensureTables();
-    return this.index.search(query, this.activeId());
+  /** Earlier chats matching `query`, outside the chat asking. */
+  search(query: string, exceptId: string) {
+    return this.index.search(query, exceptId);
   }
 
   /**
    * The history list filtered to chats whose title or text contains `query`
    * (the `searchChats` callable), each with a snippet around the match.
    */
-  async find(query: unknown): Promise<ChatSummary[]> {
+  find(query: unknown): ChatSummary[] {
     const needle = checkQuery(query);
-    const all = await this.list();
+    const all = this.list();
     if (!needle) return all;
     const texts = this.index.firstMatches(needle);
-    // The active chat isn't indexed until it is archived.
-    const current = await this.host.getMessages();
     const results: ChatSummary[] = [];
     for (const chat of all) {
-      const content = chat.active ? current : texts.get(chat.id);
-      const snippet = chatMatch(chat.title, content, needle);
+      const snippet = chatMatch(chat.title, texts.get(chat.id), needle);
       if (snippet !== null) results.push({ ...chat, snippet });
     }
     return results.slice(0, SEARCH_RESULTS);
@@ -244,8 +220,7 @@ export class ChatHistory {
 
   /** The messages around `seq` in a saved chat. */
   read(id: string, seq: number) {
-    checkId(id);
-    this.ensureTables();
+    checkChatId(id);
     return this.index.read(id, seq);
   }
 }

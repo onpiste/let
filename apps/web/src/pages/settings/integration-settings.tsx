@@ -76,7 +76,7 @@ export function IntegrationSettings({
               <div className="font-medium">Telegram</div>
               <div className="muted small">
                 {telegram?.configured
-                  ? `Your bot @${telegram.botUsername} — same conversation, memory and reminders as here`
+                  ? `Your bot @${telegram.botUsername} — writes into your latest chat, with the same memory and reminders`
                   : "Chat with your assistant through your own Telegram bot"}
               </div>
             </div>

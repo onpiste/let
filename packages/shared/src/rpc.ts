@@ -19,12 +19,18 @@ export type AddMcpResult =
  * signature breaks the build on both sides instead of at runtime.
  */
 export interface AssistantRpc {
-  /** Saved conversations, newest first; the active one is flagged. */
+  /**
+   * Conversations with at least one message, newest first. Switching between
+   * them never interrupts a reply: each runs in its own agent.
+   */
   listChats(): Promise<ChatSummary[]>;
-  /** Saves the active conversation and starts an empty one. */
-  newChat(): Promise<ChatSummary[]>;
-  /** Saves the active conversation and makes a saved one active. */
+  /** The chat to open on start: the one last used, or a new empty one. */
+  currentChat(): Promise<string>;
+  /** Creates an empty chat and returns its id, for `chatSocketPath`. */
+  newChat(): Promise<string>;
+  /** Marks a chat as the one in use (Telegram follows it). */
   openChat(id: string): Promise<ChatSummary[]>;
+  /** Deletes a chat, stopping a reply that is still running in it. */
   deleteChat(id: string): Promise<ChatSummary[]>;
   /**
    * Conversations whose title or text contains `query` (case-insensitive),

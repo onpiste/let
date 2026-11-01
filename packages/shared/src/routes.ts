@@ -33,9 +33,23 @@ export const NATIVE_AUTH_PARAMS = {
 /**
  * The assistant a client talks to. `agent` is the Durable Object class name
  * and `basePath` the WebSocket/HTTP prefix the Worker routes to the
- * signed-in user's own instance.
+ * signed-in user's own instance. That socket carries the callables and
+ * notices; each conversation is a `chat` sub-agent with a socket of its own
+ * at `{basePath}/sub/{chatPath}/{chatId}` (see `chatSocketPath`).
  */
-export const ASSISTANT = { agent: "Assistant", basePath: "chat" } as const;
+export const ASSISTANT = {
+  agent: "Assistant",
+  basePath: "chat",
+  /** The class of one conversation, for `useAgent({ sub })`. */
+  chat: "Chat",
+  /** That class in the socket path (kebab-cased). */
+  chatPath: "chat"
+} as const;
+
+/** The path, after `basePath`, of one conversation's socket. */
+export function chatSocketPath(chatId: string) {
+  return `sub/${ASSISTANT.chatPath}/${encodeURIComponent(chatId)}`;
+}
 
 /** Where MCP servers send the user back after OAuth; routed like `/chat`. */
 export const MCP_CALLBACK_PATH = `${ASSISTANT.basePath}/mcp-callback`;

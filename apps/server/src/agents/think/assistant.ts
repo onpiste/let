@@ -1,7 +1,7 @@
-import { Think, type TurnConfig, type TurnContext } from "@cloudflare/think";
+import { Think } from "@cloudflare/think";
 import type { ThinkMessengers } from "@cloudflare/think/messengers";
 import { callable, getCurrentAgent } from "agents";
-import type { LanguageModel, ToolSet } from "ai";
+import type { LanguageModel, UIMessage } from "ai";
 
 import {
   MCP_CALLBACK_PATH,
@@ -22,29 +22,29 @@ import { emailNotice, triagedNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
 import { OwnerPush } from "../../integrations/push";
 import { TelegramChannel } from "../../integrations/telegram/channel";
-import { countTurn } from "../common/usage";
-import { cannedReply } from "./canned-reply";
-import { ChatHistory, stampCreatedAt } from "./history";
+import { Chat } from "./chat";
+import { ChatDirectory } from "./chat-directory";
+import { ChatServices } from "./chat-services";
+import { ChatHistory } from "./history";
 import { mcpPopupResult } from "./mcp-popup";
-import { languageModelFor, modelFor, paidByUser } from "./model";
+import { languageModelFor, modelFor } from "./model";
 import { notifyOwner, reminderNotice, researchNotice } from "./notices";
 import { ResearchJobs } from "./research-jobs";
 import { deleteSkill, saveSkill } from "./skill-save";
 import { AssistantStore } from "./store";
-import { buildSystemPrompt } from "./system-prompt";
 import { Tasks } from "./tasks";
-import { assistantTools, NEEDS_APPROVAL } from "./tools";
 
 /**
  * A personal assistant. Each signed-in Google account gets its own Durable
- * Object instance, which keeps the chat history, long-term memories and
- * scheduled reminders for that person.
+ * Object instance, which keeps that person's settings, long-term memories,
+ * skills, scheduled reminders and the catalog of their chats.
  *
- * Think runs the agentic loop, persists the conversation and resumes
- * interrupted turns; this class only supplies the model, prompt and tools,
- * and exposes the callables in AssistantRpc. The user's own Telegram bot,
- * once connected, shares this same conversation (integrations/telegram).
- * Its own email address files incoming mail in an inbox (integrations/email).
+ * Each conversation is a `Chat` agent (chat.ts), a facet of this one, so
+ * several can answer at once; they reach back for the user's state through
+ * `chatServices`. This class exposes the callables in AssistantRpc. It
+ * extends Think only to host the Telegram messenger, which writes into the
+ * chat last used (integrations/telegram). Its own email address files
+ * incoming mail in an inbox (integrations/email).
  *
  * Only the signed-in owner can reach an instance (see http/router.ts).
  */
@@ -84,6 +84,12 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return new OwnerPush(this.env, this);
   }
 
+  private get history() {
+    const history = new ChatHistory(this);
+    history.ensureTables();
+    return history;
+  }
+
   private get research() {
     return new ResearchJobs(this, this.env, this.store, (topic, ok) =>
       this.notify(researchNotice(topic, ok))
@@ -108,99 +114,91 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     this.mcp.configureOAuthCallback({ customHandler: mcpPopupResult });
   }
 
-  // ── Think hooks ─────────────────────────────────────────────────────
+  // ── Think hooks: turns run in the chats, not here ────────────────────
 
   override getModel(): string | LanguageModel {
     return modelFor(this.store.getSettings());
   }
 
-  // Called every turn (no context blocks are configured), so the memory list
-  // and the current date are always fresh.
-  override getSystemPrompt() {
-    return this.systemPrompt(true);
-  }
-
-  override messageMetadata = stampCreatedAt;
-
-  override beforeTurn(ctx: TurnContext): TurnConfig | void {
-    // Continuations and recoveries finish a turn that was already counted.
-    const newTurn =
-      ctx.trigger !== undefined &&
-      !ctx.continuation &&
-      !ctx.trigger.startsWith("recovery");
-    if (newTurn) {
-      const paid = paidByUser(this.store.getSettings());
-      const refusal = countTurn(this.store, this.env, paid);
-      if (refusal) return { model: cannedReply(refusal), activeTools: [] };
-    }
-    if (!ctx.messenger) return;
-    return {
-      activeTools: Object.keys(ctx.tools).filter(
-        (name) => !NEEDS_APPROVAL.has(name)
-      ),
-      instructions: this.systemPrompt(false)
-    };
-  }
-
-  override async onChatResponse() {
-    await new ChatHistory(this).autoTitle(this.env.AI);
-  }
-
-  override getTools(): ToolSet {
-    return assistantTools({
-      env: this.env,
-      agent: this,
-      memory: this,
-      chats: new ChatHistory(this),
-      sandbox: this.env.SANDBOX.getByName(this.name),
-      inbox: this.emailAddress() ? () => new Inbox(this) : null,
-      approvalMode: () => this.store.getSettings().approvalMode,
-      skills: { list: () => this.store.listSkills() },
-      research: this.research
-    });
-  }
-
   override getMessengers(): ThinkMessengers {
     this.store.ensureTables();
-    return this.telegram.messengers();
+    return this.telegram.messengers(async () => ({
+      target: "subagent",
+      agentClass: Chat,
+      name: await this.currentChat()
+    }));
   }
 
-  private systemPrompt(commandsAllowed: boolean) {
-    return buildSystemPrompt({
-      settings: this.store.getSettings(),
-      memories: this.store.listMemories(),
-      commandsAllowed,
-      emailAddress: this.emailAddress(),
-      skills: this.store.listSkills(),
-      webSearch: this.research.key() !== null
-    });
-  }
+  // ── Chats (callables) ───────────────────────────────────────────────
 
-  // ── Chat history (callables) ────────────────────────────────────────
+  private directory: ChatDirectory | null = null;
+
+  private get chats() {
+    this.directory ??= new ChatDirectory(this, () => this.history);
+    return this.directory;
+  }
 
   @callable()
   async listChats() {
-    return new ChatHistory(this).list();
+    return this.chats.list();
+  }
+
+  @callable()
+  async currentChat() {
+    return this.chats.current();
   }
 
   @callable()
   async newChat() {
-    return new ChatHistory(this).create();
+    return this.chats.create();
   }
 
   @callable()
   async openChat(id: string) {
-    return new ChatHistory(this).open(id);
+    return this.chats.open(id);
   }
 
   @callable()
   async deleteChat(id: string) {
-    return new ChatHistory(this).remove(id);
+    return this.chats.remove(id);
   }
 
   @callable()
   async searchChats(query: string) {
-    return new ChatHistory(this).find(query);
+    return this.chats.find(query);
+  }
+
+  /** Only chats this assistant created can be reached from outside. */
+  override async onBeforeSubAgent(
+    _request: Request,
+    { className, name }: { className: string; name: string }
+  ) {
+    await this.chats.ready();
+    if (className !== Chat.name || !this.chats.exists(name)) {
+      return new Response("Not found", { status: 404 });
+    }
+    return undefined;
+  }
+
+  /** What a chat uses of this assistant, over DO RPC (not a callable). */
+  chatServices(chatId: string) {
+    this.store.ensureTables();
+    const address = this.emailAddress();
+    return new ChatServices(chatId, {
+      env: this.env,
+      agent: this,
+      store: this.store,
+      history: this.history,
+      research: this.research,
+      inbox: address ? new Inbox(this) : null,
+      emailAddress: address,
+      mcp: this.mcp
+    });
+  }
+
+  /** Adds a message to a chat without a turn (research-jobs.ts). */
+  async postToChat(chatId: string | null, message: UIMessage) {
+    await this.chats.post(chatId, message);
   }
 
   // ── Scheduled tasks (callables) ─────────────────────────────────────

@@ -169,9 +169,7 @@ struct ChatView: View {
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
             Button("Tasks", systemImage: "calendar") { showTasks = true }
-            if !store.messages.isEmpty {
-                Button("New chat", systemImage: "square.and.pencil", action: store.startNewChat)
-            }
+            Button("New chat", systemImage: "square.and.pencil", action: store.startNewChat)
             Button("Settings", systemImage: "gearshape") { showSettings = true }
         }
     }

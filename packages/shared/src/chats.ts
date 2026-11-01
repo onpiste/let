@@ -1,15 +1,18 @@
 /**
- * One conversation in the history list. The assistant keeps exactly one
- * conversation active (the one Telegram and every client share); the others
- * are saved snapshots that `openChat` swaps back in.
+ * One conversation in the history list. Each conversation is its own agent
+ * (the `Chat` facet under the user's assistant), so several can answer at
+ * once and a reply keeps going while the client looks at another chat.
  */
 export type ChatSummary = {
   id: string;
-  /** The first thing the user said, trimmed. */
+  /** A short title the model wrote, or the first thing the user said. */
   title: string;
   /** ISO timestamp of the last change. */
   updatedAt: string;
+  /** The chat last written in from any client; Telegram talks into it. */
   active: boolean;
+  /** The assistant is answering in this chat right now. */
+  running: boolean;
   /** From `searchChats`: the text around the first match. */
   snippet?: string;
 };
