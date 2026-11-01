@@ -157,6 +157,9 @@
 .tool-chip .dot.done {
   background: #4caf7a;
 }
+.tool-chip .dot.failed {
+  background: #e5484d;
+}
 .tool-chip .dot.pending {
   background: var(--accent);
   animation: pulse 1s infinite;

@@ -45,7 +45,12 @@ export function ToolChip({
 }) {
   if (!isToolUIPart(part)) return null;
   const name = getToolName(part);
-  const done = part.state === "output-available";
+  const status =
+    part.state === "output-available"
+      ? "done"
+      : part.state === "output-error"
+        ? "failed"
+        : "pending";
   const input = part.input as Record<string, unknown> | undefined;
   const detail =
     (input?.command as string) ||
@@ -58,7 +63,7 @@ export function ToolChip({
   return (
     <div className="tool-chip-group">
       <div className="tool-chip">
-        <span className={`dot ${done ? "done" : "pending"}`} />
+        <span className={`dot ${status}`} />
         <span className="font-medium">
           {TOOL_LABELS[name] ?? labels[name] ?? name}
         </span>

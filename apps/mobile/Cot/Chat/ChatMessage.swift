@@ -188,6 +188,10 @@ struct ToolCall: Equatable {
         state == .outputAvailable
     }
 
+    var isFailed: Bool {
+        state == .outputError
+    }
+
     var awaitsApproval: Bool {
         state == .approvalRequested && approvalID != nil
     }

@@ -31,7 +31,7 @@ struct ToolChipView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Circle()
-                    .fill(call.isDone ? Color.green : Color.orange)
+                    .fill(call.isDone ? .green : call.isFailed ? .red : .orange)
                     .frame(width: 8, height: 8)
                 Text(toolTitles[call.name] ?? labels[call.name] ?? call.name)
                     .font(.footnote.weight(.medium))

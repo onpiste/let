@@ -18,14 +18,12 @@ export function webTools(env: Env, key: GeminiKey, research: ResearchJobs) {
       inputSchema: z.object({
         query: z.string().describe("A question or search query")
       }),
+      // Failures throw, so the call ends as an error the chat can show.
       execute: async ({ query }) => {
-        const refusal = research.allow("search", key);
-        if (refusal) return refusal;
-        try {
-          return await searchWeb(env, key, query);
-        } catch (error) {
-          return `Error searching the web: ${String(error)}`;
-        }
+        research.allow("search", key);
+        const answer = await searchWeb(env, key, query);
+        research.count("search", key);
+        return answer;
       }
     }),
 
@@ -39,13 +37,7 @@ export function webTools(env: Env, key: GeminiKey, research: ResearchJobs) {
             "The full research brief: the question, scope, and what the report should cover"
           )
       }),
-      execute: async ({ topic }) => {
-        try {
-          return await research.start(topic);
-        } catch (error) {
-          return `Could not start the research: ${String(error)}`;
-        }
-      }
+      execute: async ({ topic }) => research.start(topic)
     })
   };
 }

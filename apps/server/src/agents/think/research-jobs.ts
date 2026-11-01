@@ -5,7 +5,11 @@ import type { Settings } from "@cot/shared";
 
 import { researchState, startResearch } from "../../tools/deep-research";
 import { geminiKey, type GeminiKey } from "../../tools/gemini";
-import { takeWebUse, type WebUsageStore } from "../common/web-usage";
+import {
+  countWebUse,
+  webUseRefusal,
+  type WebUsageStore
+} from "../common/web-usage";
 
 /** The assistant, as far as research jobs need it. */
 export type ResearchHost = Agent<Env> & {
@@ -47,9 +51,20 @@ export class ResearchJobs {
     return geminiKey(this.env, this.store.getSettings().apiKeys.google);
   }
 
-  /** Counts a use of the deployment's key; the user's own key is free. */
+  /**
+   * Throws when the account is out of today's shared Gemini access; the
+   * user's own key is free and never limited.
+   */
   allow(use: "search" | "research", key: GeminiKey) {
-    return key.ownKey ? null : takeWebUse(this.env, this.store, use);
+    const refusal = key.ownKey
+      ? null
+      : webUseRefusal(this.env, this.store, use);
+    if (refusal) throw new Error(refusal);
+  }
+
+  /** Counts a use Google accepted against the deployment's key. */
+  count(use: "search" | "research", key: GeminiKey) {
+    if (!key.ownKey) countWebUse(this.store, use);
   }
 
   private ensureTables() {
@@ -61,18 +76,24 @@ export class ResearchJobs {
     )`;
   }
 
+  /**
+   * Starts a run. Throws when it can't, so the tool call ends as an error
+   * and the chat shows it failed rather than started.
+   */
   async start(topic: string) {
     this.ensureTables();
     const key = this.key();
-    if (!key) return "Deep research isn't set up on this deployment.";
+    if (!key) throw new Error("Deep research isn't set up on this deployment.");
     const [running] = this.host.sql<{ n: number }>`
       SELECT COUNT(*) AS n FROM research_jobs`;
     if ((running?.n ?? 0) >= MAX_RUNNING) {
-      return `${MAX_RUNNING} research runs are already going. Wait for one to finish.`;
+      throw new Error(
+        `${MAX_RUNNING} research runs are already going. Wait for one to finish.`
+      );
     }
-    const refusal = this.allow("research", key);
-    if (refusal) return refusal;
+    this.allow("research", key);
     const id = await startResearch(this.env, key, topic);
+    this.count("research", key);
     this.host.sql`INSERT INTO research_jobs (id, topic, started_at, own_key)
       VALUES (${id}, ${topic}, ${Date.now()}, ${key.ownKey ? 1 : 0})`;
     await this.host.schedule(POLL_SECONDS, "checkResearch", id);
