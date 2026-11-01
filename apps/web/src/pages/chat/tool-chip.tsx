@@ -15,6 +15,8 @@ const TOOL_LABELS: Record<string, string> = {
   searchWeb: "Searched the web",
   deepResearch: "Started deep research",
   searchKnowledge: "Searched knowledge base",
+  searchChats: "Searched earlier chats",
+  readChat: "Read earlier chat",
   runCode: "Ran code",
   codeTask: "Coding agent",
   updateScheduledTask: "Task updated",

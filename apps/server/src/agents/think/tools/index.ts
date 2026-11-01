@@ -6,6 +6,7 @@ import type { Inbox } from "../../../integrations/email/inbox";
 import type { Sandbox } from "../../../tools/sandbox";
 import type { ReminderAgent } from "../../common/reminders";
 import type { ResearchJobs } from "../research-jobs";
+import { chatTools, type ChatReader } from "./chats";
 import { codeTools } from "./code";
 import { emailTools } from "./email";
 import { memoryTools, type MemoryWriter } from "./memory";
@@ -30,6 +31,7 @@ export function assistantTools({
   env,
   agent,
   memory,
+  chats,
   sandbox,
   inbox,
   approvalMode,
@@ -39,6 +41,8 @@ export function assistantTools({
   env: Env;
   agent: ReminderAgent;
   memory: MemoryWriter;
+  /** Saved conversations, searchable by the model. */
+  chats: ChatReader;
   sandbox: DurableObjectStub<Sandbox>;
   /** The assistant's inbox, when it has an email address. */
   inbox: (() => Inbox) | null;
@@ -50,6 +54,7 @@ export function assistantTools({
   const geminiKey = research.key();
   return {
     ...memoryTools(memory),
+    ...chatTools(chats),
     ...reminderTools(agent, env),
     ...sandboxTools(sandbox, approvalMode),
     ...codeTools(env, sandbox, approvalMode),

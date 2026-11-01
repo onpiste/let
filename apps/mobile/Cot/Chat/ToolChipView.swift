@@ -13,6 +13,8 @@ private let toolTitles: [String: String] = [
     "searchWeb": "Searched the web",
     "deepResearch": "Started deep research",
     "searchKnowledge": "Searched knowledge base",
+    "searchChats": "Searched earlier chats",
+    "readChat": "Read earlier chat",
     "runCode": "Ran code",
     "useSkill": "Used skill",
     "codeTask": "Coding agent",

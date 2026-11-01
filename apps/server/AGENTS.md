@@ -23,10 +23,11 @@ src/
       tasks.ts              Scheduled tasks: list, pause (park + cancel), resume, update, delete
       research-jobs.ts      Gemini Deep Research runs: start, poll on a schedule, post the report
       history.ts            Saved conversations: snapshot the active chat, swap another in
+      chat-index.ts         FTS5 index over saved chats, for the searchChats / readChat tools
       store.ts              Its SQLite tables (settings, owner, Telegram and email config, memories)
       model.ts              Settings → model (Workers AI / OpenAI / Anthropic / Google)
       system-prompt.ts      System prompt
-      tools/                AI SDK tools by group (memory, reminders, sandbox, code, research, web, email)
+      tools/                AI SDK tools by group (memory, chats, reminders, sandbox, code, research, web, email)
     pi/
       code-agent.ts         Headless Pi coding agent Think delegates to (codeTask)
       model.ts              Workers AI model over REST

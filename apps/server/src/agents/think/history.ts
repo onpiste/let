@@ -3,6 +3,7 @@ import type { UIMessage } from "ai";
 
 import type { ChatSummary } from "@cot/shared";
 
+import { ChatIndex, INLINE_FILE } from "./chat-index";
 import { generateTitle } from "./title";
 
 /** The Think methods the history swaps conversations through. */
@@ -13,7 +14,6 @@ type Host = Pick<Agent<Env>, "sql"> & {
 };
 
 const TITLE_LENGTH = 60;
-const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
 
 /** The first user text (or attached file name), for the history list. */
 function chatTitle(messages: UIMessage[]) {
@@ -53,9 +53,14 @@ export function stampCreatedAt({ part }: { part: { type: string } }) {
  * Saved conversations. Think holds one conversation, so history works by
  * swapping: the active one is snapshotted into SQLite (one row per message,
  * since a row is capped at 2 MB) and another is loaded back in its place.
+ * Saved chats are also indexed (chat-index.ts) so the model can search them.
  */
 export class ChatHistory {
   constructor(private readonly host: Host) {}
+
+  private get index() {
+    return new ChatIndex(this.host);
+  }
 
   private ensureTables() {
     this.host.sql`CREATE TABLE IF NOT EXISTS chats (
@@ -73,6 +78,7 @@ export class ChatHistory {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     )`;
+    this.index.ensure();
   }
 
   private activeId() {
@@ -157,6 +163,7 @@ export class ChatHistory {
     if (messages.length === 0) {
       this.host.sql`DELETE FROM chats WHERE id = ${id}`;
       this.host.sql`DELETE FROM chat_state WHERE key = ${`title:${id}`}`;
+      this.index.drop(id);
       return;
     }
     messages.forEach((message, seq) => {
@@ -165,6 +172,7 @@ export class ChatHistory {
     });
     this.host.sql`INSERT OR REPLACE INTO chats (id, title, updated_at)
       VALUES (${id}, ${this.titleFor(id, messages)}, ${new Date().toISOString()})`;
+    this.index.put(id, messages);
   }
 
   async create() {
@@ -202,6 +210,20 @@ export class ChatHistory {
     this.host.sql`DELETE FROM chat_messages WHERE chat_id = ${id}`;
     this.host.sql`DELETE FROM chats WHERE id = ${id}`;
     this.host.sql`DELETE FROM chat_state WHERE key = ${`title:${id}`}`;
+    this.index.drop(id);
     return this.list();
+  }
+
+  /** Earlier chats matching `query`; the active one is already in context. */
+  search(query: string) {
+    this.ensureTables();
+    return this.index.search(query, this.activeId());
+  }
+
+  /** The messages around `seq` in a saved chat. */
+  read(id: string, seq: number) {
+    checkId(id);
+    this.ensureTables();
+    return this.index.read(id, seq);
   }
 }
