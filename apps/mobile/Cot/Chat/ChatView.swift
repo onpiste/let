@@ -40,11 +40,17 @@ struct ChatView: View {
                             {
                                 TimeDivider(date: sent)
                             }
+                            let isLast = row.message.id == store.messages.last?.id
                             MessageRow(
                                 message: row.message,
                                 toolLabels: store.mcp?.toolLabels ?? [:],
-                                streaming: store.busy && row.message.id == store.messages.last?.id,
-                                onApproval: store.respond(toApproval:approved:)
+                                streaming: store.busy && isLast,
+                                onApproval: store.respond(toApproval:approved:),
+                                // Not mid-reply: an edit would race the turn still running.
+                                onEdit: store.busy ? nil : { text in
+                                    Task { await store.edit(row.message.id, text: text) }
+                                },
+                                onRegenerate: isLast && !store.busy ? store.regenerate : nil
                             )
                         }
                         if waiting {

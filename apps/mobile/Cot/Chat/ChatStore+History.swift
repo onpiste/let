@@ -1,7 +1,7 @@
 import Foundation
 
 /// The conversations (AssistantRpc listChats / currentChat / newChat /
-/// openChat / deleteChat / searchChats). Each chat is its own agent on the
+/// openChat / deleteChat / renameChat / searchChats). Each chat is its own agent on the
 /// server, so opening another one never stops a reply that is still running.
 extension ChatStore {
     /// The newest chats, a page at a time: nil for the first page, then the
@@ -38,6 +38,11 @@ extension ChatStore {
         if id == chatID {
             try await show(chat: currentChat())
         }
+    }
+
+    /// Gives a chat the user's own title, which the model then leaves alone.
+    func renameChat(_ id: String, title: String) async throws {
+        _ = try await socket.call("renameChat", [.string(id), .string(title)])
     }
 
     /// Chats whose title or text contains `query`, each with a snippet.

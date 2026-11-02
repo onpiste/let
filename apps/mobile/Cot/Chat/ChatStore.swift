@@ -160,12 +160,46 @@ final class ChatStore {
     private func dispatch(_ trimmed: String, _ attachments: [Attachment]) {
         errorText = nil
         messages.append(.user(text: trimmed, attachments: attachments))
+        startTurn(trigger: "submit-message")
+    }
+
+    /// Answers the last user message again. Think keeps the old reply as a
+    /// hidden branch and shows the new one (web: chat-pane.tsx regenerateReply).
+    func regenerate() {
+        guard !busy, let last = messages.lastIndex(where: \.isUser) else { return }
+        errorText = nil
+        messages.removeSubrange((last + 1)...)
+        startTurn(trigger: "regenerate-message")
+    }
+
+    /// Replaces a user message, dropping what followed it, then answers the
+    /// edit (ChatRpc.editMessage; web: chat-pane.tsx editMessage).
+    func edit(_ messageID: String, text: String) async {
+        guard !busy, let chatSocket else { return }
+        do {
+            let json = try await chatSocket.call(
+                "editMessage", [.string(messageID), .string(text)]
+            )
+            guard let edited = ChatMessage(json: json),
+                  let index = messages.firstIndex(where: { $0.id == messageID })
+            else { return }
+            errorText = nil
+            messages = Array(messages[..<index]) + [edited]
+            startTurn(trigger: "regenerate-message")
+        } catch {
+            report(error.localizedDescription)
+        }
+    }
+
+    /// Posts the transcript as shown and streams the reply; `trigger` is the
+    /// chat protocol's "submit-message" or "regenerate-message".
+    private func startTurn(trigger: String) {
         let id = randomID(length: 8)
         requestID = id
         status = .submitted
         let body = JSONValue.object([
             "messages": .array(messages.map(\.json)),
-            "trigger": .string("submit-message")
+            "trigger": .string(trigger)
         ])
         // Queued while the chat reconnects, so the message isn't lost.
         chatSocket?.send(

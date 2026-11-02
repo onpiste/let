@@ -34,6 +34,8 @@ export interface AssistantRpc {
   openChat(id: string): Promise<void>;
   /** Deletes a chat, stopping a reply that is still running in it. */
   deleteChat(id: string): Promise<void>;
+  /** Gives a chat the user's own title, which the model then leaves alone. */
+  renameChat(id: string, title: string): Promise<void>;
   /**
    * Conversations whose title or text contains `query` (case-insensitive),
    * newest first, each with a `snippet` around the match.
@@ -68,6 +70,28 @@ export interface AssistantRpc {
   registerWebPush(subscription: WebPushSubscription): Promise<PushStatus>;
   /** Deep Research runs still going, oldest first. */
   listResearch(): Promise<ResearchJob[]>;
+}
+
+/** A message as the chat protocol carries it (the AI SDK's `UIMessage`). */
+export type ChatMessageJson = {
+  id: string;
+  role: "system" | "user" | "assistant";
+  parts: unknown[];
+  metadata?: unknown;
+};
+
+/**
+ * The callables of one chat's own agent (the socket at `chatSocketPath`),
+ * beside the chat protocol, which sends, regenerates and stops replies.
+ */
+export interface ChatRpc {
+  /**
+   * Replaces the user message `messageId` with one saying `text` (its
+   * attachments kept), dropping everything after it from the conversation,
+   * and returns the replacement. Send a `regenerate-message` request next
+   * to answer it.
+   */
+  editMessage(messageId: string, text: string): Promise<ChatMessageJson>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */

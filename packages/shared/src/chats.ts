@@ -62,6 +62,42 @@ export function appendChats(shown: ChatSummary[], page: ChatSummary[]) {
   return [...shown, ...page.filter((chat) => !seen.has(chat.id))];
 }
 
+/** Longest title `renameChat` accepts. */
+export const CHAT_TITLE_LENGTH = 80;
+
+/**
+ * A title from `renameChat`, trimmed and on one line. The argument arrives
+ * untyped from the client, so anything unusable throws.
+ */
+export function checkChatTitle(title: unknown) {
+  const clean =
+    typeof title === "string" ? title.replace(/\s+/g, " ").trim() : "";
+  if (!clean || clean.length > CHAT_TITLE_LENGTH) {
+    throw new Error(`A title needs 1 to ${CHAT_TITLE_LENGTH} characters.`);
+  }
+  return clean;
+}
+
+/** A text file pasted into a message as text; the UI shows it as a chip. */
+export const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
+
+type MessagePart = { type: string; text?: string };
+
+/**
+ * A user message's parts with its typed text replaced by `text`, for
+ * `editMessage`: attachments, including text files pasted inline, stay.
+ */
+export function editedParts<P extends MessagePart>(parts: P[], text: string) {
+  const kept: (P | { type: "text"; text: string })[] = parts.flatMap((part) => {
+    if (part.type !== "text" || typeof part.text !== "string") return [part];
+    const files = [...part.text.matchAll(INLINE_FILE)].map((m) => m[0]);
+    return files.length ? [{ ...part, text: files.join("") }] : [];
+  });
+  const typed = text.trim();
+  if (typed) kept.push({ type: "text", text: typed });
+  return kept;
+}
+
 /** Longest query `searchChats` accepts. */
 export const CHAT_QUERY_LENGTH = 100;
 

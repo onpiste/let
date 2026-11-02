@@ -90,6 +90,12 @@ export class ChatDirectory {
     this.history().remove(id);
   }
 
+  async rename(id: unknown, title: unknown) {
+    checkChatId(id);
+    await this.ready();
+    this.history().rename(id, title);
+  }
+
   async find(query: unknown) {
     await this.ready();
     return this.history().find(query);

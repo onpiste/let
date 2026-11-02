@@ -3,7 +3,8 @@ import Foundation
 /// One conversation in the history list (ChatSummary in @cot/shared chats.ts).
 struct ChatSummary: Decodable, Identifiable, Equatable {
     let id: String
-    let title: String
+    /// Changed in place after `renameChat`.
+    var title: String
     let updatedAt: Date
     /// The chat last written in from any client; Telegram talks into it.
     let active: Bool

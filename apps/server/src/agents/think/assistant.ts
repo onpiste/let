@@ -164,6 +164,11 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   @callable()
+  async renameChat(id: string, title: string) {
+    return this.chats.rename(id, title);
+  }
+
+  @callable()
   async searchChats(query: string) {
     return this.chats.find(query);
   }

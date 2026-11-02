@@ -4,13 +4,15 @@ import type { UIMessage } from "ai";
 import {
   CHAT_PAGE_SIZE,
   chatCursor,
+  checkChatTitle,
+  INLINE_FILE,
   parseChatCursor,
   type ChatPage,
   type ChatSummary
 } from "@cot/shared";
 
 import { log } from "../../log/logger";
-import { ChatIndex, INLINE_FILE } from "./chat-index";
+import { ChatIndex } from "./chat-index";
 import { chatMatch, checkQuery } from "./chat-search";
 import { generateTitle } from "./title";
 
@@ -180,6 +182,18 @@ export class ChatHistory {
     this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
       VALUES (${`title:${id}`}, ${title})`;
     this.host.sql`UPDATE chats SET title = ${title} WHERE id = ${id}`;
+  }
+
+  /**
+   * The user's own title. Stored like a model-written one, so the model
+   * never renames the chat again.
+   */
+  rename(id: string, title: unknown) {
+    const clean = checkChatTitle(title);
+    if (!this.ids().has(id)) throw new Error("That chat no longer exists.");
+    this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
+      VALUES (${`title:${id}`}, ${clean})`;
+    this.host.sql`UPDATE chats SET title = ${clean} WHERE id = ${id}`;
   }
 
   /** Every chat, newest first (search filters it). */

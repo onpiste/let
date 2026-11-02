@@ -1,11 +1,13 @@
 import { Think, type TurnConfig, type TurnContext } from "@cloudflare/think";
+import { callable } from "agents";
 import type { LanguageModel, ToolSet, UIMessage } from "ai";
 
-import { DEFAULT_SETTINGS } from "@cot/shared";
+import { DEFAULT_SETTINGS, type ChatRpc } from "@cot/shared";
 
 import { log } from "../../log/logger";
 import { cannedReply } from "./canned-reply";
 import type { ChatServices, TurnSetup } from "./chat-services";
+import { editTarget } from "./edit-message";
 import { stampCreatedAt } from "./history";
 import { modelFor } from "./model";
 import { assistantTools, localTools, NEEDS_APPROVAL } from "./tools";
@@ -25,7 +27,7 @@ import { mcpTools } from "./tools/mcp";
  * Only reachable through the signed-in owner's assistant (http/router.ts and
  * `Assistant.onBeforeSubAgent`).
  */
-export class Chat extends Think<Env> {
+export class Chat extends Think<Env> implements ChatRpc {
   /** The latest turn's setup; tools read settings from it at call time. */
   private setup: TurnSetup | null = null;
 
@@ -146,6 +148,19 @@ export class Chat extends Think<Env> {
 
   private async report(turnEnded: boolean) {
     await this.services.saved(await this.getMessages(), turnEnded);
+  }
+
+  // ── Callables (ChatRpc) ─────────────────────────────────────────────
+
+  @callable()
+  async editMessage(messageId: string, text: string) {
+    const { parentId, message } = editTarget(
+      await this.getMessages(),
+      messageId,
+      text
+    );
+    await this.addMessages([message], { parentId });
+    return message;
   }
 
   // ── RPC from the assistant ──────────────────────────────────────────

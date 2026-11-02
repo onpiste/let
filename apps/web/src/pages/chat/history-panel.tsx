@@ -1,15 +1,16 @@
 import { useEffect, useState } from "react";
 
-import { CHAT_QUERY_LENGTH } from "@cot/shared";
+import { CHAT_QUERY_LENGTH, CHAT_TITLE_LENGTH } from "@cot/shared";
 
+import { Pencil } from "../../components/icons";
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
 import { HistoryMore } from "./history-more";
 import { useChatSearch } from "./use-chat-search";
 
 /**
- * Conversations in a drawer from the left: search them, open one, delete
- * one, or start a new one. A chat whose reply is still running says so;
+ * Conversations in a drawer from the left: search them, open, rename or
+ * delete one, or start a new one. A chat whose reply is still running says so;
  * switching away never stops it. Mirrors `HistoryView.swift`.
  */
 export function HistoryPanel({
@@ -66,6 +67,24 @@ export function HistoryPanel({
     }
   };
 
+  const rename = async (id: string, current: string) => {
+    const title = prompt("Rename conversation", current)?.trim();
+    if (!title || title === current) return;
+    if (title.length > CHAT_TITLE_LENGTH) {
+      setError(`Keep the title under ${CHAT_TITLE_LENGTH} characters.`);
+      return;
+    }
+    try {
+      await api(agent).renameChat(id, title);
+      setChats(
+        (old) => old?.map((c) => (c.id === id ? { ...c, title } : c)) ?? null
+      );
+      setError(null);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+
   return (
     <>
       <button
@@ -116,6 +135,13 @@ export function HistoryPanel({
                   {chat.running && <b className="running">Answering… · </b>}
                   {new Date(chat.updatedAt).toLocaleString()}
                 </small>
+              </button>
+              <button
+                className="icon-btn"
+                aria-label={`Rename ${chat.title}`}
+                onClick={() => void rename(chat.id, chat.title)}
+              >
+                <Pencil />
               </button>
               <button
                 className="icon-btn"

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   appendChats,
   chatCursor,
+  checkChatTitle,
+  editedParts,
   parseChatCursor,
   searchSnippet,
   type ChatSummary
@@ -81,5 +83,45 @@ describe("searchSnippet", () => {
     expect(searchSnippet("line one\n\nline two", "two")).toBe(
       "line one line two"
     );
+  });
+});
+
+describe("checkChatTitle", () => {
+  it("trims and flattens", () => {
+    expect(checkChatTitle("  Trip\n to  Kyoto ")).toBe("Trip to Kyoto");
+  });
+
+  it("rejects empty, long or non-string titles", () => {
+    for (const bad of ["", "   ", 7, null, "x".repeat(81)])
+      expect(() => checkChatTitle(bad)).toThrow();
+  });
+});
+
+describe("editedParts", () => {
+  const pasted = '<file name="a.txt">\nhello\n</file>';
+
+  it("replaces the typed text and keeps attachments", () => {
+    const parts = [
+      { type: "file", url: "data:x", mediaType: "image/png" },
+      { type: "text", text: pasted },
+      { type: "text", text: "old question" }
+    ];
+    expect(editedParts(parts, " new question ")).toEqual([
+      parts[0],
+      parts[1],
+      { type: "text", text: "new question" }
+    ]);
+  });
+
+  it("keeps a pasted file sharing a part with typed text", () => {
+    const parts = [{ type: "text", text: `${pasted}\nold` }];
+    expect(editedParts(parts, "new")).toEqual([
+      { type: "text", text: `${pasted}\n` },
+      { type: "text", text: "new" }
+    ]);
+  });
+
+  it("drops the text when the edit is blank", () => {
+    expect(editedParts([{ type: "text", text: "old" }], "  ")).toEqual([]);
   });
 });

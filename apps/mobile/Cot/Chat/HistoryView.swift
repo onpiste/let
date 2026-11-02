@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Conversations in the side drawer: search them, tap to open one, swipe to
-/// delete, or start a new one. A chat whose reply is still running says so;
+/// rename or delete one, or start a new one. A chat whose reply is still running says so;
 /// switching away never stops it. Mirrors `history-panel.tsx`.
 struct HistoryView: View {
     let store: ChatStore
@@ -15,6 +15,9 @@ struct HistoryView: View {
     /// The cursor of the page after the ones shown; nil when all are.
     @State private var next: String?
     @State private var loadingMore = false
+    /// The chat whose title is being edited.
+    @State private var renaming: ChatSummary?
+    @State private var newTitle = ""
 
     private var needle: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -52,6 +55,17 @@ struct HistoryView: View {
                 text: $query, placement: .navigationBarDrawer(displayMode: .always),
                 prompt: "Search chats"
             )
+            .alert(
+                "Rename conversation",
+                isPresented: Binding(
+                    get: { renaming != nil },
+                    set: { if !$0 { renaming = nil } }
+                )
+            ) {
+                TextField("Title", text: $newTitle)
+                Button("Cancel", role: .cancel) { renaming = nil }
+                Button("Save") { Task { await rename() } }
+            }
             .navigationTitle("History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -106,6 +120,7 @@ struct HistoryView: View {
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         .listRowBackground(chat.id == store.chatID ? Color(.secondarySystemBackground) : nil)
+        // Delete stays first, so a full swipe still deletes.
         .swipeActions {
             Button("Delete", role: .destructive) {
                 Task {
@@ -114,6 +129,11 @@ struct HistoryView: View {
                     }
                 }
             }
+            Button("Rename", systemImage: "pencil") {
+                newTitle = chat.title
+                renaming = chat
+            }
+            .tint(.blue)
         }
     }
 
@@ -143,6 +163,23 @@ struct HistoryView: View {
         try? await Task.sleep(for: .milliseconds(250))
         guard !Task.isCancelled else { return }
         _ = await run { try await store.searchChats(query) }
+    }
+
+    /// Saves the title typed in the rename alert (web: history-panel.tsx).
+    private func rename() async {
+        guard let chat = renaming else { return }
+        renaming = nil
+        let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title != chat.title else { return }
+        if await perform({ try await store.renameChat(chat.id, title: title) }) {
+            chats = chats?.map { item in
+                var copy = item
+                if copy.id == chat.id {
+                    copy.title = title
+                }
+                return copy
+            }
+        }
     }
 
     /// The page after the ones shown, added below them, once at a time.
