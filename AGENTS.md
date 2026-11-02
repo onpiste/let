@@ -99,8 +99,9 @@ requests, and the Deploy workflow on pushes to `main`:
    (CI checks it with `wrangler types --check`).
 
 A pre-commit hook (husky + lint-staged) formats and lints staged files, and a
-pre-push hook runs `bun run check` (plus SwiftFormat/SwiftLint when
-`apps/mobile` changed). Don't bypass them with `--no-verify`.
+pre-push hook runs `bun run check`. Don't bypass them with `--no-verify`.
+SwiftFormat/SwiftLint run in neither the hooks nor CI; the iOS app is
+formatted and linted by hand on a Mac.
 
 ### CI minutes
 

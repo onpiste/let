@@ -10,7 +10,7 @@ apply; see [README.md](README.md) for what it does and how to build it.
   compiler; run the tests in Xcode (⌘U) when you have a Mac.
 - **Lint and format with SwiftFormat + SwiftLint** (`brew install swiftformat
 swiftlint`). Run `swiftformat .` then `swiftlint lint --strict` in this
-  folder before committing; the `iOS` workflow and the pre-push hook run both. Config is in
+  folder on a Mac before committing; neither the git hooks nor CI run them. Config is in
   `.swiftformat` and `.swiftlint.yml`; SwiftFormat owns formatting, so keep
   style rules out of SwiftLint.
 - **The Xcode project is generated.** `project.yml` (XcodeGen) is the source;

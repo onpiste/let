@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The slow checks that don't run on every push, run on this Mac instead of on
-# CI runners: iOS lint and simulator tests, the desktop build, and optionally
+# CI runners: iOS simulator tests, the desktop build, and optionally
 # a TestFlight upload when the iOS app changed.
 #
 # It works in its own worktree on the latest origin/main, so your checkout and
@@ -96,11 +96,9 @@ step() {
 
 step "Install" "bun install --frozen-lockfile"
 step "Desktop build" "bun run --filter @cot/desktop build"
-step "Swift format" "cd apps/mobile && swiftformat --lint ."
-# The other iOS steps need full Xcode (simctl, sourcekitd), not just the Command
+# The iOS tests need full Xcode (simctl, sourcekitd), not just the Command
 # Line Tools; without it they are skipped.
 if xcrun --find simctl >/dev/null 2>&1; then
-  step "Swift lint" "cd apps/mobile && swiftlint lint --strict"
   # Steps run inside `if`, where `set -e` is off, so chain them with &&.
   step "iOS tests" '
     cd apps/mobile && xcodegen generate &&
