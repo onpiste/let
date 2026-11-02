@@ -113,7 +113,8 @@ private struct ReasoningView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
         } label: {
-            Label(streaming ? "Thinking…" : "Thought", systemImage: "brain")
+            // Text only, matching the web `thinking.tsx` summary.
+            Text(streaming ? "Thinking…" : "Thought")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
