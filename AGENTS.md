@@ -232,6 +232,14 @@ build, follow the `dev-logs` skill:
 
 - Small, focused commits with an imperative subject ("Add …", "Fix …").
 - Don't commit build output (`dist/`, `.wrangler/`) or `node_modules/`.
-- Commit and push straight to `main`; don't create feature branches or PRs
-  unless asked. Run the definition-of-done checks first, because a push to
-  `main` deploys to production (`.github/workflows/deploy.yml`).
+- **Small changes go straight to `main`**: a bug fix, copy or style tweak,
+  docs, config, or a contained change to one feature. Commit and push to
+  `main`; it deploys to production (`.github/workflows/deploy.yml`).
+- **Large changes go through a pull request**: a new feature, a refactor
+  across modules, a change to `@cot/shared` contracts (`AssistantRpc`,
+  routes, settings), storage or Durable Object migrations, auth, or anything
+  risky to roll back. Work on a branch, open a PR, and merge once CI (and
+  the `iOS` workflow, when `apps/mobile` changed) is green. When unsure,
+  open a PR.
+- Either way, run the definition-of-done checks before pushing, because
+  whatever lands on `main` deploys.
