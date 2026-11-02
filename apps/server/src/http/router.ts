@@ -10,6 +10,7 @@ import {
 import { handleCallback, handleLogin, handleLogout } from "../auth/google";
 import { handleToken } from "../auth/native";
 import { getUserFromRequest } from "../auth/session";
+import { handlePhone } from "../integrations/phone/twilio";
 import { handleTelegramWebhook } from "../integrations/telegram/webhook";
 import { log } from "../log/logger";
 import { handleDevIngest, handleDevStatus } from "../log/routes";
@@ -44,6 +45,9 @@ export const router = {
       }
       if (url.pathname.startsWith("/messengers/telegram/")) {
         return await handleTelegramWebhook(request, env);
+      }
+      if (url.pathname.startsWith("/messengers/phone/")) {
+        return await handlePhone(request, env);
       }
       if (url.pathname === AUTH_ROUTES.me) {
         const user = await getUserFromRequest(request, env);

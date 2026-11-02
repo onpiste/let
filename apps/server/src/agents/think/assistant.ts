@@ -197,6 +197,16 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     });
   }
 
+  /**
+   * One spoken turn of a phone call (integrations/phone), over DO RPC: the
+   * reply text as a UTF-8 stream. Runs in the chat in use, so the call is
+   * part of the conversation the owner sees in the apps.
+   */
+  async voiceTurn(text: string) {
+    if (!this.allowedOwner()) throw new Error("This account is not allowed.");
+    return this.chats.voiceTurn(text);
+  }
+
   /** Adds a message to a chat without a turn (research-jobs.ts). */
   async postToChat(chatId: string | null, message: UIMessage) {
     await this.chats.post(chatId, message);

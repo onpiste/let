@@ -1,4 +1,9 @@
-import { Think, type TurnConfig, type TurnContext } from "@cloudflare/think";
+import {
+  Think,
+  type ThinkChannels,
+  type TurnConfig,
+  type TurnContext
+} from "@cloudflare/think";
 import type { LanguageModel, ToolSet, UIMessage } from "ai";
 
 import { DEFAULT_SETTINGS } from "@cot/shared";
@@ -10,6 +15,11 @@ import { stampCreatedAt } from "./history";
 import { modelFor } from "./model";
 import { assistantTools, localTools, NEEDS_APPROVAL } from "./tools";
 import { mcpTools } from "./tools/mcp";
+import {
+  replyTextStream,
+  VOICE_CHANNEL,
+  VOICE_INSTRUCTIONS
+} from "./voice-turn";
 
 /**
  * One conversation. Each chat is its own agent, a facet of the user's
@@ -85,14 +95,24 @@ export class Chat extends Think<Env> {
     });
   }
 
+  // Phone calls (integrations/phone) run their turns on this channel.
+  override configureChannels(): ThinkChannels {
+    return {
+      [VOICE_CHANNEL]: { kind: "voice", ingress: { transport: "voice" } }
+    };
+  }
+
   override async beforeTurn(ctx: TurnContext): Promise<TurnConfig | void> {
     // Continuations and recoveries finish a turn that was already counted.
     const newTurn =
       ctx.trigger !== undefined &&
       !ctx.continuation &&
       !ctx.trigger.startsWith("recovery");
+    const voice = this.activeTurn?.channel === VOICE_CHANNEL;
     this.messengerTurn = Boolean(ctx.messenger);
-    const setup = await this.services.turn(newTurn, Boolean(ctx.messenger));
+    // Neither surface can show a command's output or approval buttons.
+    const remote = Boolean(ctx.messenger) || voice;
+    const setup = await this.services.turn(newTurn, remote);
     this.setup = setup;
     if (setup.refusal) {
       return { model: cannedReply(setup.refusal), activeTools: [] };
@@ -102,15 +122,16 @@ export class Chat extends Think<Env> {
       ...assistantTools(services, setup),
       ...mcpTools(services, setup.mcp)
     };
-    // Telegram has no approval buttons, so those tools are withheld there.
-    const activeTools = ctx.messenger
+    const activeTools = remote
       ? [...Object.keys(ctx.tools), ...Object.keys(tools)].filter(
           (name) => !NEEDS_APPROVAL.has(name)
         )
       : undefined;
     return {
       model: modelFor(setup.settings),
-      instructions: setup.instructions,
+      instructions: voice
+        ? setup.instructions + VOICE_INSTRUCTIONS
+        : setup.instructions,
       tools,
       activeTools
     };
@@ -154,6 +175,19 @@ export class Chat extends Think<Env> {
   async importMessages(messages: UIMessage[]) {
     await this.clearMessages();
     await this.addMessages(messages);
+  }
+
+  /** One spoken turn of a phone call; streams the reply text (voice-turn.ts). */
+  voiceTurn(text: string) {
+    return replyTextStream((callback, signal) =>
+      this.runTurn({
+        mode: "stream",
+        input: text,
+        channel: VOICE_CHANNEL,
+        callback,
+        signal
+      })
+    );
   }
 
   /** Adds a message (a Deep Research report) without starting a turn. */

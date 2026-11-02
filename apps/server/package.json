@@ -19,6 +19,7 @@
     "@cloudflare/computer": "^0.5.1",
     "@cloudflare/puppeteer": "1.4.0",
     "@cloudflare/think": "^0.21.0",
+    "@cloudflare/voice-twilio": "0.1.1",
     "@cot/shared": "workspace:*",
     "@mariozechner/pi-agent-core": "^0.73.1",
     "@mariozechner/pi-ai": "^0.73.1",

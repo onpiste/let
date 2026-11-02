@@ -11,6 +11,8 @@ export { Assistant } from "./agents/think/assistant";
 // One conversation, a facet of Assistant (no binding or migration needed).
 export { Chat } from "./agents/think/chat";
 export { EmailAddresses } from "./integrations/email/addresses";
+// One phone call (integrations/phone).
+export { VoiceCall } from "./integrations/phone/voice-call";
 export { TelegramRoutes } from "./integrations/telegram/routes";
 export { Sandbox } from "./tools/sandbox";
 // Backs the Chat SDK state of the Telegram messenger as a sub-agent facet.

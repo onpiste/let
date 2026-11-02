@@ -33,3 +33,11 @@ CF_AIG_TOKEN=
 # /dev/logs (scripts/devlog). Generate with: openssl rand -hex 32. Empty: the
 # route only takes logs from signed-in web and iOS apps.
 DEV_LOGS_TOKEN=
+
+# Optional: phone calls through a Twilio number (spike, see
+# src/integrations/phone/README.md). All three or none: TWILIO_AUTH_TOKEN is
+# the account's auth token, PHONE_ACCOUNT the Google account id (/auth/me)
+# whose assistant answers, PHONE_CALLERS comma-separated E.164 numbers.
+TWILIO_AUTH_TOKEN=
+PHONE_ACCOUNT=
+PHONE_CALLERS=

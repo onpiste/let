@@ -95,6 +95,11 @@
       {
         "class_name": "Sandbox",
         "name": "SANDBOX"
+      },
+      {
+        // One phone call (src/integrations/phone); off without its secrets.
+        "class_name": "VoiceCall",
+        "name": "VoiceCall"
       }
     ]
   },
@@ -140,6 +145,10 @@
       // The Pi chat harness became a headless coding agent (no Durable Object).
       "deleted_classes": ["PiAssistant"],
       "tag": "v6"
+    },
+    {
+      "new_sqlite_classes": ["VoiceCall"],
+      "tag": "v7"
     }
   ]
 }
