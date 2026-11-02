@@ -1,11 +1,18 @@
 import { getAgentByName, routeSubAgentRequest } from "agents";
 
-import { ASSISTANT, AUTH_ROUTES, TRANSCRIBE_ROUTE } from "@cot/shared";
+import {
+  ASSISTANT,
+  AUTH_ROUTES,
+  DEV_LOG_ROUTES,
+  TRANSCRIBE_ROUTE
+} from "@cot/shared";
 
 import { handleCallback, handleLogin, handleLogout } from "../auth/google";
 import { handleToken } from "../auth/native";
 import { getUserFromRequest } from "../auth/session";
 import { handleTelegramWebhook } from "../integrations/telegram/webhook";
+import { log } from "../log/logger";
+import { handleDevIngest, handleDevStatus } from "../log/routes";
 import { jsonResponse } from "./responses";
 import { handleTranscribe } from "./transcribe";
 
@@ -30,6 +37,10 @@ export const router = {
           return new Response("Method not allowed", { status: 405 });
         }
         return handleLogout(request);
+      }
+      if (url.pathname === DEV_LOG_ROUTES.status) return handleDevStatus();
+      if (url.pathname === DEV_LOG_ROUTES.ingest) {
+        return await handleDevIngest(request, env);
       }
       if (url.pathname.startsWith("/messengers/telegram/")) {
         return await handleTelegramWebhook(request, env);
@@ -71,6 +82,14 @@ export const router = {
         return agent.fetch(request);
       }
     } catch (error) {
+      // Clients send X-Request-Id so their lines join this one.
+      const requestId =
+        request.headers.get("X-Request-Id") ??
+        request.headers.get("cf-ray") ??
+        undefined;
+      log
+        .with({ requestId })
+        .error("http", `${request.method} ${url.pathname} failed`, error);
       const message =
         error instanceof Error ? error.message : "Unexpected error";
       return jsonResponse({ error: message }, { status: 500 });

@@ -18,6 +18,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Failed steps go to the dev logs (scripts/devlog, `bun run logs --source
+    # ci`). Without the secret, as on forks, they only fail as usual.
+    env:
+      DEV_LOGS_TOKEN: ${{ secrets.DEV_LOGS_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -32,13 +36,13 @@ jobs:
           bun-version-file: package.json
 
       - run: bun install --frozen-lockfile
-      - run: bun run check
-      - run: bun run --filter @cot/server types:check
+      - run: bun scripts/devlog/index.ts report Check -- bun run check
+      - run: bun scripts/devlog/index.ts report Worker types -- bun run --filter @cot/server types:check
 
       # apps/web: vite build (client + the apps/server Worker) && wrangler
       # deploy. The sandbox uses Cloudflare's managed image, so no Docker is
       # needed here.
-      - run: bun run deploy
+      - run: bun scripts/devlog/index.ts report Deploy -- bun run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 02eec653ae3b648ef566c2469e7fb68e

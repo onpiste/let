@@ -6,6 +6,7 @@ import telegramMessenger from "@cloudflare/think/messengers/telegram";
 
 import type { TelegramStatus } from "@cot/shared";
 
+import { log } from "../../log/logger";
 import { callTelegram, sendText } from "./bot-api";
 import {
   newClaim,
@@ -118,7 +119,7 @@ export class TelegramChannel {
     await routes(env).set(config.routeId, this.options.userId());
     if (previous && previous.token !== token) {
       await callTelegram(env, previous.token, "deleteWebhook", {}).catch(
-        (error: unknown) => console.error(error)
+        (error: unknown) => log.error("telegram", "deleteWebhook failed", error)
       );
     }
     this.save(config);
@@ -139,7 +140,7 @@ export class TelegramChannel {
     const config = this.config;
     if (!config) return toTelegramStatus(null);
     await callTelegram(env, config.token, "deleteWebhook", {}).catch(
-      (error: unknown) => console.error(error)
+      (error: unknown) => log.error("telegram", "deleteWebhook failed", error)
     );
     await routes(env).remove(this.options.userId());
     this.save(null);

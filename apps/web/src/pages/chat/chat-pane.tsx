@@ -17,6 +17,7 @@ import {
   type Attachment
 } from "../../lib/attachments";
 import { loadChatCache, saveChatCache } from "../../lib/chat-cache";
+import { devLog } from "../../lib/dev-log";
 import { errorText } from "../../lib/errors";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
@@ -71,8 +72,10 @@ export function ChatPane({
   // A 4xx close (the chat was deleted) is final; open another one.
   const missing = agent.connectionError !== null;
   useEffect(() => {
-    if (missing) onMissing();
-  }, [missing, onMissing]);
+    if (!missing) return;
+    devLog.warn("socket", "Chat socket refused", { chatId });
+    onMissing();
+  }, [missing, onMissing, chatId]);
 
   const { messages, sendMessage, stop, status, addToolApprovalResponse } =
     useAgentChat({

@@ -1,3 +1,5 @@
+import { log } from "../../log/logger";
+
 /** What the Worker needs to talk to APNs: a token-based auth key. */
 export type ApnsConfig = {
   /** The .p8 key's contents (PEM). */
@@ -28,7 +30,7 @@ export function apnsConfig(env: Env): ApnsConfig | null {
     .filter(([, value]) => !value)
     .map(([name]) => name);
   if (missing.length < 4) {
-    console.warn(`APNs push is off: ${missing.join(", ")} not set`);
+    log.warn("apns", "Push is off", { missing });
   }
   return null;
 }

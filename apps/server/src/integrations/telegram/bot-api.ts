@@ -1,3 +1,5 @@
+import { log } from "../../log/logger";
+
 export async function callTelegram(
   env: Env,
   token: string,
@@ -33,6 +35,6 @@ export async function sendText(
   try {
     await callTelegram(env, token, "sendMessage", { chat_id: chatId, text });
   } catch (error) {
-    console.error(error);
+    log.error("telegram", "sendMessage failed", error);
   }
 }

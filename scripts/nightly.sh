@@ -82,11 +82,16 @@ cd "$tree"
 git checkout --quiet --detach "$head"
 git clean -fdx --quiet -e node_modules
 
-# A failing step is reported but doesn't stop the others.
+# A failing step is reported but doesn't stop the others. With
+# DEV_LOGS_TOKEN in the environment, failures also
+# go to the dev logs (`bun run logs --source build`). Until `bun install` has
+# run, the reporter can't load, so the first step runs bare.
 failed=()
 step() {
   echo "--- $1"
-  if ! (eval "$2"); then failed+=("$1"); fi
+  if [ -d node_modules ]; then
+    if ! bun scripts/devlog/index.ts report "$1" -- bash -c "$2"; then failed+=("$1"); fi
+  elif ! (eval "$2"); then failed+=("$1"); fi
 }
 
 step "Install" "bun install --frozen-lockfile"

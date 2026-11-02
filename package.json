@@ -27,9 +27,11 @@
     "test": "bun run --filter @cot/shared test",
     "typecheck": "bun run --filter '*' typecheck",
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run knip && bun run test",
-    "prepare": "husky"
+    "prepare": "husky",
+    "logs": "bun scripts/devlog/index.ts"
   },
   "devDependencies": {
+    "@cot/shared": "workspace:*",
     "husky": "^9.1.7",
     "knip": "^6.43.0",
     "lint-staged": "^17.6.0",

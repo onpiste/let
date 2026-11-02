@@ -2,6 +2,7 @@ export * from "./approval";
 export * from "./chats";
 export * from "./connectors";
 export * from "./email";
+export * from "./logs";
 export * from "./push";
 export * from "./research";
 export * from "./routes";

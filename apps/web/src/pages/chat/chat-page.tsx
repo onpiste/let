@@ -8,6 +8,7 @@ import { Calendar, Clock, Gear, LogOut, Plus } from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
 import { api } from "../../lib/assistant-rpc";
 import { loadChatCache } from "../../lib/chat-cache";
+import { devLog } from "../../lib/dev-log";
 import { errorText } from "../../lib/errors";
 import { notify, requestNotificationPermission } from "../../lib/notifications";
 import { setUpWebPush } from "../../lib/web-push";
@@ -42,6 +43,13 @@ export function ChatPage({
   );
   const [historyOpen, setHistoryOpen] = useState(false);
   const [toast, setToast] = useState<Notice | null>(null);
+  // Every warning the user sees is also a log line, so a report like "it
+  // said X" can be found later.
+  useEffect(() => {
+    if (toast?.icon === "⚠️") {
+      devLog.warn("notice", toast.title, { text: toast.text });
+    }
+  }, [toast]);
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const research = useResearchJobs();
   const { onEvent: onResearchEvent, load: loadResearch } = research;
@@ -53,16 +61,26 @@ export function ChatPage({
     // accept the first socket; retry quickly instead of backing off.
     connectionTimeout: 10_000,
     maxReconnectionDelay: 3_000,
-    onOpen: useCallback(() => setConnected(true), []),
+    onOpen: useCallback(() => {
+      devLog.info("socket", "Assistant socket open");
+      setConnected(true);
+    }, []),
     onMcpUpdate: useCallback(
       (state: MCPServersState) => setMcpLabels(mcpToolLabels(state)),
       []
     ),
-    onClose: useCallback(() => {
-      setConnected(false);
-      // A closed socket may mean the session expired.
-      onAuthCheck();
-    }, [onAuthCheck]),
+    onClose: useCallback(
+      (event: CloseEvent) => {
+        devLog.info("socket", "Assistant socket closed", {
+          code: event.code,
+          reason: event.reason
+        });
+        setConnected(false);
+        // A closed socket may mean the session expired.
+        onAuthCheck();
+      },
+      [onAuthCheck]
+    ),
     onMessage: useCallback(
       (message: MessageEvent) => {
         try {

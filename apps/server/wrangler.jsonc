@@ -58,13 +58,25 @@
     "DAILY_SEARCH_LIMIT": "100",
     "DAILY_RESEARCH_LIMIT": "3",
     "GEMINI_SEARCH_MODEL": "gemini-flash-latest",
-    "GEMINI_RESEARCH_AGENT": "deep-research-preview-04-2026"
+    "GEMINI_RESEARCH_AGENT": "deep-research-preview-04-2026",
+    // Developer mode: "on" adds debug/info server logs and has the web and
+    // iOS apps send their logs to /dev/logs, all in one JSON format in
+    // Workers Logs (read them with `bun run logs`). Warnings and errors are
+    // always logged. "" turns it off. Builds and CI report failures there
+    // with the optional DEV_LOGS_TOKEN secret.
+    "DEV_LOGS": "on"
   },
   // The client is built by apps/web (its Vite config points the Cloudflare
   // plugin at this file), so there is no assets directory here.
   "assets": {
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/auth/*", "/chat", "/chat/*", "/messengers/*"]
+    "run_worker_first": [
+      "/auth/*",
+      "/chat",
+      "/chat/*",
+      "/messengers/*",
+      "/dev/*"
+    ]
   },
   "durable_objects": {
     "bindings": [

@@ -55,6 +55,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) {
         // Usually a simulator or a build without the push entitlement; local
         // notifications still work.
-        print("APNs registration failed: \(error.localizedDescription)")
+        DevLog.warn("apns", "Registration failed", ["error": error.localizedDescription])
     }
 }

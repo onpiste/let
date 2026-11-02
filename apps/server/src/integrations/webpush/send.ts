@@ -1,6 +1,6 @@
 import type { WebPushSubscription } from "@cot/shared";
 
-import { logInfo } from "../log";
+import { log } from "../../log/logger";
 import type { PushAlert } from "../push";
 import type { WebPushConfig } from "./config";
 import { encryptPayload } from "./encrypt";
@@ -35,12 +35,14 @@ export async function sendWebPush(
   });
   const who = describeSubscription(subscription);
   if (response.ok) {
-    logInfo(`Web Push sent to ${who}`);
+    log.info("webpush", "Push sent", { browser: who });
     return "sent";
   }
-  console.error(
-    `Web Push ${response.status} for ${who}: ${await response.text()}`
-  );
+  log.warn("webpush", "Push rejected", {
+    browser: who,
+    status: response.status,
+    reason: await response.text()
+  });
   // 404/410: the browser unsubscribed or the subscription expired.
   return response.status === 404 || response.status === 410 ? "gone" : "failed";
 }

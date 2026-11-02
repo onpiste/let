@@ -114,6 +114,16 @@ Cot is meant to be forked and changed. The usual first steps:
    New clients go in `apps/`, see
    [docs/architecture.md](docs/architecture.md#adding-a-client).
 
+7. **Logs.** The Worker, web app, iOS app, builds and CI all log one JSON
+   format into Workers Logs; `bun run logs` reads them (any coding agent can,
+   see [the dev-logs skill](.agents/skills/dev-logs/SKILL.md)). Developer
+   mode, `DEV_LOGS: "on"` in `apps/server/wrangler.jsonc`, adds debug/info
+   lines and the apps' own logs; set it to `""` to keep only warnings and
+   errors. Reading needs a `CLOUDFLARE_API_TOKEN` with Workers
+   Observability access; build and CI failures are sent with the
+   `DEV_LOGS_TOKEN` secret (`bunx wrangler secret put DEV_LOGS_TOKEN`, and
+   the same value as a GitHub Actions secret).
+
 Before committing, read [AGENTS.md](AGENTS.md): `npm run check` and
 `npm run build` must pass, and AI coding agents follow the same rules.
 

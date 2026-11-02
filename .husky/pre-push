@@ -1,5 +1,6 @@
-# Catch what CI would reject before it costs runner minutes.
-bun run check
+# Catch what CI would reject before it costs runner minutes. A failure is
+# also sent to the dev logs when DEV_LOGS_TOKEN is set (scripts/devlog).
+bun scripts/devlog/index.ts report check -- bun run check
 
 # The iOS checks run on CI for pull requests only, so run them here when the
 # push touches the app. swiftlint needs full Xcode, not just the CLI tools.

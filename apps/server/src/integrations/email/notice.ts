@@ -2,6 +2,7 @@ import type { LanguageModel } from "ai";
 
 import type { ServerEvent } from "@cot/shared";
 
+import { log } from "../../log/logger";
 import type { PushAlert } from "../push";
 import type { Inbox } from "./inbox";
 import { triageEmail, type Triage } from "./triage";
@@ -23,7 +24,7 @@ export async function triagedNotice(
     inbox.setTriage(id, triage.category, triage.summary);
   } catch (error) {
     // Still tell the owner, just without the summary.
-    console.error(`Email triage failed: ${String(error)}`);
+    log.error("email", "Triage failed", error);
   }
   return emailNotice({ ...email, triage, preview: null });
 }

@@ -1,8 +1,10 @@
 import { TRANSCRIBE_ROUTE, type TranscribeResponse } from "@cot/shared";
 
+import { tracedFetch } from "./dev-log";
+
 /** Sends a recording to the Worker and returns the spoken text. */
 export async function transcribe(audio: Blob) {
-  const res = await fetch(TRANSCRIBE_ROUTE, {
+  const res = await tracedFetch(TRANSCRIBE_ROUTE, {
     method: "POST",
     headers: { "Content-Type": audio.type || "application/octet-stream" },
     body: audio

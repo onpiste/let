@@ -3,6 +3,7 @@ import type { UIMessage } from "ai";
 
 import type { ChatSummary } from "@cot/shared";
 
+import { log } from "../../log/logger";
 import { ChatIndex, INLINE_FILE } from "./chat-index";
 import { chatMatch, checkQuery } from "./chat-search";
 import { generateTitle } from "./title";
@@ -159,7 +160,7 @@ export class ChatHistory {
       title = await generateTitle(ai, messages);
     } catch (error) {
       // Cosmetic: the list keeps the first-message title.
-      console.error(`Chat title failed: ${String(error)}`);
+      log.warn("chat", "Title failed", { chatId: id, error: String(error) });
     }
     // The chat may have been deleted while the model was thinking.
     if (!title || !this.ids().has(id)) return;

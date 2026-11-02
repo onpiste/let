@@ -3,6 +3,7 @@ import type { UIMessage } from "ai";
 
 import type { ResearchJob, ServerEvent, Settings } from "@cot/shared";
 
+import { log } from "../../log/logger";
 import { researchState, startResearch } from "../../tools/deep-research";
 import { geminiKey, type GeminiKey } from "../../tools/gemini";
 import { followResearch } from "../../tools/research-stream";
@@ -182,7 +183,7 @@ export class ResearchJobs {
       // gateway that keeps failing would otherwise look like a stuck run.
       delay = POLL_SECONDS;
       const problem = String(error).slice(0, 300);
-      console.error(`Research ${id} poll failed: ${problem}`);
+      log.warn("research", "Poll failed", { id, problem });
       if (job.failures + 1 >= MAX_FAILURES) {
         return this.finish(
           job,
@@ -225,7 +226,12 @@ export class ResearchJobs {
 
   private async finish(job: JobRow, body: string, ok: boolean) {
     this.host.sql`DELETE FROM research_jobs WHERE id = ${job.id}`;
-    if (!ok) console.warn(`Research ${job.id} failed: ${body.slice(0, 300)}`);
+    if (!ok) {
+      log.warn("research", "Research failed", {
+        id: job.id,
+        reason: body.slice(0, 300)
+      });
+    }
     this.broadcast();
     const text = ok
       ? `**Deep research: ${job.topic}**\n\n${body}`

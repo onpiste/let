@@ -20,7 +20,7 @@ swiftlint`). Run `swiftformat .` then `swiftlint lint --strict` in this
   `CotRedirectURI`, bundle id), read through `Cot/Core/Config.swift`. Never
   hard-code a domain in Swift.
 - **The contract is `@cot/shared`.** The Swift types in `Cot/Settings/SettingsTypes.swift`
-  and `Cot/Core/User.swift` mirror it by hand. When you change `packages/shared` (a route, an
+  and `Cot/Core/User.swift` mirror it by hand, as does `DevLog.Entry` in `Cot/Core/DevLog.swift` (`LogEntry` in `logs.ts`). When you change `packages/shared` (a route, an
   `AssistantRpc` method, a settings field), update them in the same change.
 - **Layout.** `Core/` is networking and auth (no SwiftUI), `Chat/` the chat
   protocol, reducer and views, `Settings/` the settings sheet. Views stay

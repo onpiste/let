@@ -14,6 +14,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Failed steps go to the dev logs (scripts/devlog, `bun run logs --source
+    # ci`). Without the secret, as on forks, they only fail as usual.
+    env:
+      DEV_LOGS_TOKEN: ${{ secrets.DEV_LOGS_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -30,22 +34,22 @@ jobs:
       - run: bun install --frozen-lockfile
 
       - name: Format
-        run: bun run format:check
+        run: bun scripts/devlog/index.ts report Format -- bun run format:check
 
       - name: Lint (type-aware, warnings fail)
-        run: bun run lint
+        run: bun scripts/devlog/index.ts report Lint -- bun run lint
 
       - name: Typecheck
-        run: bun run typecheck
+        run: bun scripts/devlog/index.ts report Typecheck -- bun run typecheck
 
       - name: Dead code (knip)
-        run: bun run knip
+        run: bun scripts/devlog/index.ts report Knip -- bun run knip
 
       - name: Tests
-        run: bun run test
+        run: bun scripts/devlog/index.ts report Tests -- bun run test
 
       - name: Worker types are up to date
-        run: bun run --filter @cot/server types:check
+        run: bun scripts/devlog/index.ts report Worker types -- bun run --filter @cot/server types:check
 
       - name: Build
-        run: bun run build
+        run: bun scripts/devlog/index.ts report Build -- bun run build

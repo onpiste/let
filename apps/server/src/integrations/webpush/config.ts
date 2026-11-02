@@ -1,3 +1,5 @@
+import { log } from "../../log/logger";
+
 /** A VAPID key pair: how the Worker identifies itself to browser push services. */
 export type WebPushConfig = {
   /** Uncompressed P-256 point, base64url; what browsers subscribe with. */
@@ -25,7 +27,8 @@ export function webPushConfig(env: Env): WebPushConfig | null {
   // Half a setup is a mistake worth seeing; none at all is a deployment
   // that simply doesn't use Web Push.
   if (publicKey || privateKey) {
-    console.warn(
+    log.warn(
+      "webpush",
       "Web Push is off: set WEB_PUSH_PUBLIC_KEY, WEB_PUSH_SUBJECT and the WEB_PUSH_PRIVATE_KEY secret"
     );
   }

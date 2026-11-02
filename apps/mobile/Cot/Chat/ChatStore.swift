@@ -37,7 +37,14 @@ final class ChatStore {
     /// cached the empty start page waits for it instead of flashing.
     private(set) var loaded = false
     private(set) var mcp: McpState?
-    private(set) var errorText: String?
+    private(set) var errorText: String? {
+        // Every error the user sees is also a log line (web: chat-page.tsx).
+        didSet {
+            if let errorText {
+                DevLog.warn("notice", errorText)
+            }
+        }
+    }
     var notice: Notice?
     /// Deep Research runs still going; set from ChatStore+Research.swift.
     var researchJobs: [ResearchJob] = []

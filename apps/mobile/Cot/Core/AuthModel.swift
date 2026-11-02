@@ -49,13 +49,16 @@ final class AuthModel {
             let (data, response) = try await URLSession.shared.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             if status == 401 {
+                DevLog.warn("auth", "Session expired")
                 clear(message: "Your session expired. Sign in again.")
             } else if status == 200, let user = try? JSONDecoder().decode(User.self, from: data) {
                 state = .signedIn(user)
             } else if case .loading = state {
+                DevLog.warn("auth", "Session check failed", ["status": String(status)])
                 state = .signedOut(message: "Couldn't reach the server (\(status)).")
             }
         } catch {
+            DevLog.error("auth", "Session check failed", error)
             if case .loading = state {
                 state =
                     .signedOut(message: "Couldn't reach the server. \(error.localizedDescription)")

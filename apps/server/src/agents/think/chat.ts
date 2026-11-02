@@ -3,6 +3,7 @@ import type { LanguageModel, ToolSet, UIMessage } from "ai";
 
 import { DEFAULT_SETTINGS } from "@cot/shared";
 
+import { log } from "../../log/logger";
 import { cannedReply } from "./canned-reply";
 import type { ChatServices, TurnSetup } from "./chat-services";
 import { stampCreatedAt } from "./history";
@@ -125,7 +126,7 @@ export class Chat extends Think<Env> {
    * get no answer at all. Tell the owner there, with the reason.
    */
   override onChatError(error: unknown) {
-    console.error("Chat turn failed", error);
+    log.with({ chatId: this.name }).error("chat", "Turn failed", error);
     if (this.messengerTurn) void this.tellMessenger(error);
     return error;
   }
@@ -137,7 +138,9 @@ export class Chat extends Think<Env> {
         `Sorry, I couldn't answer that: ${reason}`
       );
     } catch (notifyError) {
-      console.error(notifyError);
+      log
+        .with({ chatId: this.name })
+        .error("chat", "Telling the messenger failed", notifyError);
     }
   }
 

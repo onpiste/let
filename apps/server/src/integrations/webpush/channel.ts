@@ -1,7 +1,7 @@
 import type { PushStatus, WebPushSubscription } from "@cot/shared";
 
+import { log } from "../../log/logger";
 import { fromBase64Url } from "../jwt";
-import { logInfo } from "../log";
 import type { PushAlert } from "../push";
 import { webPushConfig } from "./config";
 import { describeSubscription, sendWebPush } from "./send";
@@ -46,9 +46,10 @@ export class WebPushChannel {
     }
     this.options.subscriptions.save(subscription);
     const enabled = this.config !== null;
-    logInfo(
-      `Web Push browser registered: ${describeSubscription(subscription)}, push ${enabled ? "on" : "off"}`
-    );
+    log.info("webpush", "Browser registered", {
+      browser: describeSubscription(subscription),
+      push: enabled
+    });
     return { enabled };
   }
 
@@ -59,7 +60,7 @@ export class WebPushChannel {
     const { subscriptions } = this.options;
     const targets = subscriptions.list();
     if (targets.length === 0) {
-      logInfo("Web Push skipped: no subscribed browsers");
+      log.info("webpush", "Push skipped: no subscribed browsers");
       return;
     }
     await Promise.all(
@@ -69,10 +70,10 @@ export class WebPushChannel {
           const result = await sendWebPush(config, subscription, alert);
           if (result === "gone") {
             subscriptions.remove(subscription.endpoint);
-            logInfo(`Web Push browser removed: ${who}`);
+            log.info("webpush", "Browser removed", { browser: who });
           }
         } catch (error) {
-          console.error(`Web Push to ${who} failed: ${String(error)}`);
+          log.error("webpush", "Push failed", error, { browser: who });
         }
       })
     );

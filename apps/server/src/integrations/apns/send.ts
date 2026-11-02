@@ -1,6 +1,6 @@
 import type { PushDevice } from "@cot/shared";
 
-import { logInfo } from "../log";
+import { log } from "../../log/logger";
 import type { PushAlert } from "../push";
 import type { ApnsConfig } from "./config";
 import { providerToken } from "./jwt";
@@ -35,11 +35,15 @@ export async function sendPush(
   );
   const who = describeDevice(device);
   if (response.ok) {
-    logInfo(`APNs push sent to ${who}`);
+    log.info("apns", "Push sent", { device: who });
     return "sent";
   }
   const reason = await response.text();
-  console.error(`APNs ${response.status} for ${who}: ${reason}`);
+  log.warn("apns", "Push rejected", {
+    device: who,
+    status: response.status,
+    reason
+  });
   // 410: the app was deleted or signed out. BadDeviceToken: a token from the
   // other environment, which re-registering from the right build replaces.
   if (response.status === 410 || reason.includes("BadDeviceToken")) {

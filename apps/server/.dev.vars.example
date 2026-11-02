@@ -28,3 +28,8 @@ WEB_PUSH_PRIVATE_KEY=
 # search, Deep Research). Empty: those tools only appear for users who add
 # their own Google key.
 CF_AIG_TOKEN=
+
+# Optional: a shared secret that lets builds and CI post their failures to
+# /dev/logs (scripts/devlog). Generate with: openssl rand -hex 32. Empty: the
+# route only takes logs from signed-in web and iOS apps.
+DEV_LOGS_TOKEN=

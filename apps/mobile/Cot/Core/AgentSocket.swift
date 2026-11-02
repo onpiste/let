@@ -189,6 +189,7 @@ final class AgentSocket {
         }
         outbox.removeAll()
         startKeepAlive(socket)
+        DevLog.info("socket", "Socket open", ["path": url.path])
         onOpen?()
     }
 
@@ -201,6 +202,7 @@ final class AgentSocket {
         // refused), so the owner can re-check the session.
         isOpen = false
         failInFlight()
+        DevLog.info("socket", "Socket closed", ["path": url.path, "failures": String(failures)])
         onClose?()
         guard wantsConnection else { return }
         failures += 1

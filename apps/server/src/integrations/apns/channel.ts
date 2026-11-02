@@ -1,6 +1,6 @@
 import type { PushDevice, PushStatus } from "@cot/shared";
 
-import { logInfo } from "../log";
+import { log } from "../../log/logger";
 import type { PushAlert } from "../push";
 import { apnsConfig } from "./config";
 import type { PushDevices } from "./devices";
@@ -30,9 +30,10 @@ export class PushChannel {
     }
     this.options.devices.save(device);
     const enabled = this.config !== null;
-    logInfo(
-      `APNs device registered: ${describeDevice(device)}, push ${enabled ? "on" : "off"}`
-    );
+    log.info("apns", "Device registered", {
+      device: describeDevice(device),
+      push: enabled
+    });
     return { enabled };
   }
 
@@ -43,7 +44,7 @@ export class PushChannel {
     const { devices } = this.options;
     const targets = devices.list();
     if (targets.length === 0) {
-      logInfo("APNs push skipped: no registered devices");
+      log.info("apns", "Push skipped: no registered devices");
       return;
     }
     await Promise.all(
@@ -52,12 +53,14 @@ export class PushChannel {
           const result = await sendPush(config, device, alert);
           if (result === "gone") {
             devices.remove(device.token);
-            logInfo(`APNs device removed: ${describeDevice(device)}`);
+            log.info("apns", "Device removed", {
+              device: describeDevice(device)
+            });
           }
         } catch (error) {
-          console.error(
-            `APNs push to ${describeDevice(device)} failed: ${String(error)}`
-          );
+          log.error("apns", "Push failed", error, {
+            device: describeDevice(device)
+          });
         }
       })
     );

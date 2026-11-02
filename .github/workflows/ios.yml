@@ -20,20 +20,31 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 20
+    # Failed steps go to the dev logs (scripts/devlog, `bun run logs --source
+    # ci`). Without the secret, as on forks, they only fail as usual.
+    env:
+      DEV_LOGS_TOKEN: ${{ secrets.DEV_LOGS_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      # The reporter imports @cot/shared, so the workspace needs installing.
+      - run: bun install --frozen-lockfile
+
       - run: brew install swiftlint swiftformat xcodegen
 
       - name: Format
         working-directory: apps/mobile
-        run: swiftformat --lint .
+        run: bun ../../scripts/devlog/index.ts report "Swift format" -- swiftformat --lint .
 
       - name: Lint
         working-directory: apps/mobile
-        run: swiftlint lint --strict
+        run: bun ../../scripts/devlog/index.ts report "Swift lint" -- swiftlint lint --strict
 
       - name: Generate the Xcode project
         working-directory: apps/mobile
@@ -43,7 +54,7 @@ jobs:
         working-directory: apps/mobile
         run: |
           device=$(xcrun simctl list devices available iPhone | grep -m1 -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}')
-          xcodebuild test \
+          bun ../../scripts/devlog/index.ts report "iOS tests" -- xcodebuild test \
             -project Cot.xcodeproj \
             -scheme Cot \
             -destination "id=$device" \

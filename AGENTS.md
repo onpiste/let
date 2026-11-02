@@ -209,6 +209,24 @@ responsibility, not by line count:
 - Workers AI, AI Search and Browser Rendering bindings are remote; run
   `bunx wrangler login` once.
 
+## Logs and debugging
+
+Every part of Cot (Worker, web, iOS, local builds, CI) logs one JSON format
+(`LogEntry` in `packages/shared/src/logs.ts`) into Cloudflare Workers Logs,
+and `bun run logs` reads it back. **Before debugging a bug or a failed
+build, follow the `dev-logs` skill:
+[.agents/skills/dev-logs/SKILL.md](.agents/skills/dev-logs/SKILL.md)**
+(Claude Code loads it from `.claude/skills/`).
+
+- Log through the logger, never raw `console.log` or `print`: `log` in
+  `apps/server/src/log/logger.ts`, `devLog` in `apps/web/src/lib/dev-log.ts`,
+  `DevLog` in `apps/mobile/Cot/Core/DevLog.swift`. Web and iOS log the same
+  events under the same scopes.
+- New build or CI steps run through
+  `bun scripts/devlog/index.ts report "<Step>" -- <command>` so their
+  failures are recorded too.
+- No chat text, attachments or secrets at `info` and above.
+
 ## Git
 
 - Small, focused commits with an imperative subject ("Add …", "Fix …").
