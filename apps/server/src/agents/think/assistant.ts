@@ -139,8 +139,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   @callable()
-  async listChats() {
-    return this.chats.list();
+  async listChats(cursor?: string | null) {
+    return this.chats.list(cursor);
   }
 
   @callable()

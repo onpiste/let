@@ -12,6 +12,9 @@ struct HistoryView: View {
     @State private var chats: [ChatSummary]?
     @State private var error: String?
     @State private var query = ""
+    /// The cursor of the page after the ones shown; nil when all are.
+    @State private var next: String?
+    @State private var loadingMore = false
 
     private var needle: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -29,6 +32,14 @@ struct HistoryView: View {
                 }
                 ForEach(chats ?? []) { chat in
                     row(chat)
+                }
+                // Loads the next page as the end scrolls into view
+                // (history-more.tsx on the web).
+                if next != nil {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                        .onAppear { Task { await more() } }
                 }
             }
             .listStyle(.plain)
@@ -98,10 +109,8 @@ struct HistoryView: View {
         .swipeActions {
             Button("Delete", role: .destructive) {
                 Task {
-                    _ = await run {
-                        let all = try await store.deleteChat(chat.id)
-                        // Keep showing the search results, minus this one.
-                        return needle.isEmpty ? all : (chats ?? []).filter { $0.id != chat.id }
+                    if await perform({ try await store.deleteChat(chat.id) }) {
+                        chats = chats?.filter { $0.id != chat.id }
                     }
                 }
             }
@@ -113,12 +122,22 @@ struct HistoryView: View {
         let query: String
     }
 
-    /// Every chat, or the matches once typing pauses; nothing while closed.
+    /// The newest chats, or the matches once typing pauses; nothing while
+    /// closed.
     private func load() async {
+        next = nil
         guard isOpen else { return }
         let query = needle
         if query.isEmpty {
-            _ = await run { try await store.chats() }
+            do {
+                let page = try await store.chats()
+                guard !Task.isCancelled else { return }
+                chats = page.chats
+                next = page.next
+                error = nil
+            } catch {
+                self.error = error.localizedDescription
+            }
             return
         }
         try? await Task.sleep(for: .milliseconds(250))
@@ -126,7 +145,24 @@ struct HistoryView: View {
         _ = await run { try await store.searchChats(query) }
     }
 
-    /// Runs a call that switches chats; false (with the error shown) on failure.
+    /// The page after the ones shown, added below them, once at a time.
+    private func more() async {
+        guard let cursor = next, !loadingMore else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        do {
+            let page = try await store.chats(after: cursor)
+            // The query changed meanwhile and the list was reloaded.
+            guard next == cursor, needle.isEmpty else { return }
+            chats = (chats ?? []).appending(page.chats)
+            next = page.next
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Runs a call that switches or deletes chats; false (with the error shown) on failure.
     private func perform(_ action: () async throws -> Void) async -> Bool {
         do {
             try await action()

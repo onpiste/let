@@ -1,6 +1,56 @@
 import { describe, expect, it } from "vitest";
 
-import { searchSnippet } from "./chats";
+import {
+  appendChats,
+  chatCursor,
+  parseChatCursor,
+  searchSnippet,
+  type ChatSummary
+} from "./chats";
+
+const chat = (id: string, updatedAt = "2026-11-01T10:00:00.000Z") =>
+  ({
+    id,
+    title: id,
+    updatedAt,
+    active: false,
+    running: false
+  }) satisfies ChatSummary;
+
+describe("chat cursors", () => {
+  it("round-trips a page's last chat", () => {
+    const last = chat("b1c2", "2026-11-01T10:00:00.000Z");
+    expect(parseChatCursor(chatCursor(last))).toEqual({
+      updatedAt: last.updatedAt,
+      id: last.id
+    });
+  });
+
+  it("starts at the first page without a cursor", () => {
+    expect(parseChatCursor(null)).toBeNull();
+    expect(parseChatCursor(undefined)).toBeNull();
+  });
+
+  it("rejects anything else", () => {
+    for (const bad of [
+      42,
+      "",
+      "no-bar",
+      "|id",
+      "not a date|id",
+      "x".repeat(201)
+    ])
+      expect(() => parseChatCursor(bad)).toThrow("Bad history cursor.");
+  });
+});
+
+describe("appendChats", () => {
+  it("adds a page, skipping chats already shown", () => {
+    const shown = [chat("a"), chat("b")];
+    const page = [chat("b"), chat("c")];
+    expect(appendChats(shown, page).map((c) => c.id)).toEqual(["a", "b", "c"]);
+  });
+});
 
 describe("searchSnippet", () => {
   it("finds a match regardless of case", () => {

@@ -1,4 +1,4 @@
-import type { ChatSummary } from "./chats";
+import type { ChatPage, ChatSummary } from "./chats";
 import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
 import type { PushDevice, PushStatus, WebPushSubscription } from "./push";
 import type { ResearchJob } from "./research";
@@ -20,18 +20,20 @@ export type AddMcpResult =
  */
 export interface AssistantRpc {
   /**
-   * Conversations with at least one message, newest first. Switching between
-   * them never interrupts a reply: each runs in its own agent.
+   * Conversations with at least one message, newest first, `CHAT_PAGE_SIZE`
+   * at a time: no cursor for the first page, then the `next` of the one
+   * before. Switching between them never interrupts a reply: each runs in
+   * its own agent.
    */
-  listChats(): Promise<ChatSummary[]>;
+  listChats(cursor?: string | null): Promise<ChatPage>;
   /** The chat to open on start: the one last used, or a new empty one. */
   currentChat(): Promise<string>;
   /** Creates an empty chat and returns its id, for `chatSocketPath`. */
   newChat(): Promise<string>;
   /** Marks a chat as the one in use (Telegram follows it). */
-  openChat(id: string): Promise<ChatSummary[]>;
+  openChat(id: string): Promise<void>;
   /** Deletes a chat, stopping a reply that is still running in it. */
-  deleteChat(id: string): Promise<ChatSummary[]>;
+  deleteChat(id: string): Promise<void>;
   /**
    * Conversations whose title or text contains `query` (case-insensitive),
    * newest first, each with a `snippet` around the match.

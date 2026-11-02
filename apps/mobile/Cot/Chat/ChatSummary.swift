@@ -27,3 +27,19 @@ struct ChatSummary: Decodable, Identifiable, Equatable {
         updatedAt = formatter.date(from: iso) ?? Date()
     }
 }
+
+/// One page of the history list (ChatPage in @cot/shared chats.ts): pass
+/// `next` back to `listChats` for the page after it; nil on the last one.
+struct ChatPage: Decodable {
+    let chats: [ChatSummary]
+    let next: String?
+}
+
+extension [ChatSummary] {
+    /// Adds a page, keeping the copy of a chat already shown (it moves to
+    /// the top when written in while the user scrolls). `appendChats` in TS.
+    func appending(_ page: [ChatSummary]) -> [ChatSummary] {
+        let seen = Set(map(\.id))
+        return self + page.filter { !seen.contains($0.id) }
+    }
+}

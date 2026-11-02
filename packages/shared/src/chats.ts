@@ -17,6 +17,51 @@ export type ChatSummary = {
   snippet?: string;
 };
 
+/**
+ * One page of the history list (`listChats`). Pass `next` back to get the
+ * page after it; null means this was the last one.
+ */
+export type ChatPage = { chats: ChatSummary[]; next: string | null };
+
+/** How many chats `listChats` returns at a time. */
+export const CHAT_PAGE_SIZE = 30;
+
+/** Where a page ends: the last chat's date and id, newest-first order. */
+type ChatCursor = { updatedAt: string; id: string };
+
+/** The `next` cursor for a page that ends with `chat`. */
+export function chatCursor(chat: Pick<ChatSummary, "updatedAt" | "id">) {
+  return `${chat.updatedAt}|${chat.id}`;
+}
+
+/**
+ * Reads a cursor from `chatCursor`; null or undefined means the first page.
+ * The argument arrives untyped from the client, so anything else throws.
+ */
+export function parseChatCursor(cursor: unknown): ChatCursor | null {
+  if (cursor === null || cursor === undefined) return null;
+  if (typeof cursor !== "string" || cursor.length > 200) {
+    throw new Error("Bad history cursor.");
+  }
+  const at = cursor.indexOf("|");
+  const updatedAt = cursor.slice(0, at);
+  const id = cursor.slice(at + 1);
+  if (at < 0 || !updatedAt || !id || Number.isNaN(Date.parse(updatedAt))) {
+    throw new Error("Bad history cursor.");
+  }
+  return { updatedAt, id };
+}
+
+/**
+ * Adds a page to the chats already shown. A chat written in while the user
+ * scrolled moves to the top and can come back on a later page; keep the
+ * copy already shown.
+ */
+export function appendChats(shown: ChatSummary[], page: ChatSummary[]) {
+  const seen = new Set(shown.map((chat) => chat.id));
+  return [...shown, ...page.filter((chat) => !seen.has(chat.id))];
+}
+
 /** Longest query `searchChats` accepts. */
 export const CHAT_QUERY_LENGTH = 100;
 

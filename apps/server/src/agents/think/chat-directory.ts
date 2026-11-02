@@ -55,9 +55,9 @@ export class ChatDirectory {
     return this.host.dynamicAgents.has(Chat, id);
   }
 
-  async list() {
+  async list(cursor: unknown) {
     await this.ready();
-    return this.history().list();
+    return this.history().page(cursor);
   }
 
   async current() {
@@ -80,7 +80,6 @@ export class ChatDirectory {
     await this.ready();
     if (!this.exists(id)) throw new Error("That chat no longer exists.");
     this.history().setActive(id);
-    return this.history().list();
   }
 
   /** Deleting the agent also stops a reply still running in it. */
@@ -89,7 +88,6 @@ export class ChatDirectory {
     await this.ready();
     await this.host.dynamicAgents.delete(Chat, id);
     this.history().remove(id);
-    return this.history().list();
   }
 
   async find(query: unknown) {

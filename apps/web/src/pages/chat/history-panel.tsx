@@ -4,6 +4,7 @@ import { CHAT_QUERY_LENGTH } from "@cot/shared";
 
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
+import { HistoryMore } from "./history-more";
 import { useChatSearch } from "./use-chat-search";
 
 /**
@@ -26,7 +27,10 @@ export function HistoryPanel({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const { chats, setChats, error, setError } = useChatSearch(agent, query);
+  const { chats, setChats, error, setError, hasMore, more } = useChatSearch(
+    agent,
+    query
+  );
   const searching = query.trim() !== "";
 
   useEffect(() => {
@@ -51,16 +55,12 @@ export function HistoryPanel({
 
   const remove = async (id: string) => {
     try {
-      const list = await api(agent).deleteChat(id);
+      await api(agent).deleteChat(id);
+      setChats((old) => old?.filter((c) => c.id !== id) ?? null);
       // The open chat is gone: show the one the server picks next.
       if (id === currentId) {
         onOpen(await api(agent).currentChat());
       }
-      if (!searching) setChats(list);
-      else
-        setChats(
-          (old) => old?.filter((c) => list.some((n) => n.id === c.id)) ?? null
-        );
     } catch (e) {
       setError(errorText(e));
     }
@@ -130,6 +130,7 @@ export function HistoryPanel({
               </button>
             </li>
           ))}
+          {hasMore && <HistoryMore onMore={more} />}
         </ul>
       </aside>
     </>
