@@ -107,6 +107,17 @@ Cot is meant to be forked and changed. The usual first steps:
    `packages/shared/src/connectors.ts` (and the copy in
    `apps/mobile/Cot/Settings/McpSection.swift`). Business-specific knowledge can go into the `cot-knowledge`
    AI Search instance that the knowledge tool searches.
+
+   **Apps (one tap).** With a [Composio](https://composio.dev) project key
+   (`bunx wrangler secret put COMPOSIO_API_KEY`), **Settings → Apps** lets
+   each user connect Gmail, Google Calendar, Drive, Docs, Sheets, Notion,
+   Slack, GitHub and Linear with one sign-in each, using Composio's OAuth
+   apps, so you don't register or verify your own. Their tools reach the
+   assistant over one MCP server per user. Tool calls and tokens go through
+   Composio's cloud; without the key the section is hidden. Edit the list
+   in `packages/shared/src/apps.ts`; see
+   [the integration's README](apps/server/src/integrations/composio/README.md).
+
 6. **Channels.** Telegram is the reference integration
    (`apps/server/src/integrations/telegram/`); new messengers follow the same
    shape. The iOS app (`apps/mobile`) wraps the web app; set its bundle id,

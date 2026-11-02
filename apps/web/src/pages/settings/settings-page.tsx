@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 
 import { ASSISTANT, type User } from "@cot/shared";
 
+import { AppsSettings } from "./apps-settings";
 import { AssistantSettings } from "./assistant-settings";
 import { EmailSettings } from "./email-settings";
 import { IntegrationSettings } from "./integration-settings";
@@ -44,6 +45,7 @@ export function SettingsPage({
         <div className="column settings">
           <AssistantSettings agent={agent} />
           <SkillsSettings agent={agent} epoch={epoch} />
+          <AppsSettings agent={agent} epoch={epoch} />
           <McpSettings agent={agent} state={mcp} />
           <IntegrationSettings user={user} agent={agent} epoch={epoch} />
           <EmailSettings agent={agent} epoch={epoch} />

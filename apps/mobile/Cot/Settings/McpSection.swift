@@ -10,7 +10,10 @@ struct McpSection: View {
 
     var body: some View {
         Section {
-            let servers = (model.mcp?.servers ?? [:]).sorted { $0.key < $1.key }
+            // The apps server is managed from AppsSection.
+            let servers = (model.mcp?.servers ?? [:])
+                .filter { $0.key != Self.appsServerId }
+                .sorted { $0.key < $1.key }
             if servers.isEmpty {
                 Text("No servers yet.").foregroundStyle(.secondary)
             }
@@ -56,6 +59,9 @@ struct McpSection: View {
             )
         }
     }
+
+    /// APPS_MCP_ID in packages/shared/src/apps.ts.
+    private static let appsServerId = "apps"
 
     /// Keep in sync with CONNECTOR_PRESETS in packages/shared/src/connectors.ts.
     private static let presets: [(name: String, url: String)] = [

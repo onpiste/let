@@ -1,6 +1,6 @@
 import Foundation
 
-// Mirrors @cot/shared settings.ts, telegram.ts and email.ts. The Worker
+// Mirrors @cot/shared settings.ts, apps.ts, telegram.ts and email.ts. The Worker
 // validates every change, so this only carries the shapes and the provider
 // list the pickers need.
 
@@ -96,4 +96,25 @@ struct Skill: Decodable, Identifiable, Equatable {
     var id: String {
         name
     }
+}
+
+/// Mirrors AppsStatus in @cot/shared apps.ts.
+struct AppsStatus: Decodable, Equatable {
+    struct App: Decodable, Equatable, Identifiable {
+        let slug: String
+        let name: String
+        let connected: Bool
+        let problem: String?
+        var id: String {
+            slug
+        }
+    }
+
+    let available: Bool
+    let apps: [App]
+}
+
+/// What connectApp returns: the sign-in page to open.
+struct AppLink: Decodable {
+    let url: String
 }
