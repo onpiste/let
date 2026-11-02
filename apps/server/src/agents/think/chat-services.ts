@@ -44,6 +44,8 @@ export type ChatServicesHost = {
   mcp: MCPClientManager;
   /** Messages the owner on Telegram, outside the chat. */
   notifyMessenger: (text: string) => Promise<void>;
+  /** Tells the owner, on every channel, what a scheduled task came to. */
+  notifyTask: (description: string, reply: string | null) => Promise<void>;
 };
 
 /**
@@ -61,8 +63,11 @@ export class ChatServices extends RpcTarget implements AssistantServices {
     super();
   }
 
-  /** Called before every turn; `newTurn` is false for continuations. */
-  async turn(newTurn: boolean, messenger: boolean): Promise<TurnSetup> {
+  /**
+   * Called before every turn; `newTurn` is false for continuations and
+   * `unattended` true when nobody can run commands (Telegram, a schedule).
+   */
+  async turn(newTurn: boolean, unattended: boolean): Promise<TurnSetup> {
     const { store, history, research, env, mcp } = this.host;
     store.ensureTables();
     const settings = store.getSettings();
@@ -80,7 +85,7 @@ export class ChatServices extends RpcTarget implements AssistantServices {
       instructions: buildSystemPrompt({
         settings,
         memories: store.listMemories(),
-        commandsAllowed: !messenger,
+        commandsAllowed: !unattended,
         emailAddress: this.host.emailAddress,
         skills,
         webSearch
@@ -133,6 +138,11 @@ export class ChatServices extends RpcTarget implements AssistantServices {
   }
 
   // ── Reminders ───────────────────────────────────────────────────────
+
+  /** A scheduled task's turn ended; `reply` is what the model answered. */
+  async taskDone(description: string, reply: string | null) {
+    await this.host.notifyTask(description, reply);
+  }
 
   async setReminder(when: Date | string | number, description: string) {
     return setReminder(this.host.agent, this.host.env, when, description);

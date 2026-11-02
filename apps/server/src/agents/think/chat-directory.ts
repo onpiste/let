@@ -103,6 +103,12 @@ export class ChatDirectory {
     await (await this.chat(id)).addReport(message);
   }
 
+  /** Runs a scheduled task as a turn in the chat in use. */
+  async runTask(description: string) {
+    const id = await this.current();
+    await (await this.chat(id)).runTask(description);
+  }
+
   /** Chats opened but never written in, except the one in use. */
   private async dropEmpty() {
     const used = this.history().ids();

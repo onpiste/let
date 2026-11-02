@@ -1,4 +1,9 @@
-import { Think, type TurnConfig, type TurnContext } from "@cloudflare/think";
+import {
+  Think,
+  type ChatResponseResult,
+  type TurnConfig,
+  type TurnContext
+} from "@cloudflare/think";
 import type { LanguageModel, ToolSet, UIMessage } from "ai";
 
 import { DEFAULT_SETTINGS } from "@cot/shared";
@@ -8,6 +13,12 @@ import { cannedReply } from "./canned-reply";
 import type { ChatServices, TurnSetup } from "./chat-services";
 import { stampCreatedAt } from "./history";
 import { modelFor } from "./model";
+import {
+  replyText,
+  SCHEDULED_TURN_HINT,
+  scheduledTaskOf,
+  taskMessage
+} from "./scheduled-turn";
 import { assistantTools, localTools, NEEDS_APPROVAL } from "./tools";
 import { mcpTools } from "./tools/mcp";
 
@@ -92,7 +103,10 @@ export class Chat extends Think<Env> {
       !ctx.continuation &&
       !ctx.trigger.startsWith("recovery");
     this.messengerTurn = Boolean(ctx.messenger);
-    const setup = await this.services.turn(newTurn, Boolean(ctx.messenger));
+    // Nobody watches a scheduled task's turn, just as with Telegram.
+    const scheduled = scheduledTaskOf(this.messages) !== null;
+    const unattended = Boolean(ctx.messenger) || scheduled;
+    const setup = await this.services.turn(newTurn, unattended);
     this.setup = setup;
     if (setup.refusal) {
       return { model: cannedReply(setup.refusal), activeTools: [] };
@@ -102,22 +116,30 @@ export class Chat extends Think<Env> {
       ...assistantTools(services, setup),
       ...mcpTools(services, setup.mcp)
     };
-    // Telegram has no approval buttons, so those tools are withheld there.
-    const activeTools = ctx.messenger
+    // Telegram has no approval buttons and a scheduled turn nobody to press
+    // them, so those tools are withheld there.
+    const activeTools = unattended
       ? [...Object.keys(ctx.tools), ...Object.keys(tools)].filter(
           (name) => !NEEDS_APPROVAL.has(name)
         )
       : undefined;
     return {
       model: modelFor(setup.settings),
-      instructions: setup.instructions,
+      instructions: scheduled
+        ? `${setup.instructions}\n\n${SCHEDULED_TURN_HINT}`
+        : setup.instructions,
       tools,
       activeTools
     };
   }
 
-  override async onChatResponse() {
+  override async onChatResponse(result: ChatResponseResult) {
     await this.report(true);
+    // Errors are told in onChatError, which also sees those with no reply.
+    const task = scheduledTaskOf(this.messages);
+    if (task !== null && result.status !== "error") {
+      await this.services.taskDone(task, replyText(result.message) || null);
+    }
   }
 
   /**
@@ -128,7 +150,21 @@ export class Chat extends Think<Env> {
   override onChatError(error: unknown) {
     log.with({ chatId: this.name }).error("chat", "Turn failed", error);
     if (this.messengerTurn) void this.tellMessenger(error);
+    const task = scheduledTaskOf(this.messages);
+    if (task !== null) void this.tellTaskFailed(task, error);
     return error;
+  }
+
+  /** The owner still hears of the task, with why it couldn't run. */
+  private async tellTaskFailed(task: string, error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    try {
+      await this.services.taskDone(task, `Sorry, I couldn't do it: ${reason}`);
+    } catch (notifyError) {
+      log
+        .with({ chatId: this.name })
+        .error("chat", "Telling the task failed", notifyError);
+    }
   }
 
   private async tellMessenger(error: unknown) {
@@ -154,6 +190,14 @@ export class Chat extends Think<Env> {
   async importMessages(messages: UIMessage[]) {
     await this.clearMessages();
     await this.addMessages(messages);
+  }
+
+  /**
+   * Runs a scheduled task as a turn, queued behind any reply in progress.
+   * Returns once it is queued, so the assistant's alarm doesn't wait.
+   */
+  async runTask(description: string) {
+    await this.submitMessages([taskMessage(description)]);
   }
 
   /** Adds a message (a Deep Research report) without starting a turn. */

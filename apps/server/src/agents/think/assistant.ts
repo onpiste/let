@@ -22,6 +22,7 @@ import { emailNotice, triagedNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
 import { OwnerPush } from "../../integrations/push";
 import { TelegramChannel } from "../../integrations/telegram/channel";
+import { log } from "../../log/logger";
 import { Chat } from "./chat";
 import { ChatDirectory } from "./chat-directory";
 import { ChatServices } from "./chat-services";
@@ -193,7 +194,9 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       inbox: address ? new Inbox(this) : null,
       emailAddress: address,
       mcp: this.mcp,
-      notifyMessenger: (text) => this.telegram.notify(text)
+      notifyMessenger: (text) => this.telegram.notify(text),
+      notifyTask: (description, reply) =>
+        this.notify(reminderNotice(description, reply))
     });
   }
 
@@ -385,10 +388,20 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     this.store.removeMemory(id);
   }
 
-  // ── Scheduled reminders fire here ───────────────────────────────────
+  // ── Scheduled tasks fire here ───────────────────────────────────────
 
+  /**
+   * Carries the task out as a turn in the chat in use; the chat tells the
+   * owner the result when the turn ends (ChatServices.taskDone). If the turn
+   * can't even be queued, the owner still gets the bare reminder.
+   */
   async executeTask(description: string) {
-    await this.notify(reminderNotice(description));
+    try {
+      await this.chats.runTask(description);
+    } catch (error) {
+      log.error("tasks", "Running a scheduled task failed", error);
+      await this.notify(reminderNotice(description, null));
+    }
   }
 
   @callable()
