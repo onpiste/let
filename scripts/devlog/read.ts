@@ -13,6 +13,20 @@ import { config, parseFlags, parseSince } from "./config";
  *   --limit 200      most lines to print
  */
 
+const KEY_ORDER: (keyof LogEntry)[] = [
+  "ts",
+  "level",
+  "source",
+  "scope",
+  "msg",
+  "user",
+  "session",
+  "requestId",
+  "chatId",
+  "version",
+  "data"
+];
+
 type Event = { source?: unknown; $metadata?: { message?: string } };
 
 const QUERY_URL = (account: string) =>
@@ -31,7 +45,11 @@ function entryOf(event: Event): LogEntry | null {
   // Trust boundary: lines the Worker wrote with log/logger.ts.
   const record = value as Record<string, unknown>;
   if (record[LOG_MARKER] !== 1) return null;
-  const { [LOG_MARKER]: _marker, ...entry } = record;
+  // Workers Logs reorders the fields; print every line in one order.
+  const entry: Record<string, unknown> = {};
+  for (const key of KEY_ORDER) {
+    if (record[key] !== undefined) entry[key] = record[key];
+  }
   return entry as LogEntry;
 }
 
