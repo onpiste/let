@@ -16,8 +16,7 @@ import { modelFor } from "./model";
 import {
   replyText,
   SCHEDULED_TURN_HINT,
-  scheduledTaskOf,
-  taskMessage
+  scheduledTaskOf
 } from "./scheduled-turn";
 import { assistantTools, localTools, NEEDS_APPROVAL } from "./tools";
 import { mcpTools } from "./tools/mcp";
@@ -193,11 +192,12 @@ export class Chat extends Think<Env> {
   }
 
   /**
-   * Runs a scheduled task as a turn, queued behind any reply in progress.
-   * Returns once it is queued, so the assistant's alarm doesn't wait.
+   * Starts a turn with a message the assistant wrote for the user (a
+   * scheduled task, or "Ask Cot" about an email), queued behind any reply
+   * in progress. Returns once it is queued, so the caller doesn't wait.
    */
-  async runTask(description: string) {
-    await this.submitMessages([taskMessage(description)]);
+  async startTurn(message: UIMessage) {
+    await this.submitMessages([message]);
   }
 
   /** Adds a message (a Deep Research report) without starting a turn. */

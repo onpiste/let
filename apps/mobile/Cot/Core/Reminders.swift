@@ -25,11 +25,15 @@ enum Reminders {
         }
     }
 
-    static func notify(title: String, body: String) {
+    /// `path` is what a tap opens, as in the server's push (see `Push.open`).
+    static func notify(title: String, body: String, path: String? = nil) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
+        if let path {
+            content.userInfo = ["path": path]
+        }
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,

@@ -7,9 +7,13 @@ it on the settings page. Aliases are first come, first served. Anyone (or a Gmai
 assistant files it in an inbox and tells the owner. New mail is read
 by the model once, with no tools (`triage.ts`), and sorted into `action`,
 `notify` or `ignore` with a one-line summary, so the owner hears about
-what matters without asking. The chat model still reads full messages only
-on request, through `listEmails` / `searchEmails` / `readEmail`, and mail never starts a chat
-turn.
+what matters without asking. The owner reads mail on the Inbox page (web
+`/inbox`, iOS envelope button), which marks it read and can archive it; an
+unread badge counts what they haven't opened. The chat model reads full
+messages only on request, through `listEmails` / `searchEmails` / `readEmail`.
+Mail never starts a chat turn by itself: only the owner's **Ask Cot** button
+does (`askAboutEmail`), with a message that names the email by id, so
+nothing the sender wrote is ever put in the owner's words.
 
 1. The settings page calls `getEmailStatus`. `EmailChannel.status` claims
    the first free candidate alias on first use in the global
@@ -27,12 +31,16 @@ turn.
 4. Accepted mail goes into the `emails` table, with no cap on how many or
    how long. Strangers are rate limited instead: past 30 emails an hour or
    200 a day (`STRANGER_LIMITS` in `channel.ts`) their mail bounces until
-   the window clears. The owner gets a web toast and a Telegram message with the summary
+   the window clears. The owner gets a web toast, a push alert and a Telegram message with the summary
    (`action` mail is flagged; `ignore` mail is filed silently; if triage
    fails the plain notice goes out). Untrusted mail is
    labelled "unknown sender" in both, and in what `readEmail` returns; the
    system prompt tells the model to treat it as possible spam or phishing.
-   Every body is fenced as untrusted content either way.
+   Every body is fenced as untrusted content either way. The event and the
+   push carry the email's id and `inboxPath(id)`, so a tap opens it.
+5. The clients call `listInbox`, `openEmail`, `archiveEmail` and
+   `askAboutEmail` (`mailbox.ts`); each change to the unread count goes out
+   to open clients as an `inbox` event for their badge.
 
 SDK `routeAgentEmail` with `createAddressBasedEmailResolver` is deliberately
 not used: it takes the instance name from the address, which would expose
@@ -63,3 +71,5 @@ with the owner as envelope sender, so it passes the gate.
 | `channel.ts`   | Address lifecycle and receiving for one assistant         |
 | `triage.ts`    | One tool-less model call: category and summary            |
 | `notice.ts`    | The web event and Telegram text for a new email           |
+| `mailbox.ts`   | The owner's inbox actions: list, open, archive, Ask Cot   |
+| `feature.ts`   | Puts the parts together for the assistant                 |

@@ -17,6 +17,7 @@ there is no WebView: native text, keyboard, haptics and system sign-in.
 | Chat history: side drawer (swipe from the left), keyword search, open, delete, new chat; switching never stops a running reply ("Answering…") | `Cot/Chat/HistoryView.swift`, `SideDrawer.swift`, `ChatStore+History.swift`      |
 | Settings: model and keys, skills, apps, connectors, Telegram, email                                                                           | `Cot/Settings/`                                                                  |
 | Reminder and mail notices                                                                                                                     | in-app banner; APNs push (`Cot/Core/Push.swift`), else a local notification      |
+| Inbox: list, archive, read an email, "Ask Cot"; unread badge; tapping a mail banner or push opens the email                                   | `Cot/Chat/InboxView.swift`, `EmailView.swift`, `ChatStore+Inbox.swift`           |
 
 Requires iOS 17 and Xcode 16+.
 
