@@ -30,7 +30,15 @@ export async function sendPush(
         "apns-priority": "10",
         "content-type": "application/json"
       },
-      body: JSON.stringify({ aps: { alert, sound: "default" } })
+      // `path` rides outside `aps`, where iOS hands custom keys to the app
+      // (Push.swift opens it on tap).
+      body: JSON.stringify({
+        aps: {
+          alert: { title: alert.title, body: alert.body },
+          sound: "default"
+        },
+        ...(alert.path ? { path: alert.path } : {})
+      })
     }
   );
   const who = describeDevice(device);

@@ -14,21 +14,26 @@ async function show(alert) {
   if (windows.some((client) => client.visibilityState === "visible")) return;
   await self.registration.showNotification(alert.title || "Cot", {
     body: alert.body || "",
-    icon: "/favicon.ico"
+    icon: "/favicon.ico",
+    // Where a click goes, e.g. /inbox/12 for a new email.
+    data: { path: typeof alert.path === "string" ? alert.path : "/" }
   });
 }
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(openApp());
+  const path = event.notification.data?.path;
+  event.waitUntil(openApp(typeof path === "string" ? path : "/"));
 });
 
-async function openApp() {
+async function openApp(path) {
   const windows = await self.clients.matchAll({
     type: "window",
     includeUncontrolled: true
   });
   const [open] = windows;
-  if (open) return open.focus();
-  return self.clients.openWindow("/");
+  if (!open) return self.clients.openWindow(path);
+  // The page routes on the URL (app.tsx); navigate an open tab there.
+  if (path !== "/" && "navigate" in open) await open.navigate(path);
+  return open.focus();
 }

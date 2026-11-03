@@ -4,7 +4,14 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
 import { ASSISTANT, type ServerEvent, type User } from "@cot/shared";
 
-import { Calendar, Clock, Gear, LogOut, Plus } from "../../components/icons";
+import {
+  Calendar,
+  Clock,
+  Gear,
+  LogOut,
+  Mail,
+  Plus
+} from "../../components/icons";
 import { ThemeToggle } from "../../components/theme-toggle";
 import { api } from "../../lib/assistant-rpc";
 import { loadChatCache } from "../../lib/chat-cache";
@@ -19,6 +26,7 @@ import { NoticeToast, type Notice } from "./notice-toast";
 import { mcpToolLabels } from "./tool-chip";
 import { useReconnectOnResume } from "./use-reconnect";
 import { useResearchJobs } from "./use-research-jobs";
+import { useUnreadEmails } from "./use-unread-emails";
 
 export function ChatPage({
   user,
@@ -26,7 +34,8 @@ export function ChatPage({
   onSignOut,
   onAuthCheck,
   onOpenSettings,
-  onOpenTasks
+  onOpenTasks,
+  onOpenEmail
 }: {
   user: User;
   /** Text to start the message box with. */
@@ -35,6 +44,8 @@ export function ChatPage({
   onAuthCheck: () => void;
   onOpenSettings: () => void;
   onOpenTasks: () => void;
+  /** The inbox, with one email open or (null) the list. */
+  onOpenEmail: (id: number | null) => void;
 }) {
   const [connected, setConnected] = useState(false);
   // The open chat: the cached one at once, then the server's choice.
@@ -53,6 +64,8 @@ export function ChatPage({
   const [mcpLabels, setMcpLabels] = useState<Record<string, string>>({});
   const research = useResearchJobs();
   const { onEvent: onResearchEvent, load: loadResearch } = research;
+  const emails = useUnreadEmails();
+  const { onEvent: onEmailEvent, load: loadUnread } = emails;
 
   const agent = useAgent({
     agent: ASSISTANT.agent,
@@ -86,6 +99,7 @@ export function ChatPage({
         try {
           const data = JSON.parse(String(message.data)) as Partial<ServerEvent>;
           onResearchEvent(data);
+          onEmailEvent(data);
           if (data.type === "reminder" && data.description) {
             setToast({ icon: "⏰", title: "Reminder", text: data.description });
             notify("Cot reminder", data.description);
@@ -109,7 +123,8 @@ export function ChatPage({
             setToast({
               icon: action ? "⚠️" : "📧",
               title: action ? "Email needs action" : "New email",
-              text
+              text,
+              emailId: typeof data.id === "number" ? data.id : undefined
             });
             notify(action ? "Cot: email needs action" : "Cot: new email", text);
           }
@@ -117,7 +132,7 @@ export function ChatPage({
           // Not JSON — ignore.
         }
       },
-      [onResearchEvent]
+      [onResearchEvent, onEmailEvent]
     )
   });
 
@@ -134,7 +149,8 @@ export function ChatPage({
     if (!connected) return;
     setUpPush();
     loadResearch(api(agent));
-  }, [connected, setUpPush, loadResearch, agent]);
+    loadUnread(api(agent));
+  }, [connected, setUpPush, loadResearch, loadUnread, agent]);
 
   // On the first connection, open the chat last used on any device.
   const askedCurrent = useRef(false);
@@ -198,6 +214,21 @@ export function ChatPage({
           </button>
           <ThemeToggle />
           <button
+            className="icon-btn badge-host"
+            onClick={() => onOpenEmail(null)}
+            aria-label={
+              emails.unread > 0 ? `Inbox, ${emails.unread} unread` : "Inbox"
+            }
+            title="Inbox"
+          >
+            <Mail />
+            {emails.unread > 0 && (
+              <span className="badge">
+                {emails.unread > 99 ? "99+" : emails.unread}
+              </span>
+            )}
+          </button>
+          <button
             className="icon-btn"
             onClick={onOpenTasks}
             aria-label="Tasks"
@@ -253,7 +284,17 @@ export function ChatPage({
         <ChatLoading />
       )}
 
-      {toast && <NoticeToast notice={toast} onDismiss={dismissToast} />}
+      {toast && (
+        <NoticeToast
+          notice={toast}
+          onDismiss={dismissToast}
+          onOpen={
+            toast.emailId === undefined
+              ? undefined
+              : () => onOpenEmail(toast.emailId ?? null)
+          }
+        />
+      )}
     </div>
   );
 }
