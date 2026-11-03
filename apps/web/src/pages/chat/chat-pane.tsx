@@ -11,6 +11,7 @@ import {
 } from "@cot/shared";
 
 import { ArrowDown } from "../../components/icons";
+import { chatApi } from "../../lib/assistant-rpc";
 import {
   checkTotalSize,
   readAttachment,
@@ -77,21 +78,28 @@ export function ChatPane({
     onMissing();
   }, [missing, onMissing, chatId]);
 
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } =
-    useAgentChat({
-      agent,
-      experimental_throttle: 50,
-      // Show the cached chat at once; the socket sends the real list on
-      // connect. Without a cache, fetch it like the SDK does.
-      getInitialMessages: async ({ url }) => {
-        const cached = loadChatCache(user.id);
-        if (cached?.chatId === chatId) return cached.messages;
-        if (!url) return [];
-        const res = await fetch(`${url}/get-messages`).catch(() => null);
-        // Trust boundary: the server's UIMessage list.
-        return res?.ok ? ((await res.json()) as UIMessage[]) : [];
-      }
-    });
+  const {
+    messages,
+    sendMessage,
+    setMessages,
+    regenerate,
+    stop,
+    status,
+    addToolApprovalResponse
+  } = useAgentChat({
+    agent,
+    experimental_throttle: 50,
+    // Show the cached chat at once; the socket sends the real list on
+    // connect. Without a cache, fetch it like the SDK does.
+    getInitialMessages: async ({ url }) => {
+      const cached = loadChatCache(user.id);
+      if (cached?.chatId === chatId) return cached.messages;
+      if (!url) return [];
+      const res = await fetch(`${url}/get-messages`).catch(() => null);
+      // Trust boundary: the server's UIMessage list.
+      return res?.ok ? ((await res.json()) as UIMessage[]) : [];
+    }
+  });
 
   const busy = status === "streaming" || status === "submitted";
 
@@ -125,6 +133,29 @@ export function ChatPane({
     }
   };
 
+  // Think keeps the old reply as a hidden branch; the chat shows the new one.
+  const regenerateReply = () => {
+    follow();
+    regenerate().catch((e: unknown) =>
+      onNotice({ icon: "⚠️", title: "Can't regenerate", text: errorText(e) })
+    );
+  };
+
+  // The server swaps in the edited message (dropping what followed it),
+  // then a regenerate request answers it like a normal send.
+  const editMessage = async (id: string, text: string) => {
+    try {
+      // Trust boundary: the server's UIMessage.
+      const edited = (await chatApi(agent).editMessage(id, text)) as UIMessage;
+      const at = messages.findIndex((m) => m.id === id);
+      setMessages([...messages.slice(0, Math.max(0, at)), edited]);
+      follow();
+      await regenerate();
+    } catch (e) {
+      onNotice({ icon: "⚠️", title: "Can't edit", text: errorText(e) });
+    }
+  };
+
   const send = (text = input) => {
     const t = text.trim();
     if (!t && attachments.length === 0) return;
@@ -153,6 +184,8 @@ export function ChatPane({
               onApproval={(id, approved) =>
                 void addToolApprovalResponse({ id, approved })
               }
+              onEdit={(id, text) => void editMessage(id, text)}
+              onRegenerate={regenerateReply}
             />
           )}
           <div className="h-4" />

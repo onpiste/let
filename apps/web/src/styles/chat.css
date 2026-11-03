@@ -496,3 +496,30 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+/* A user message being edited (message-edit.tsx ↔ MessageEditView). */
+.msg-edit {
+  width: min(100%, 560px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 20px;
+  background: var(--user-bubble);
+}
+.msg-edit textarea {
+  width: 100%;
+  resize: vertical;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 1.6;
+}
+.msg-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+}

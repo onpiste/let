@@ -1,11 +1,14 @@
 import Foundation
 
 /// The conversations (AssistantRpc listChats / currentChat / newChat /
-/// openChat / deleteChat / searchChats). Each chat is its own agent on the
+/// openChat / deleteChat / renameChat / searchChats). Each chat is its own agent on the
 /// server, so opening another one never stops a reply that is still running.
 extension ChatStore {
-    func chats() async throws -> [ChatSummary] {
-        try await history("listChats")
+    /// The newest chats, a page at a time: nil for the first page, then the
+    /// `next` of the page before.
+    func chats(after cursor: String? = nil) async throws -> ChatPage {
+        try await socket.call("listChats", [cursor.map { .string($0) } ?? .null])
+            .decoded(as: ChatPage.self)
     }
 
     /// The chat to open on start: the one last used, or a new empty one.
@@ -23,28 +26,28 @@ extension ChatStore {
     func openChat(_ id: String) {
         show(chat: id)
         Task {
-            do { _ = try await history("openChat", id) } catch {
+            do { _ = try await socket.call("openChat", [.string(id)]) } catch {
                 report(error.localizedDescription)
             }
         }
     }
 
-    func deleteChat(_ id: String) async throws -> [ChatSummary] {
-        let list = try await history("deleteChat", id)
+    func deleteChat(_ id: String) async throws {
+        _ = try await socket.call("deleteChat", [.string(id)])
         // The open chat is gone: show the one the server picks next.
         if id == chatID {
             try await show(chat: currentChat())
         }
-        return list
+    }
+
+    /// Gives a chat the user's own title, which the model then leaves alone.
+    func renameChat(_ id: String, title: String) async throws {
+        _ = try await socket.call("renameChat", [.string(id), .string(title)])
     }
 
     /// Chats whose title or text contains `query`, each with a snippet.
     func searchChats(_ query: String) async throws -> [ChatSummary] {
-        try await history("searchChats", query)
-    }
-
-    private func history(_ method: String, _ arg: String? = nil) async throws -> [ChatSummary] {
-        try await socket.call(method, arg.map { [JSONValue.string($0)] } ?? [])
+        try await socket.call("searchChats", [.string(query)])
             .decoded(as: [ChatSummary].self)
     }
 

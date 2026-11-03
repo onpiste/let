@@ -145,8 +145,8 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   @callable()
-  async listChats() {
-    return this.chats.list();
+  async listChats(cursor?: string | null) {
+    return this.chats.list(cursor);
   }
 
   @callable()
@@ -170,6 +170,11 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   @callable()
+  async renameChat(id: string, title: string) {
+    return this.chats.rename(id, title);
+  }
+
+  @callable()
   async searchChats(query: string) {
     return this.chats.find(query);
   }
@@ -179,11 +184,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     _request: Request,
     { className, name }: { className: string; name: string }
   ) {
-    await this.chats.ready();
-    if (className !== Chat.name || !this.chats.exists(name)) {
-      return new Response("Not found", { status: 404 });
-    }
-    return undefined;
+    return this.chats.gate(className, name);
   }
 
   /** What a chat uses of this assistant, over DO RPC (not a callable). */

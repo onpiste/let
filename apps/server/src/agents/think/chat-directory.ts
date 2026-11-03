@@ -55,9 +55,21 @@ export class ChatDirectory {
     return this.host.dynamicAgents.has(Chat, id);
   }
 
-  async list() {
+  /**
+   * `onBeforeSubAgent`: a 404 for anything but a chat this assistant
+   * created, undefined to let the request through.
+   */
+  async gate(className: string, name: string) {
     await this.ready();
-    return this.history().list();
+    if (className !== Chat.name || !this.exists(name)) {
+      return new Response("Not found", { status: 404 });
+    }
+    return undefined;
+  }
+
+  async list(cursor: unknown) {
+    await this.ready();
+    return this.history().page(cursor);
   }
 
   async current() {
@@ -80,7 +92,6 @@ export class ChatDirectory {
     await this.ready();
     if (!this.exists(id)) throw new Error("That chat no longer exists.");
     this.history().setActive(id);
-    return this.history().list();
   }
 
   /** Deleting the agent also stops a reply still running in it. */
@@ -89,7 +100,12 @@ export class ChatDirectory {
     await this.ready();
     await this.host.dynamicAgents.delete(Chat, id);
     this.history().remove(id);
-    return this.history().list();
+  }
+
+  async rename(id: unknown, title: unknown) {
+    checkChatId(id);
+    await this.ready();
+    this.history().rename(id, title);
   }
 
   async find(query: unknown) {

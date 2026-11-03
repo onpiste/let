@@ -3,7 +3,8 @@ import Foundation
 /// One conversation in the history list (ChatSummary in @cot/shared chats.ts).
 struct ChatSummary: Decodable, Identifiable, Equatable {
     let id: String
-    let title: String
+    /// Changed in place after `renameChat`.
+    var title: String
     let updatedAt: Date
     /// The chat last written in from any client; Telegram talks into it.
     let active: Bool
@@ -25,5 +26,21 @@ struct ChatSummary: Decodable, Identifiable, Equatable {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         updatedAt = formatter.date(from: iso) ?? Date()
+    }
+}
+
+/// One page of the history list (ChatPage in @cot/shared chats.ts): pass
+/// `next` back to `listChats` for the page after it; nil on the last one.
+struct ChatPage: Decodable {
+    let chats: [ChatSummary]
+    let next: String?
+}
+
+extension [ChatSummary] {
+    /// Adds a page, keeping the copy of a chat already shown (it moves to
+    /// the top when written in while the user scrolls). `appendChats` in TS.
+    func appending(_ page: [ChatSummary]) -> [ChatSummary] {
+        let seen = Set(map(\.id))
+        return self + page.filter { !seen.contains($0.id) }
     }
 }
