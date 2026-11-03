@@ -147,9 +147,9 @@ Each user brings their own bot; the deployment needs no Telegram configuration.
 
 Telegram only delivers webhooks to public `https://` URLs, so a bot connected from `http://localhost` is saved without a webhook; connect it from the deployed Worker. Telegram talks to the Think assistant, which can hand coding jobs to Pi (these need approval in the app, so Telegram turns skip them). `TELEGRAM_API_BASE_URL` in `apps/server/wrangler.jsonc` can point at a self-hosted Bot API server.
 
-## Phone calls (experimental)
+## Phone answering (experimental)
 
-Optional: call a Twilio number and talk to your assistant, in the chat you are using, with the same memory and tools. It needs three secrets and a webhook on the number; see [apps/server/src/integrations/phone/README.md](apps/server/src/integrations/phone/README.md). English only for now, and one number per deployment while it is a spike.
+Optional: your assistant picks up the calls you miss. Forward unanswered calls from your phone to a Twilio number; the assistant answers as a receptionist (no tools, none of your data), takes a message, and you get a notification plus the summary and transcript in your chat. It needs two secrets, a webhook on the number and call forwarding on your phone; see [apps/server/src/integrations/phone/README.md](apps/server/src/integrations/phone/README.md). English only for now, and one number per deployment while it is a spike.
 
 ## Web Push
 
@@ -248,7 +248,7 @@ apps/server/               # @cot/server — Cloudflare Worker
   src/agents/pi/           #   Pi coding agent: model + headless runner (no Durable Object)
   src/agents/common/       #   persona/memory prompt and reminders shared by both
   src/integrations/telegram/ # per-user Telegram bots
-  src/integrations/phone/    # phone calls over Twilio (experimental)
+  src/integrations/phone/    # answers missed calls over Twilio (experimental)
   src/integrations/apns/   #   iOS push notifications
   src/integrations/webpush/ #  browser push notifications (VAPID)
   src/tools/               #   sandbox (Container), code runner, knowledge search, browser

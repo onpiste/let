@@ -103,11 +103,6 @@ export class ChatDirectory {
     await (await this.chat(id)).addReport(message);
   }
 
-  /** Speaks a turn in the chat in use (a phone call, integrations/phone). */
-  async voiceTurn(text: string) {
-    return (await this.chat(await this.current())).voiceTurn(text);
-  }
-
   /** Chats opened but never written in, except the one in use. */
   private async dropEmpty() {
     const used = this.history().ids();

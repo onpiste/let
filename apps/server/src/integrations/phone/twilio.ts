@@ -1,6 +1,5 @@
 import { TwilioAdapter } from "@cloudflare/voice-twilio";
 
-import { log } from "../../log/logger";
 import { phoneConfig } from "./config";
 import {
   streamToken,
@@ -24,8 +23,8 @@ function twiml(body: string) {
 }
 
 /**
- * Answers a call: checks Twilio's signature and the caller, then tells
- * Twilio to stream the call's audio to a URL only this call can use.
+ * Answers a call: checks Twilio's signature, notes who is calling, then
+ * tells Twilio to stream the call's audio to a URL only this call can use.
  */
 async function answer(request: Request, env: Env) {
   const config = phoneConfig(env);
@@ -46,12 +45,11 @@ async function answer(request: Request, env: Env) {
     return new Response("Unauthorized", { status: 401 });
   }
   const callSid = params.get("CallSid") ?? "";
-  const from = params.get("From") ?? "";
-  // Caller ID can be spoofed; a PIN or per-user numbers come before launch.
-  if (!config.callers.has(from)) {
-    log.warn("phone", "Call from a number not in PHONE_CALLERS");
-    return twiml("<Reject/>");
+  if (!/^CA[0-9a-f]{32}$/.test(callSid)) {
+    return new Response("Bad request", { status: 400 });
   }
+  // Calls forwarded from the owner's phone keep the original caller here.
+  await env.VoiceCall.getByName(callSid).setCaller(params.get("From") ?? "");
   const url = new URL(request.url);
   const token = await streamToken(config.authToken, callSid);
   const streamUrl = `wss://${url.host}/messengers/phone/stream/${callSid}/${token}`;

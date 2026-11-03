@@ -20,6 +20,7 @@ import { emailAddress } from "../../integrations/email/config";
 import { Inbox } from "../../integrations/email/inbox";
 import { emailNotice, triagedNotice } from "../../integrations/email/notice";
 import type { ParsedEmail } from "../../integrations/email/parse";
+import { PhoneLine } from "../../integrations/phone/line";
 import { OwnerPush } from "../../integrations/push";
 import { TelegramChannel } from "../../integrations/telegram/channel";
 import { Chat } from "./chat";
@@ -197,14 +198,12 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     });
   }
 
-  /**
-   * One spoken turn of a phone call (integrations/phone), over DO RPC: the
-   * reply text as a UTF-8 stream. Runs in the chat in use, so the call is
-   * part of the conversation the owner sees in the apps.
-   */
-  async voiceTurn(text: string) {
-    if (!this.allowedOwner()) throw new Error("This account is not allowed.");
-    return this.chats.voiceTurn(text);
+  /** What a phone call uses of this assistant, over DO RPC (not a callable). */
+  phoneLine() {
+    const { env, store, telegram, push } = this;
+    const allowed = this.allowedOwner() !== null;
+    const post = (message: UIMessage) => this.postToChat(null, message);
+    return new PhoneLine({ env, store, telegram, push, allowed, post });
   }
 
   /** Adds a message to a chat without a turn (research-jobs.ts). */
