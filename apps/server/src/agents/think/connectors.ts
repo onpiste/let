@@ -3,11 +3,12 @@ import type { Agent } from "agents";
 import { APPS_MCP_ID, MCP_CALLBACK_PATH } from "@cot/shared";
 
 import { ConnectedApps } from "../../integrations/composio/apps";
+import { mcpPopupResult } from "./mcp-popup";
 import type { AssistantStore } from "./store";
 
 type McpHost = Pick<
   Agent<Env>,
-  "name" | "addMcpServer" | "removeMcpServer" | "getMcpServers"
+  "name" | "mcp" | "addMcpServer" | "removeMcpServer" | "getMcpServers"
 >;
 
 /**
@@ -21,6 +22,14 @@ export class Connectors {
     private readonly env: Env,
     private readonly store: AssistantStore
   ) {}
+
+  /**
+   * MCP OAuth opens in a popup; close it and let the settings page pick up
+   * the new connection state from the MCP broadcast.
+   */
+  configureOAuth() {
+    this.agent.mcp.configureOAuthCallback({ customHandler: mcpPopupResult });
+  }
 
   addMcp(name: string, url: string) {
     if (!name.trim()) throw new Error("Give the server a name.");

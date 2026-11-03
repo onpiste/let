@@ -26,7 +26,6 @@ import { ChatDirectory } from "./chat-directory";
 import { ChatServices } from "./chat-services";
 import { Connectors } from "./connectors";
 import { ChatHistory } from "./history";
-import { mcpPopupResult } from "./mcp-popup";
 import { languageModelFor, modelFor } from "./model";
 import { notifyOwner, reminderNotice, researchNotice } from "./notices";
 import { ResearchJobs } from "./research-jobs";
@@ -96,9 +95,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   private get history() {
-    const history = new ChatHistory(this);
-    history.ensureTables();
-    return history;
+    return new ChatHistory(this);
   }
 
   private get research() {
@@ -120,9 +117,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   override onStart() {
     this.store.ensureTables();
 
-    // MCP OAuth opens in a popup; close it and let the settings page pick
-    // up the new connection state from the MCP broadcast.
-    this.mcp.configureOAuthCallback({ customHandler: mcpPopupResult });
+    this.connectors.configureOAuth();
   }
 
   // ── Think hooks: turns run in the chats, not here ────────────────────
