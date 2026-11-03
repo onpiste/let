@@ -10,6 +10,7 @@ final class SettingsModel {
     private(set) var settings: PublicSettings?
     private(set) var mcp: McpState?
     private(set) var skills: [Skill] = []
+    private(set) var apps: AppsStatus?
     private(set) var telegram: TelegramStatus?
     private(set) var email: EmailStatus?
     private(set) var connected = false
@@ -49,6 +50,7 @@ final class SettingsModel {
             telegram = try await call("getTelegramStatus")
             email = try await call("getEmailStatus")
             skills = try await call("listSkills")
+            apps = try await call("listApps")
         }
     }
 
@@ -77,6 +79,21 @@ final class SettingsModel {
 
     func removeMcp(_ id: String) async {
         await run { [self] in _ = try await socket.call("removeMcp", [.string(id)]) }
+    }
+
+    func refreshApps() async {
+        await run { [self] in apps = try await call("listApps") }
+    }
+
+    /// The app's sign-in page; listApps shows it as connected once done.
+    func connectApp(_ slug: String) async -> URL? {
+        var link: AppLink?
+        await run { [self] in link = try await call("connectApp", [.string(slug)]) }
+        return link.flatMap { URL(string: $0.url) }
+    }
+
+    func disconnectApp(_ slug: String) async {
+        await run { [self] in apps = try await call("disconnectApp", [.string(slug)]) }
     }
 
     func connectTelegram(token: String) async {

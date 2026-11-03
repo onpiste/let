@@ -76,13 +76,16 @@ export function stampCreatedAt({ part }: { part: { type: string } }) {
  * index (chat-index.ts) the model and the history drawer use.
  */
 export class ChatHistory {
-  constructor(private readonly host: Host) {}
+  /** Makes sure its tables exist, so every method can rely on them. */
+  constructor(private readonly host: Host) {
+    this.ensureTables();
+  }
 
   private get index() {
     return new ChatIndex(this.host);
   }
 
-  ensureTables() {
+  private ensureTables() {
     this.host.sql`CREATE TABLE IF NOT EXISTS chats (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,

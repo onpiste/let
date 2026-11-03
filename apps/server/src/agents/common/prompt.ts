@@ -30,4 +30,4 @@ ${formatMemories(memories)}`;
 }
 
 export const REMINDER_HINT =
-  "When the user asks to be reminded of something, use the scheduleTask tool.";
+  "When the user asks to be reminded of something, or wants something done later or on a repeat (e.g. the weather every morning), use the scheduleTask tool. A scheduled task is carried out by you when it fires, so don't ask the user to do it themselves.";

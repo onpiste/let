@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings sheet: account, assistant persona/model, skills, connectors, Telegram
+/// Settings sheet: account, assistant persona/model, skills, apps, connectors, Telegram
 /// and email. Everything is stored in the user's own assistant on the server.
 struct SettingsView: View {
     let user: User
@@ -31,6 +31,7 @@ struct SettingsView: View {
                 if let settings = model.settings {
                     AssistantSection(model: model, settings: settings)
                     SkillsSection(model: model)
+                    AppsSection(model: model)
                     McpSection(model: model)
                     TelegramSection(model: model)
                     EmailSection(model: model)
@@ -58,7 +59,11 @@ struct SettingsView: View {
             // Back from Telegram: pick up the claim.
             if scenePhase == .active {
                 model.reconnect()
-                Task { await model.refreshTelegram() }
+                Task {
+                    await model.refreshTelegram()
+                    // Back from an app's sign-in page.
+                    await model.refreshApps()
+                }
             }
         }
     }

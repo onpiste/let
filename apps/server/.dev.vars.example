@@ -29,6 +29,10 @@ WEB_PUSH_PRIVATE_KEY=
 # their own Google key.
 CF_AIG_TOKEN=
 
+# Optional: a Composio project API key for one-tap apps (Gmail, Calendar,
+# Notion, …) in settings. Empty: the section is hidden.
+COMPOSIO_API_KEY=
+
 # Optional: a shared secret that lets builds and CI post their failures to
 # /dev/logs (scripts/devlog). Generate with: openssl rand -hex 32. Empty: the
 # route only takes logs from signed-in web and iOS apps.

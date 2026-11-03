@@ -1,3 +1,4 @@
+import type { AppsStatus } from "./apps";
 import type { ChatPage, ChatSummary } from "./chats";
 import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
 import type { PushDevice, PushStatus, WebPushSubscription } from "./push";
@@ -50,6 +51,11 @@ export interface AssistantRpc {
   updateSettings(patch: SettingsPatch): Promise<PublicSettings>;
   addMcp(name: string, url: string): Promise<AddMcpResult>;
   removeMcp(id: string): Promise<void>;
+  /** One-tap apps (Gmail, Notion, …) and whether each is connected. */
+  listApps(): Promise<AppsStatus>;
+  /** A sign-in page to open for the app; listApps shows it once done. */
+  connectApp(slug: string): Promise<{ url: string }>;
+  disconnectApp(slug: string): Promise<AppsStatus>;
   /** The user's skills, by name. */
   listSkills(): Promise<Skill[]>;
   /** Adds a skill, or replaces the one with the same name. */

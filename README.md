@@ -37,7 +37,7 @@ Features:
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant
 - **Chat history**: every conversation is saved; the clock icon at the top left (or a swipe from the left edge on iOS) opens a drawer where you can search them by keyword, open, delete or start a new one. Each conversation is its own agent, so you can switch chats (or start several) while the assistant is still answering: the reply keeps running on the server, the drawer marks it "Answering…", and it is there when you come back. Telegram continues in the chat you last wrote in. The assistant can also search earlier chats (`searchChats` / `readChat`, a full-text index in SQLite) when you refer to something discussed before
 - **Tasks page** (calendar icon, `/tasks`): every scheduled reminder, with pause, resume and delete buttons. Change one in words: press Edit (or just ask in chat) and say e.g. "move it to 9am"
-- **Reminders**: "remind me in 10 minutes to…" schedules a task that shows up as an in-app toast, a push notification in the browser and on the iOS app even when they're closed (once set up, see [Web Push](#web-push) and [iOS push notifications](#ios-push-notifications)) and, if you connected a bot, a Telegram message
+- **Scheduled tasks**: "remind me in 10 minutes to…" or "every morning at 8, tell me the weather" schedules a task. When it fires, the assistant carries it out as a turn of its own in your current chat, with its tools (search, MCP, …; tools that need approval are left out, since nobody is there to approve), and sends you the result as an in-app toast, a push notification in the browser and on the iOS app even when they're closed (once set up, see [Web Push](#web-push) and [iOS push notifications](#ios-push-notifications)) and, if you connected a bot, a Telegram message
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (your latest chat, same memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:
   - **Assistant**: name, reply language and custom instructions, used by the assistant
@@ -107,6 +107,17 @@ Cot is meant to be forked and changed. The usual first steps:
    `packages/shared/src/connectors.ts` (and the copy in
    `apps/mobile/Cot/Settings/McpSection.swift`). Business-specific knowledge can go into the `cot-knowledge`
    AI Search instance that the knowledge tool searches.
+
+   **Apps (one tap).** With a [Composio](https://composio.dev) project key
+   (`bunx wrangler secret put COMPOSIO_API_KEY`), **Settings → Apps** lets
+   each user connect Gmail, Google Calendar, Drive, Docs, Sheets, Notion,
+   Slack, GitHub and Linear with one sign-in each, using Composio's OAuth
+   apps, so you don't register or verify your own. Their tools reach the
+   assistant over one MCP server per user. Tool calls and tokens go through
+   Composio's cloud; without the key the section is hidden. Edit the list
+   in `packages/shared/src/apps.ts`; see
+   [the integration's README](apps/server/src/integrations/composio/README.md).
+
 6. **Channels.** Telegram is the reference integration
    (`apps/server/src/integrations/telegram/`); new messengers follow the same
    shape. The iOS app (`apps/mobile`) wraps the web app; set its bundle id,

@@ -8,6 +8,7 @@ import {
   type Skill
 } from "@cot/shared";
 
+import type { AppsRecord } from "../../integrations/composio/apps";
 import type { EmailConfig } from "../../integrations/email/config";
 import type { TelegramConfig } from "../../integrations/telegram/config";
 import type { Memory } from "../common/prompt";
@@ -21,12 +22,13 @@ type SettingsKey =
   | "telegram"
   | "email"
   | "usage"
-  | "web_usage";
+  | "web_usage"
+  | "apps";
 
 /**
  * The Think assistant's own SQLite tables: `memories`, and a key/value
  * `settings` table for the user's settings, owner email, Telegram bot and
- * email address, and message and web search usage.
+ * email address, Composio session, and message and web search usage.
  */
 export class AssistantStore {
   constructor(private readonly db: Pick<Agent<Env>, "sql">) {}
@@ -129,6 +131,16 @@ export class AssistantStore {
 
   saveWebUsage(record: WebUsageRecord) {
     this.write("web_usage", JSON.stringify(record));
+  }
+
+  getAppsRecord(): AppsRecord | null {
+    const value = this.read("apps");
+    return value ? (JSON.parse(value) as AppsRecord) : null;
+  }
+
+  saveAppsRecord(record: AppsRecord | null) {
+    if (record) this.write("apps", JSON.stringify(record));
+    else this.remove("apps");
   }
 
   // ── Memories ────────────────────────────────────────────────────────

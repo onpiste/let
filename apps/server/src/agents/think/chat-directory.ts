@@ -55,6 +55,18 @@ export class ChatDirectory {
     return this.host.dynamicAgents.has(Chat, id);
   }
 
+  /**
+   * `onBeforeSubAgent`: a 404 for anything but a chat this assistant
+   * created, undefined to let the request through.
+   */
+  async gate(className: string, name: string) {
+    await this.ready();
+    if (className !== Chat.name || !this.exists(name)) {
+      return new Response("Not found", { status: 404 });
+    }
+    return undefined;
+  }
+
   async list(cursor: unknown) {
     await this.ready();
     return this.history().page(cursor);
@@ -105,6 +117,12 @@ export class ChatDirectory {
   async post(chatId: string | null, message: UIMessage) {
     const id = chatId && this.exists(chatId) ? chatId : await this.current();
     await (await this.chat(id)).addReport(message);
+  }
+
+  /** Runs a scheduled task as a turn in the chat in use. */
+  async runTask(description: string) {
+    const id = await this.current();
+    await (await this.chat(id)).runTask(description);
   }
 
   /** Chats opened but never written in, except the one in use. */

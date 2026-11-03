@@ -24,7 +24,7 @@ export function reminderTools(reminders: Reminders) {
   return {
     scheduleTask: tool({
       description:
-        "Schedule a reminder. Use this when the user asks to be reminded or wants something done later.",
+        "Schedule a task. When it fires you run it as a turn of your own, with your tools, and the user is notified with your reply. Use it when the user asks to be reminded or wants something done later or on a repeat. Write the description as the instruction to carry out then, with what you'll need (e.g. 'Look up today's weather in Shanghai and tell the user', 'Remind the user to call Mom').",
       inputSchema: scheduleSchema,
       execute: async ({ when, description }) => {
         if (when.type === "no-schedule") {

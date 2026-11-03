@@ -11,17 +11,38 @@ type OwnerNotice = {
   push: { text: string; alert: PushAlert } | null;
 };
 
-export function reminderNotice(description: string): OwnerNotice {
+/** Telegram takes at most 4096 characters a message. */
+const TEXT_MAX = 3500;
+/** A push alert shows a few lines, and APNs caps the payload at 4 KB. */
+const ALERT_MAX = 300;
+
+function clip(text: string, max: number) {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/** A scheduled task fired; `reply` is what the assistant made of it. */
+export function reminderNotice(
+  description: string,
+  reply: string | null
+): OwnerNotice {
   return {
     event: {
       type: "reminder",
       description,
       timestamp: new Date().toISOString()
     },
-    push: {
-      text: `⏰ Reminder: ${description}`,
-      alert: { title: "⏰ Reminder", body: description }
-    }
+    push: reply
+      ? {
+          text: clip(`⏰ ${description}\n\n${reply}`, TEXT_MAX),
+          alert: {
+            title: clip(`⏰ ${description}`, 80),
+            body: clip(reply, ALERT_MAX)
+          }
+        }
+      : {
+          text: `⏰ Reminder: ${description}`,
+          alert: { title: "⏰ Reminder", body: description }
+        }
   };
 }
 

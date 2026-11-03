@@ -1,7 +1,7 @@
 import type { MCPServersState } from "agents";
 import { useState, type FormEvent } from "react";
 
-import { CONNECTOR_PRESETS } from "@cot/shared";
+import { APPS_MCP_ID, CONNECTOR_PRESETS } from "@cot/shared";
 
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
@@ -42,7 +42,10 @@ export function McpSettings({
     }
   };
 
-  const servers = Object.entries(state?.servers ?? {});
+  // The apps server is managed from the Apps section.
+  const servers = Object.entries(state?.servers ?? {}).filter(
+    ([id]) => id !== APPS_MCP_ID
+  );
 
   return (
     <section className="card">
