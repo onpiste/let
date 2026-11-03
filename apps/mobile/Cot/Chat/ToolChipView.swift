@@ -20,7 +20,11 @@ private let toolTitles: [String: String] = [
     "codeTask": "Coding agent",
     "updateScheduledTask": "Task updated",
     "pauseScheduledTask": "Task paused",
-    "resumeScheduledTask": "Task resumed"
+    "resumeScheduledTask": "Task resumed",
+    "sendEmail": "Email",
+    "listEmails": "Checked inbox",
+    "searchEmails": "Searched inbox",
+    "readEmail": "Read email"
 ]
 
 /// A tool call as a chip, with Approve / Reject when the tool asks first.
@@ -47,6 +51,10 @@ struct ToolChipView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .background(Color(.secondarySystemBackground), in: Capsule())
+
+            if call.name == "sendEmail", let input = call.input {
+                EmailDraftView(input: input)
+            }
 
             if call.awaitsApproval, let id = call.approvalID {
                 HStack(spacing: 12) {

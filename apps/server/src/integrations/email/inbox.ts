@@ -54,6 +54,9 @@ export class Inbox {
     if (!columns.has("read_at")) {
       this.db.sql`ALTER TABLE emails ADD COLUMN read_at TEXT`;
     }
+    if (!columns.has("message_id")) {
+      this.db.sql`ALTER TABLE emails ADD COLUMN message_id TEXT`;
+    }
     if (!columns.has("archived")) {
       this.db.sql`ALTER TABLE emails
         ADD COLUMN archived INTEGER NOT NULL DEFAULT 0`;
@@ -65,12 +68,21 @@ export class Inbox {
   /** Returns the new email's id. */
   add(email: ParsedEmail, trusted: boolean) {
     const [row] = this.db.sql<{ id: number }>`INSERT INTO emails
-        (sender, trusted, subject, sent_at, body, attachments)
+        (sender, trusted, subject, sent_at, body, attachments, message_id)
       VALUES (${email.from}, ${trusted ? 1 : 0}, ${email.subject},
-        ${email.date}, ${email.body}, ${JSON.stringify(email.attachments)})
+        ${email.date}, ${email.body}, ${JSON.stringify(email.attachments)},
+        ${email.messageId})
       RETURNING id`;
     if (!row) throw new Error("Could not file the email.");
     return row.id;
+  }
+
+  /** The Message-ID header a reply cites; null if the sender set none. */
+  messageId(id: number) {
+    const [row] = this.db.sql<{ messageId: string | null }>`
+      SELECT message_id AS messageId FROM emails WHERE id = ${id}`;
+    if (!row) throw new Error(`No email with id ${id}.`);
+    return row.messageId;
   }
 
   setTriage(id: number, category: EmailCategory, summary: string) {
