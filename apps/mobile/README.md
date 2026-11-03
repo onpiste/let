@@ -15,7 +15,7 @@ there is no WebView: native text, keyboard, haptics and system sign-in.
 | Message queue: send while the assistant replies                                                                                               | `Cot/Chat/QueuedView.swift`, `ChatStore` queue                                   |
 | Scheduled tasks: list, pause, resume, delete, edit                                                                                            | `Cot/Chat/TasksView.swift`, `ChatStore+Tasks.swift`                              |
 | Chat history: side drawer (swipe from the left), keyword search, open, delete, new chat; switching never stops a running reply ("Answering…") | `Cot/Chat/HistoryView.swift`, `SideDrawer.swift`, `ChatStore+History.swift`      |
-| Settings: model and keys, skills, connectors, Telegram, email                                                                                 | `Cot/Settings/`                                                                  |
+| Settings: model and keys, skills, apps, connectors, Telegram, email                                                                           | `Cot/Settings/`                                                                  |
 | Reminder and mail notices                                                                                                                     | in-app banner; APNs push (`Cot/Core/Push.swift`), else a local notification      |
 
 Requires iOS 17 and Xcode 16+.

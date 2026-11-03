@@ -4,7 +4,6 @@ import { callable, getCurrentAgent } from "agents";
 import type { LanguageModel, UIMessage } from "ai";
 
 import {
-  MCP_CALLBACK_PATH,
   toPublicSettings,
   type AssistantRpc,
   type EmailPolicy,
@@ -19,15 +18,14 @@ import { EmailChannel } from "../../integrations/email/channel";
 import { emailAddress } from "../../integrations/email/config";
 import { Inbox } from "../../integrations/email/inbox";
 import { emailNotice, triagedNotice } from "../../integrations/email/notice";
-import type { ParsedEmail } from "../../integrations/email/parse";
 import { OwnerPush } from "../../integrations/push";
 import { TelegramChannel } from "../../integrations/telegram/channel";
 import { log } from "../../log/logger";
 import { Chat } from "./chat";
 import { ChatDirectory } from "./chat-directory";
 import { ChatServices } from "./chat-services";
+import { Connectors } from "./connectors";
 import { ChatHistory } from "./history";
-import { mcpPopupResult } from "./mcp-popup";
 import { languageModelFor, modelFor } from "./model";
 import { notifyOwner, reminderNotice, researchNotice } from "./notices";
 import { ResearchJobs } from "./research-jobs";
@@ -76,8 +74,15 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       inbox: () => new Inbox(this),
       owner: () => this.allowedOwner(),
       ownerName: () => this.store.getOwnerName(),
-      onEmail: (id, email, trusted, preview) =>
-        this.onEmail(id, email, trusted, preview)
+      // Gmail's forwarding confirmation is passed on as is: the owner needs
+      // its link now. Everything else is read by the model first.
+      onEmail: async (id, email, trusted, preview) => {
+        if (preview === null) await this.schedule(1, "triageNewEmail", id);
+        else
+          await this.notify(
+            emailNotice({ ...email, trusted, preview, triage: null })
+          );
+      }
     });
   }
 
@@ -85,10 +90,12 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return new OwnerPush(this.env, this);
   }
 
+  private get connectors() {
+    return new Connectors(this, this.env, this.store);
+  }
+
   private get history() {
-    const history = new ChatHistory(this);
-    history.ensureTables();
-    return history;
+    return new ChatHistory(this);
   }
 
   private get research() {
@@ -110,9 +117,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   override onStart() {
     this.store.ensureTables();
 
-    // MCP OAuth opens in a popup; close it and let the settings page pick
-    // up the new connection state from the MCP broadcast.
-    this.mcp.configureOAuthCallback({ customHandler: mcpPopupResult });
+    this.connectors.configureOAuth();
   }
 
   // ── Think hooks: turns run in the chats, not here ────────────────────
@@ -256,20 +261,31 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return deleteSkill(this.store, name);
   }
 
-  // ── MCP servers (callables). Think adds their tools to every turn. ──
+  // ── Connectors (callables): MCP servers and one-tap apps ──────────
 
   @callable()
   async addMcp(name: string, url: string) {
-    if (!name.trim()) throw new Error("Give the server a name.");
-    if (!/^https?:\/\//.test(url)) throw new Error("Enter an http(s) URL.");
-    return this.addMcpServer(name.trim(), url.trim(), {
-      callbackPath: MCP_CALLBACK_PATH
-    });
+    return this.connectors.addMcp(name, url);
   }
 
   @callable()
   removeMcp(id: string) {
-    return this.removeMcpServer(id);
+    return this.connectors.removeMcp(id);
+  }
+
+  @callable()
+  async listApps() {
+    return this.connectors.apps.status();
+  }
+
+  @callable()
+  async connectApp(slug: string) {
+    return this.connectors.apps.connect(slug);
+  }
+
+  @callable()
+  async disconnectApp(slug: string) {
+    return this.connectors.apps.disconnect(slug);
   }
 
   // ── Telegram (callables + webhook RPC) ──────────────────────────────
@@ -338,21 +354,6 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   async receiveEmail(envelopeFrom: string, raw: Uint8Array) {
     this.store.ensureTables();
     return this.email.receive(envelopeFrom, raw);
-  }
-
-  private async onEmail(
-    id: number,
-    email: ParsedEmail,
-    trusted: boolean,
-    preview: string | null
-  ) {
-    // Gmail's forwarding confirmation is passed on as is: the owner needs its
-    // link now. Everything else is read by the model first.
-    if (preview !== null)
-      return this.notify(
-        emailNotice({ ...email, trusted, triage: null, preview })
-      );
-    await this.schedule(1, "triageNewEmail", id);
   }
 
   /** Reads a new email and tells the owner what it is, without being asked. */
