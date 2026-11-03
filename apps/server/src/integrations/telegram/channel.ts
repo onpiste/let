@@ -7,7 +7,7 @@ import telegramMessenger from "@cloudflare/think/messengers/telegram";
 import type { TelegramStatus } from "@cot/shared";
 
 import { log } from "../../log/logger";
-import { callTelegram, sendText } from "./bot-api";
+import { callTelegram, sendText, telegramApiBase } from "./bot-api";
 import {
   newClaim,
   randomHex,
@@ -65,7 +65,7 @@ export class TelegramChannel {
         token: config.token,
         userName: config.botUsername,
         secretToken: config.webhookSecret,
-        apiBaseUrl: this.options.env.TELEGRAM_API_BASE_URL || undefined,
+        apiBaseUrl: telegramApiBase(this.options.env),
         conversation,
         respondTo: ["direct-message"]
       })
