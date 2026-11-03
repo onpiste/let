@@ -1,18 +1,27 @@
 import type { Agent } from "agents";
 import type { LanguageModel, UIMessage } from "ai";
 
+import { normalizeEmailDraft } from "@cot/shared";
+
+import { log } from "../../log/logger";
 import { EmailChannel, type EmailConfigStore } from "./channel";
 import { emailAddress } from "./config";
 import { Inbox } from "./inbox";
 import { Mailbox } from "./mailbox";
 import { emailNotice, triagedNotice } from "./notice";
+import { Outbox } from "./outbox";
+import { sendEmail } from "./send";
+
+/** Most mail one assistant sends in a day: a cap on a misled model. */
+const DAILY_SEND_LIMIT = 20;
 
 type Notice = ReturnType<typeof emailNotice>;
 
 /**
  * The assistant's email, put together from its parts: the address and
  * receiving (`EmailChannel`), the inbox, triage, and what the owner does
- * from a client (`Mailbox`). The assistant hands in what it owns.
+ * from a client (`Mailbox`), and sending. The assistant hands in what it
+ * owns.
  */
 export class EmailFeature {
   constructor(
@@ -77,5 +86,44 @@ export class EmailFeature {
   async triage(id: number) {
     const notice = await triagedNotice(this.inbox, this.host.model, id);
     if (notice) await this.host.notify(notice);
+  }
+
+  /**
+   * Sends a draft the owner approved in the chat, from the assistant's
+   * address under the owner's name. Replies cite the original's Message-ID
+   * so mail clients thread them.
+   */
+  async send(input: unknown) {
+    const draft = normalizeEmailDraft(input);
+    const address = this.address();
+    if (!address) throw new Error("This assistant has no email address.");
+    const outbox = new Outbox(this.host.agent);
+    if (outbox.countSince("-1 day") >= DAILY_SEND_LIMIT) {
+      throw new Error(
+        `Already sent ${DAILY_SEND_LIMIT} emails today; try again tomorrow.`
+      );
+    }
+    const repliesTo =
+      draft.inReplyTo === undefined
+        ? null
+        : this.inbox.messageId(draft.inReplyTo);
+    const name = this.host.store.getOwnerName() ?? address;
+    try {
+      const messageId = await sendEmail({
+        binding: this.host.env.EMAIL,
+        from: { email: address, name },
+        draft,
+        repliesTo
+      });
+      outbox.add(draft, messageId);
+      log.info("email", "Sent", { reply: draft.inReplyTo !== undefined });
+      return `Sent to ${draft.to}.`;
+    } catch (error) {
+      log.error("email", "Sending failed", error);
+      throw new Error(
+        `Sending failed (${String(error)}). Email Sending may not be turned on for this domain yet; give the user the draft to send themselves.`,
+        { cause: error }
+      );
+    }
   }
 }

@@ -149,3 +149,54 @@ export function normalizeEmailPolicy(policy: unknown): EmailPolicy {
   }
   return { acceptFromAnyone, trustedSenders: normalizeSenders(trustedSenders) };
 }
+
+/** An email the assistant sends for the owner, once they approve it. */
+export type EmailDraft = {
+  to: string;
+  subject: string;
+  /** Plain text. */
+  body: string;
+  /** The inbox email this answers, for threading; omitted for new mail. */
+  inReplyTo?: number;
+};
+
+/** Longest subject and body a draft may have. */
+export const EMAIL_DRAFT_LIMITS = { subject: 200, body: 20_000 } as const;
+
+/**
+ * Validates a draft that came from a model's tool call: one plain address,
+ * a non-empty subject and body within the limits.
+ */
+export function normalizeEmailDraft(draft: unknown): EmailDraft {
+  if (typeof draft !== "object" || draft === null) {
+    throw new Error("Expected an email draft.");
+  }
+  const { to, subject, body, inReplyTo } = draft as Record<string, unknown>;
+  const [address, ...rest] = normalizeSenders([to]);
+  if (!address || rest.length > 0) throw new Error("Give one address in to.");
+  if (typeof subject !== "string" || !subject.trim()) {
+    throw new Error("The email needs a subject.");
+  }
+  if (typeof body !== "string" || !body.trim()) {
+    throw new Error("The email needs a body.");
+  }
+  if (subject.length > EMAIL_DRAFT_LIMITS.subject) {
+    throw new Error("The subject is too long.");
+  }
+  if (body.length > EMAIL_DRAFT_LIMITS.body) {
+    throw new Error("The body is too long.");
+  }
+  if (
+    inReplyTo !== undefined &&
+    (typeof inReplyTo !== "number" || !Number.isSafeInteger(inReplyTo))
+  ) {
+    throw new Error("inReplyTo must be an email id.");
+  }
+  return {
+    to: address,
+    // A newline in a subject would start a new header.
+    subject: subject.replace(/[\r\n]+/g, " ").trim(),
+    body,
+    ...(inReplyTo === undefined ? {} : { inReplyTo })
+  };
+}

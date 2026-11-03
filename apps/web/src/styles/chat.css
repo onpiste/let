@@ -496,3 +496,21 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+/* The whole email a sendEmail call would send (email-draft.tsx). */
+.email-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.email-draft-body {
+  margin-top: 6px;
+  white-space: pre-wrap;
+}
