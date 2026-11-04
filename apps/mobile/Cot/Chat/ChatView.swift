@@ -11,6 +11,9 @@ struct ChatView: View {
     @State private var showSettings = false
     @State private var showHistory = false
     @State private var showTasks = false
+    @State private var showInbox = false
+    /// The email the inbox opens straight to (a banner or push alert).
+    @State private var inboxEmail: Int?
     /// Auto-scroll with new content until the user drags the list away.
     @State private var following = true
     @State private var endVisible = true
@@ -133,7 +136,12 @@ struct ChatView: View {
             }
             .overlay(alignment: .top) {
                 if let notice = store.notice {
-                    NoticeBanner(notice: notice) { store.notice = nil }
+                    NoticeBanner(notice: notice) { store.notice = nil } onTap: {
+                        store.notice = nil
+                        if let id = notice.emailID {
+                            openInbox(at: id)
+                        }
+                    }
                 }
             }
             .animation(.default, value: store.notice)
@@ -142,6 +150,9 @@ struct ChatView: View {
         }
         .sideDrawer(isOpen: $showHistory) {
             HistoryView(store: store, isOpen: showHistory) { showHistory = false }
+        }
+        .sheet(isPresented: $showInbox) {
+            InboxView(store: store, openID: inboxEmail) {}
         }
         .sheet(isPresented: $showTasks) {
             TasksView(store: store) { input = $0 }
@@ -153,6 +164,10 @@ struct ChatView: View {
             store.onConnectionLost = { Task { await auth.validate() } }
             store.start()
             Reminders.registerIfAllowed()
+            takePendingEmail()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Push.openEmail)) { _ in
+            takePendingEmail()
         }
         .onDisappear { store.disconnect() }
         .onChange(of: scenePhase) {
@@ -175,9 +190,27 @@ struct ChatView: View {
             }
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
+            InboxButton(unread: store.unreadEmails) { openInbox(at: nil) }
             Button("Tasks", systemImage: "calendar") { showTasks = true }
             Button("New chat", systemImage: "square.and.pencil", action: store.startNewChat)
             Button("Settings", systemImage: "gearshape") { showSettings = true }
+        }
+    }
+
+    /// The inbox sheet, opened on one email or (nil) the list.
+    private func openInbox(at id: Int?) {
+        inboxEmail = id
+        showInbox = true
+    }
+
+    /// An email a tapped push alert asked for (see `Push.open`).
+    private func takePendingEmail() {
+        guard let id = Push.pendingEmail else { return }
+        Push.pendingEmail = nil
+        // Reopen so the sheet starts on this email even if it was showing.
+        showInbox = false
+        Task { @MainActor in
+            openInbox(at: id)
         }
     }
 
@@ -252,10 +285,12 @@ private struct TypingDots: View {
     }
 }
 
-/// A reminder or new-mail notice, dismissed by tap or after a few seconds.
+/// A reminder or new-mail notice, dismissed after a few seconds; a tap opens
+/// what it is about (an email) or dismisses it. Mirrors notice-toast.tsx.
 private struct NoticeBanner: View {
     let notice: ChatStore.Notice
     let onDismiss: () -> Void
+    let onTap: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -271,7 +306,7 @@ private struct NoticeBanner: View {
         .padding(.horizontal, 16)
         .padding(.top, 4)
         .transition(.move(edge: .top).combined(with: .opacity))
-        .onTapGesture(perform: onDismiss)
+        .onTapGesture(perform: onTap)
         .task(id: notice.id) {
             try? await Task.sleep(for: .seconds(6))
             onDismiss()

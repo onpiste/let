@@ -1,7 +1,8 @@
 import UIKit
 
 /// The server's `reminder`, `research` and `email` events (ServerEvent in @cot/shared),
-/// shown as the in-app banner, plus `research-jobs`, the running research.
+/// shown as the in-app banner, plus `research-jobs`, the running research,
+/// and `inbox`, the unread count after mail was read or archived.
 extension ChatStore {
     func handleNotice(_ frame: JSONValue) {
         switch frame["type"]?.string {
@@ -16,7 +17,10 @@ extension ChatStore {
             }
         case "research-jobs":
             handleResearchJobs(frame)
+        case "inbox":
+            handleUnread(frame)
         case "email":
+            handleUnread(frame)
             // Spam the assistant sorted out stays in the inbox without a banner.
             let category = frame["category"]?.string
             if let subject = frame["subject"]?.string, category != "ignore" {
@@ -27,7 +31,8 @@ extension ChatStore {
                 present(Notice(
                     icon: action ? "⚠️" : "📧",
                     title: action ? "Email needs action" : "New email",
-                    text: "\(sender): \(detail)"
+                    text: "\(sender): \(detail)",
+                    emailID: frame["id"]?.number.map { Int($0) }
                 ))
             }
         default:
@@ -40,7 +45,11 @@ extension ChatStore {
         // In the foreground the banner in the app is enough; in the
         // background the server's push already shows it, if it sends one.
         if UIApplication.shared.applicationState != .active, !Push.serverSends {
-            Reminders.notify(title: notice.title, body: notice.text)
+            Reminders.notify(
+                title: notice.title,
+                body: notice.text,
+                path: notice.emailID.map { "/inbox/\($0)" }
+            )
         }
     }
 }

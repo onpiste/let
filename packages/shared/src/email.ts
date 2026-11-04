@@ -5,6 +5,57 @@
  */
 export type EmailCategory = "action" | "notify" | "ignore";
 
+/** One email in the inbox list. */
+export type EmailSummary = {
+  id: number;
+  receivedAt: string;
+  from: string;
+  /** From the owner or a trusted sender rather than a stranger. */
+  trusted: boolean;
+  subject: string;
+  /** How the assistant sorted it; null until (or unless) it has. */
+  category: EmailCategory | null;
+  summary: string | null;
+  /** Opened by the owner on a client. */
+  read: boolean;
+  archived: boolean;
+};
+
+/** One email as the owner reads it. The body is plain text. */
+export type EmailDetail = EmailSummary & {
+  /** The Date header, if the sender set one. */
+  date: string | null;
+  body: string;
+  /** File names; the files themselves aren't kept. */
+  attachments: string[];
+};
+
+/** A page of the inbox (or of the archive), newest first. */
+export type InboxPage = {
+  emails: EmailSummary[];
+  /** Older mail is left to page through with a larger offset. */
+  more: boolean;
+  /** Unread mail outside the archive, for the badge. */
+  unread: number;
+};
+
+/** How many emails one `listInbox` call returns. */
+export const INBOX_PAGE_SIZE = 30;
+
+/**
+ * The web path that opens the inbox, or one email in it. Push alerts carry
+ * it so a tap lands on the email (the iOS app reads the same path).
+ */
+export function inboxPath(id?: number) {
+  return id === undefined ? "/inbox" : `/inbox/${id}`;
+}
+
+/** The email id in an inbox path, or null for the list or another path. */
+export function emailIdFromPath(path: string): number | null {
+  const match = /^\/inbox\/(\d+)$/.exec(path);
+  return match?.[1] ? Number(match[1]) : null;
+}
+
 export type EmailPolicy = {
   /** Accept mail from strangers too, marked as from an unknown sender. */
   acceptFromAnyone: boolean;

@@ -4,6 +4,7 @@ import {
   type EmailStatus
 } from "@cot/shared";
 
+import { log } from "../../log/logger";
 import { addresses } from "./addresses";
 import {
   aliasCandidates,
@@ -138,28 +139,26 @@ export class EmailChannel {
     });
     switch (decision.kind) {
       case "reject":
+        log.info("email", "Rejected", { reason: "policy" });
         return "rejected";
-      case "accept":
+      case "accept": {
         if (!decision.trusted && this.strangerLimitReached()) {
+          log.warn("email", "Rejected", { reason: "rate limit" });
           return "rate-limited";
         }
-        await this.options.onEmail(
-          this.options.inbox().add(email, decision.trusted),
-          email,
-          decision.trusted,
-          null
-        );
+        const id = this.options.inbox().add(email, decision.trusted);
+        log.info("email", "Received", { id, trusted: decision.trusted });
+        await this.options.onEmail(id, email, decision.trusted, null);
         return "accepted";
-      case "forwarding-confirmation":
+      }
+      case "forwarding-confirmation": {
         // The owner needs the code or link in it to finish setting up
         // Gmail forwarding, so pass the text on directly.
-        await this.options.onEmail(
-          this.options.inbox().add(email, false),
-          email,
-          false,
-          email.body.slice(0, 600)
-        );
+        const id = this.options.inbox().add(email, false);
+        log.info("email", "Received Gmail forwarding confirmation", { id });
+        await this.options.onEmail(id, email, false, email.body.slice(0, 600));
         return "accepted";
+      }
     }
   }
 }

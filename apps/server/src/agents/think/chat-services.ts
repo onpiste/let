@@ -4,7 +4,7 @@ import { RpcTarget } from "cloudflare:workers";
 
 import type { Settings, Skill, TaskSchedule } from "@cot/shared";
 
-import type { Inbox } from "../../integrations/email/inbox";
+import type { EmailFeature } from "../../integrations/email/feature";
 import { searchWeb } from "../../tools/web-search";
 import { setReminder, type ReminderAgent } from "../common/reminders";
 import { countTurn } from "../common/usage";
@@ -39,8 +39,8 @@ export type ChatServicesHost = {
   store: AssistantStore;
   history: ChatHistory;
   research: ResearchJobs;
-  inbox: Inbox | null;
-  emailAddress: string | null;
+  /** The inbox exists once the assistant has an address. */
+  email: Pick<EmailFeature, "address" | "inbox">;
   mcp: MCPClientManager;
   /** Messages the owner on Telegram, outside the chat. */
   notifyMessenger: (text: string) => Promise<void>;
@@ -86,13 +86,13 @@ export class ChatServices extends RpcTarget implements AssistantServices {
         settings,
         memories: store.listMemories(),
         commandsAllowed: !unattended,
-        emailAddress: this.host.emailAddress,
+        emailAddress: this.host.email.address(),
         skills,
         webSearch
       }),
       skills,
       webSearch,
-      email: this.host.inbox !== null,
+      email: this.host.email.address() !== null,
       mcp: mcp.listTools().map((tool) => ({
         serverId: tool.serverId,
         name: tool.name,
@@ -194,8 +194,8 @@ export class ChatServices extends RpcTarget implements AssistantServices {
   // ── Inbox ───────────────────────────────────────────────────────────
 
   private get inbox() {
-    if (!this.host.inbox) throw new Error("There is no inbox.");
-    return this.host.inbox;
+    if (!this.host.email.address()) throw new Error("There is no inbox.");
+    return this.host.email.inbox;
   }
 
   async listEmails(limit: number, offset: number) {

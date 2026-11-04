@@ -19,6 +19,8 @@ final class ChatStore {
         let icon: String
         let title: String
         let text: String
+        /// A new email's id: tapping the banner opens it in the inbox.
+        var emailID: Int?
     }
 
     /// A message written while the assistant was still answering; sent when
@@ -48,6 +50,9 @@ final class ChatStore {
     var notice: Notice?
     /// Deep Research runs still going; set from ChatStore+Research.swift.
     var researchJobs: [ResearchJob] = []
+    /// Unread mail outside the archive, for the inbox button's badge; set
+    /// from ChatStore+Inbox.swift.
+    var unreadEmails = 0
 
     let socket: AgentSocket
     /// The open conversation (ChatSummary.id); nil until the server names one.
@@ -227,6 +232,7 @@ final class ChatStore {
     private func assistantOpened() {
         registerPush()
         loadResearch()
+        loadUnreadEmails()
         // Once per launch: open the chat last used on any device.
         guard !askedCurrent else { return }
         askedCurrent = true
@@ -243,7 +249,7 @@ final class ChatStore {
         switch frame["type"]?.string {
         case "cf_agent_mcp_servers":
             mcp = frame["mcp"].flatMap { try? $0.decoded(as: McpState.self) }
-        case "reminder", "research", "research-jobs", "email":
+        case "reminder", "research", "research-jobs", "email", "inbox":
             handleNotice(frame)
         default:
             break

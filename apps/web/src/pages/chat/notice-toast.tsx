@@ -2,15 +2,26 @@ import { useEffect } from "react";
 
 const VISIBLE_MS = 8000;
 
-export type Notice = { icon: string; title: string; text: string };
+export type Notice = {
+  icon: string;
+  title: string;
+  text: string;
+  /** A new email's id: clicking opens it in the inbox. */
+  emailId?: number;
+};
 
-/** A fired reminder or a new email. Dismisses itself, or on click. */
+/**
+ * A fired reminder or a new email. Dismisses itself; a click opens what it
+ * is about (`onOpen`), or just dismisses it.
+ */
 export function NoticeToast({
   notice,
-  onDismiss
+  onDismiss,
+  onOpen
 }: {
   notice: Notice;
   onDismiss: () => void;
+  onOpen?: () => void;
 }) {
   useEffect(() => {
     const t = setTimeout(onDismiss, VISIBLE_MS);
@@ -22,7 +33,7 @@ export function NoticeToast({
       type="button"
       className="toast"
       aria-live="polite"
-      onClick={onDismiss}
+      onClick={onOpen ?? onDismiss}
     >
       <span className="text-lg">{notice.icon}</span>
       <span className="text-left">
