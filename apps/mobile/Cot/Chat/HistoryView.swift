@@ -17,9 +17,41 @@ struct HistoryView: View {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// Search stays tucked into the header until asked for, like the
+    /// Claude app: tap the magnifier or pull the list down past `threshold`.
+    @State private var searching = false
+    /// How far the list is pulled down past its top, in points.
+    @State private var overscroll: CGFloat = 0
+    private let threshold: CGFloat = 72
+    private static let space = "history-list"
+
+    private var pull: CGFloat {
+        searching ? 0 : min(1, max(0, overscroll) / threshold)
+    }
+
     var body: some View {
-        NavigationStack {
+        VStack(spacing: 0) {
+            HistoryHeader(
+                query: $query, searching: $searching, pull: pull,
+                onNew: {
+                    Task {
+                        if await perform({ try await store.newChat() }) {
+                            onClose()
+                        }
+                    }
+                },
+                onClose: onClose
+            )
             List {
+                // Zero-height marker whose position measures the pull.
+                Color.clear
+                    .frame(height: 0)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .onGeometryChange(for: CGFloat.self) {
+                        $0.frame(in: .named(Self.space)).minY
+                    } action: { overscroll = $0 }
+                    .accessibilityHidden(true)
                 if let error {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }
@@ -32,38 +64,35 @@ struct HistoryView: View {
                 }
             }
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 0)
+            .coordinateSpace(.named(Self.space))
+            .scrollDismissesKeyboard(.immediately)
             .overlay {
                 if chats == nil, error == nil {
                     ProgressView()
                 }
             }
-            .searchable(
-                text: $query, placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search chats"
-            )
-            .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("New chat", systemImage: "square.and.pencil") {
-                        Task {
-                            if await perform({ try await store.newChat() }) {
-                                onClose()
-                            }
-                        }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Close", systemImage: "xmark", action: onClose)
-                }
+            .onPullReleased {
+                if pull >= 1 { openSearch() }
             }
-            .task(id: Load(isOpen: isOpen, query: needle)) { await load() }
-            .onChange(of: isOpen) {
-                if !isOpen {
-                    query = ""
+            .onChange(of: pull >= 1) { _, armed in
+                // Without scroll phases (iOS 17) there is no release to wait for.
+                if #unavailable(iOS 18) {
+                    if armed { openSearch() }
                 }
             }
         }
+        .task(id: Load(isOpen: isOpen, query: needle)) { await load() }
+        .onChange(of: isOpen) {
+            if !isOpen {
+                query = ""
+                searching = false
+            }
+        }
+    }
+
+    private func openSearch() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.82)) { searching = true }
     }
 
     private func row(_ chat: ChatSummary) -> some View {
@@ -147,6 +176,23 @@ struct HistoryView: View {
         } catch {
             self.error = error.localizedDescription
             return false
+        }
+    }
+}
+
+private extension View {
+    /// Runs `action` when the finger lets go of the scroll view (iOS 18+;
+    /// earlier versions have no scroll phases, so nothing happens).
+    @ViewBuilder
+    func onPullReleased(_ action: @escaping () -> Void) -> some View {
+        if #available(iOS 18, *) {
+            onScrollPhaseChange { old, new in
+                if old == .interacting, new != .interacting {
+                    action()
+                }
+            }
+        } else {
+            self
         }
     }
 }
