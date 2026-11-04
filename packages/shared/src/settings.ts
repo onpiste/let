@@ -6,7 +6,12 @@
 
 import { APPROVAL_MODES, type ApprovalMode } from "./approval";
 
-export type ProviderId = "workers-ai" | "openai" | "anthropic" | "google";
+export type ProviderId =
+  | "workers-ai"
+  | "openai"
+  | "anthropic"
+  | "google"
+  | "deepseek";
 export type KeyedProvider = Exclude<ProviderId, "workers-ai">;
 
 export const PROVIDERS: Record<
@@ -48,6 +53,11 @@ export const PROVIDERS: Record<
     label: "Google",
     defaultModel: "",
     suggestions: []
+  },
+  deepseek: {
+    label: "DeepSeek",
+    defaultModel: "deepseek-v4-flash",
+    suggestions: ["deepseek-v4-flash", "deepseek-v4-pro"]
   }
 };
 
