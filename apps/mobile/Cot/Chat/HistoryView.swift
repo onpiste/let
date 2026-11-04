@@ -22,6 +22,8 @@ struct HistoryView: View {
     @State private var searching = false
     /// How far the list is pulled down past its top, in points.
     @State private var overscroll: CGFloat = 0
+    /// Where the iOS 17 marker sits at rest; the pull is measured from it.
+    @State private var restY: CGFloat?
     private let threshold: CGFloat = 72
     private static let space = "history-list"
 
@@ -43,14 +45,21 @@ struct HistoryView: View {
                 onClose: onClose
             )
             List {
-                // Zero-height marker whose position measures the pull.
+                // iOS 17 has no scroll geometry: a zero-height marker's drop
+                // from where it first rested measures the pull instead.
                 Color.clear
                     .frame(height: 0)
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
                     .onGeometryChange(for: CGFloat.self) {
                         $0.frame(in: .named(Self.space)).minY
-                    } action: { overscroll = $0 }
+                    } action: { y in
+                        if #unavailable(iOS 18) {
+                            let rest = restY ?? y
+                            restY = rest
+                            overscroll = y - rest
+                        }
+                    }
                     .accessibilityHidden(true)
                 if let error {
                     Text(error).font(.footnote).foregroundStyle(.red)
@@ -72,6 +81,7 @@ struct HistoryView: View {
                     ProgressView()
                 }
             }
+            .onOverscroll { overscroll = $0 }
             .onPullReleased {
                 if pull >= 1 { openSearch() }
             }
@@ -181,6 +191,21 @@ struct HistoryView: View {
 }
 
 private extension View {
+    /// Reports how far the scroll view is pulled down past its top (iOS 18+),
+    /// straight from its content offset so insets can't skew it.
+    @ViewBuilder
+    func onOverscroll(_ action: @escaping (CGFloat) -> Void) -> some View {
+        if #available(iOS 18, *) {
+            onScrollGeometryChange(for: CGFloat.self) {
+                -($0.contentOffset.y + $0.contentInsets.top)
+            } action: { _, new in
+                action(new)
+            }
+        } else {
+            self
+        }
+    }
+
     /// Runs `action` when the finger lets go of the scroll view (iOS 18+;
     /// earlier versions have no scroll phases, so nothing happens).
     @ViewBuilder

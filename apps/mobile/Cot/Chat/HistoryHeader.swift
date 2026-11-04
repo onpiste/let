@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The history drawer's top bar. At rest it is a title and round buttons;
-/// search hides behind the magnifier, which fills a ring and then grows into a
-/// "Search" pill as the list is pulled down, and morphs into the search field
-/// when tapped or let go. Mirrors the head of `history-panel.tsx`.
+/// search hides behind the magnifier, whose border fills like a progress ring
+/// as the list is pulled down, and which morphs into the search field when
+/// tapped or let go past the threshold. Mirrors the head of `history-panel.tsx`.
 struct HistoryHeader: View {
     @Binding var query: String
     @Binding var searching: Bool
@@ -44,33 +44,30 @@ struct HistoryHeader: View {
         }
     }
 
+    /// Icon only, never a label: the ring on its border fills with the pull,
+    /// then the circle fills with the tint once letting go would open search.
     private var searchButton: some View {
         Button(action: open) {
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                if armed {
-                    Text("Search").transition(.opacity.combined(with: .scale(scale: 0.6)))
-                }
-            }
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(armed ? Color.white : Color.primary)
-            .padding(.horizontal, armed ? 14 : 0)
-            .frame(minWidth: 36, minHeight: 36)
-            .background {
-                Capsule()
-                    .fill(armed ? Color.accentColor : Color(.secondarySystemBackground))
-                    .matchedGeometryEffect(id: "search", in: morph)
-            }
-            // The ring fills with the pull until the pill takes over.
-            .overlay {
-                if !armed, pull > 0 {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(armed ? Color.white : Color.primary)
+                .frame(width: 36, height: 36)
+                .background {
                     Circle()
-                        .trim(from: 0, to: pull)
-                        .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
+                        .fill(armed ? Color.accentColor : Color(.secondarySystemBackground))
+                        .matchedGeometryEffect(id: "search", in: morph)
                 }
-            }
-            .scaleEffect(armed ? 1.05 : 1 + 0.1 * pull)
+                .overlay {
+                    Circle()
+                        .trim(from: 0, to: armed ? 1 : pull)
+                        .stroke(
+                            Color.accentColor,
+                            style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                        )
+                        .rotationEffect(.degrees(-90))
+                        .opacity(pull > 0 ? 1 : 0)
+                }
+                .scaleEffect(armed ? 1.12 : 1 + 0.06 * pull)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Search chats")
