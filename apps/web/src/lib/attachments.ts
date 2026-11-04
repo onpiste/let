@@ -56,6 +56,28 @@ export async function readAttachment(file: File): Promise<Attachment> {
   };
 }
 
+/** Longest edge of a camera photo; enough for a model to read, and small. */
+const PHOTO_EDGE = 1600;
+
+/**
+ * Re-encodes a camera photo as a downscaled JPEG, like `Attachment.photo` on
+ * iOS. A full-size phone photo is several MB, over the per-message cap.
+ */
+export async function shrinkPhoto(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, PHOTO_EDGE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/jpeg", 0.8);
+  });
+  if (!blob) throw new Error("Couldn't read that photo.");
+  return new File([blob], "photo.jpg", { type: "image/jpeg" });
+}
+
 /** Throws if the files together are too large to store in one message. */
 export function checkTotalSize(attachments: Attachment[]) {
   const total = attachments.reduce((sum, a) => sum + a.size, 0);

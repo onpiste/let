@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The message box. Return adds a line; the button sends (queues while the
 /// assistant is replying), or stops the turn when the box is empty. The plus
-/// button attaches files or photos. The web counterpart is
+/// button attaches files or photos, or takes one with the camera. The web counterpart is
 /// `apps/web/src/pages/chat/composer.tsx`; keep their layouts alike.
 struct ComposerView: View {
     @Binding var text: String
@@ -16,6 +16,7 @@ struct ComposerView: View {
     @FocusState private var focused: Bool
     @State private var pickingFile = false
     @State private var pickingPhoto = false
+    @State private var takingPhoto = false
     @State private var photo: PhotosPickerItem?
     @State private var voice = VoiceRecorder()
     /// Until when the box ignores text after a send. Clearing the binding
@@ -67,6 +68,9 @@ struct ComposerView: View {
                     Menu {
                         Button("Choose file", systemImage: "doc") { pickingFile = true }
                         Button("Choose photo", systemImage: "photo") { pickingPhoto = true }
+                        if CameraPicker.isAvailable {
+                            Button("Take photo", systemImage: "camera") { takingPhoto = true }
+                        }
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 20, weight: .medium))
@@ -111,6 +115,12 @@ struct ComposerView: View {
         }
         .onChange(of: text) { dropEcho() }
         .photosPicker(isPresented: $pickingPhoto, selection: $photo, matching: .images)
+        .fullScreenCover(isPresented: $takingPhoto) {
+            CameraPicker { image in
+                add([Result { try Attachment.photo(image: image) }])
+            }
+            .ignoresSafeArea()
+        }
         .onChange(of: photo) {
             guard let item = photo else { return }
             photo = nil
