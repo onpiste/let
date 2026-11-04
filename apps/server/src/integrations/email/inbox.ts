@@ -83,6 +83,11 @@ export class Inbox {
       WHERE id = ${id} AND read_at IS NULL`;
   }
 
+  markAllRead() {
+    this.db.sql`UPDATE emails SET read_at = datetime('now')
+      WHERE read_at IS NULL`;
+  }
+
   setArchived(id: number, archived: boolean) {
     this.db.sql`UPDATE emails SET archived = ${archived ? 1 : 0}
       WHERE id = ${id}`;
