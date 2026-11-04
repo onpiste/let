@@ -20,6 +20,14 @@
   text-align: center;
 }
 
+/* The Inbox / Archived switch, with "Mark all read" at the trailing end. */
+.inbox-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .segmented {
   display: inline-flex;
   align-self: flex-start;

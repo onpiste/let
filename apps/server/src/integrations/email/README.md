@@ -38,8 +38,8 @@ nothing the sender wrote is ever put in the owner's words.
    system prompt tells the model to treat it as possible spam or phishing.
    Every body is fenced as untrusted content either way. The event and the
    push carry the email's id and `inboxPath(id)`, so a tap opens it.
-5. The clients call `listInbox`, `openEmail`, `archiveEmail` and
-   `askAboutEmail` (`mailbox.ts`); each change to the unread count goes out
+5. The clients call `listInbox`, `openEmail`, `archiveEmail`,
+   `markAllEmailsRead` and `askAboutEmail` (`mailbox.ts`); each change to the unread count goes out
    to open clients as an `inbox` event for their badge.
 
 SDK `routeAgentEmail` with `createAddressBasedEmailResolver` is deliberately
@@ -60,16 +60,16 @@ sent to the owner, so they can click the link. Then add a filter that
 forwards the mail you want the assistant to see. Forwarded mail arrives
 with the owner as envelope sender, so it passes the gate.
 
-| File           | What it holds                                             |
-| -------------- | --------------------------------------------------------- |
-| `config.ts`    | `EmailConfig` (stored in the user's agent), alias helpers |
-| `addresses.ts` | `EmailAddresses` DO: alias → account                      |
-| `handler.ts`   | The Worker's `email` handler                              |
-| `parse.ts`     | MIME → text (postal-mime)                                 |
-| `gate.ts`      | Who may reach the assistant by email                      |
-| `inbox.ts`     | The `emails` table                                        |
-| `channel.ts`   | Address lifecycle and receiving for one assistant         |
-| `triage.ts`    | One tool-less model call: category and summary            |
-| `notice.ts`    | The web event and Telegram text for a new email           |
-| `mailbox.ts`   | The owner's inbox actions: list, open, archive, Ask Cot   |
-| `feature.ts`   | Puts the parts together for the assistant                 |
+| File           | What it holds                                                     |
+| -------------- | ----------------------------------------------------------------- |
+| `config.ts`    | `EmailConfig` (stored in the user's agent), alias helpers         |
+| `addresses.ts` | `EmailAddresses` DO: alias → account                              |
+| `handler.ts`   | The Worker's `email` handler                                      |
+| `parse.ts`     | MIME → text (postal-mime)                                         |
+| `gate.ts`      | Who may reach the assistant by email                              |
+| `inbox.ts`     | The `emails` table                                                |
+| `channel.ts`   | Address lifecycle and receiving for one assistant                 |
+| `triage.ts`    | One tool-less model call: category and summary                    |
+| `notice.ts`    | The web event and Telegram text for a new email                   |
+| `mailbox.ts`   | The owner's inbox actions: list, open, read all, archive, Ask Cot |
+| `feature.ts`   | Puts the parts together for the assistant                         |

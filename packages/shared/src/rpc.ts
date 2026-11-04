@@ -78,6 +78,8 @@ export interface AssistantRpc {
   /** One email, marked read; null if it was never there. */
   openEmail(id: number): Promise<EmailDetail | null>;
   archiveEmail(id: number, archived: boolean): Promise<void>;
+  /** Marks every email read, archived ones too, clearing the badge. */
+  markAllEmailsRead(): Promise<void>;
   /**
    * Starts a new chat in which the assistant reads the email and says what
    * it is and what to do; returns the chat's id, now the one in use.

@@ -39,7 +39,8 @@ function askMessage(id: number): UIMessage {
 
 /**
  * What the owner does with their mail from a client: page through it, open
- * one (marking it read), archive it, or hand it to the assistant. Every
+ * one (marking it read), mark all read, archive one, or hand it to the
+ * assistant. Every
  * change to the unread count goes out to open clients for their badge.
  */
 export class Mailbox {
@@ -87,6 +88,12 @@ export class Mailbox {
     }
     const inbox = this.options.inbox();
     inbox.setArchived(checkCount(id, "id"), archived);
+    this.changed(inbox);
+  }
+
+  markAllRead() {
+    const inbox = this.options.inbox();
+    inbox.markAllRead();
     this.changed(inbox);
   }
 

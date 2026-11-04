@@ -165,11 +165,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     _request: Request,
     { className, name }: { className: string; name: string }
   ) {
-    await this.chats.ready();
-    if (className !== Chat.name || !this.chats.exists(name)) {
-      return new Response("Not found", { status: 404 });
-    }
-    return undefined;
+    return this.chats.gate(className, name);
   }
 
   /** What a chat uses of this assistant, over DO RPC (not a callable). */
@@ -347,6 +343,11 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   @callable()
   async archiveEmail(id: number, archived: boolean) {
     this.email.mailbox.archive(id, archived);
+  }
+
+  @callable()
+  async markAllEmailsRead() {
+    this.email.mailbox.markAllRead();
   }
 
   @callable()

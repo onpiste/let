@@ -56,6 +56,15 @@ export class ChatDirectory {
     return this.host.dynamicAgents.has(Chat, id);
   }
 
+  /** A 404 unless the sub-agent asked for is one of these chats. */
+  async gate(className: string, name: string) {
+    await this.ready();
+    if (className !== Chat.name || !this.exists(name)) {
+      return new Response("Not found", { status: 404 });
+    }
+    return undefined;
+  }
+
   async list() {
     await this.ready();
     return this.history().list();
