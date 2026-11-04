@@ -418,6 +418,32 @@
 .attach-btn:hover {
   background: var(--user-bubble);
 }
+.attach-menu {
+  position: relative;
+}
+.attach-popover {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  min-width: 160px;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow);
+}
+.attach-popover button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  text-align: left;
+}
+.attach-popover button:hover {
+  background: var(--surface);
+}
 .attachments {
   max-width: 720px;
   margin: 0 auto 6px;

@@ -14,6 +14,7 @@ import { ArrowDown } from "../../components/icons";
 import {
   checkTotalSize,
   readAttachment,
+  shrinkPhoto,
   type Attachment
 } from "../../lib/attachments";
 import { loadChatCache, saveChatCache } from "../../lib/chat-cache";
@@ -114,9 +115,14 @@ export function ChatPane({
 
   const { ref: scrollRef, away, onScroll, follow } = useFollowScroll(messages);
 
-  const attach = async (files: File[]) => {
+  const attach = async (
+    files: File[],
+    prepare = (file: File): Promise<File> => Promise.resolve(file)
+  ) => {
     try {
-      const added = await Promise.all(files.map(readAttachment));
+      const added = await Promise.all(
+        files.map(async (f) => readAttachment(await prepare(f)))
+      );
       const next = [...attachments, ...added];
       checkTotalSize(next);
       setAttachments(next);
@@ -178,6 +184,7 @@ export function ChatPane({
         attachments={attachments}
         onChange={setInput}
         onAttach={(files) => void attach(files)}
+        onPhoto={(file) => void attach([file], shrinkPhoto)}
         onError={(text) => onNotice({ icon: "⚠️", title: "Voice input", text })}
         onRemoveAttachment={(i) =>
           setAttachments(attachments.filter((_, j) => j !== i))

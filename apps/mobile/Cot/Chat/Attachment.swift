@@ -47,7 +47,25 @@ struct Attachment: Identifiable, Equatable {
 
     /// Photos are re-encoded as JPEG: models rarely read HEIC, and it is smaller.
     static func photo(data: Data) throws -> Attachment {
-        guard let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.8) else {
+        guard let image = UIImage(data: data) else {
+            throw Failure.unsupported("Photo")
+        }
+        return try photo(image: image)
+    }
+
+    /// Downscaled so a full-size camera shot (several MB) fits the
+    /// per-message cap; matches `shrinkPhoto` in the web app.
+    static func photo(image: UIImage) throws -> Attachment {
+        let edge: CGFloat = 1600
+        let longest = max(image.size.width, image.size.height)
+        let scale = min(1, edge / max(longest, 1))
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let jpeg = resized.jpegData(compressionQuality: 0.8) else {
             throw Failure.unsupported("Photo")
         }
         return file(name: "photo.jpg", mediaType: "image/jpeg", data: jpeg)
