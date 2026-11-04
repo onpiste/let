@@ -52,7 +52,7 @@ function takeTurn(
   if (limits.perDay && current.count >= limits.perDay) {
     return {
       record: current,
-      refusal: `You've reached today's limit of ${limits.perDay} messages on the shared model. It resets at 00:00 UTC. To keep going now, add your own OpenAI, Anthropic or Google key in Settings → Model.`
+      refusal: `You've reached today's limit of ${limits.perDay} messages on the shared model. It resets at 00:00 UTC. To keep going now, add your own OpenAI, Anthropic, Google or DeepSeek key in Settings → Model.`
     };
   }
   return {

@@ -1,4 +1,5 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
@@ -24,6 +25,8 @@ export function modelFor({
       return createAnthropic({ apiKey: apiKeys.anthropic })(model);
     case "google":
       return createGoogleGenerativeAI({ apiKey: apiKeys.google })(model);
+    case "deepseek":
+      return createDeepSeek({ apiKey: apiKeys.deepseek })(model);
   }
 }
 

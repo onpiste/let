@@ -42,7 +42,7 @@ Features:
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (your latest chat, same memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:
   - **Assistant**: name, reply language and custom instructions, used by the assistant
-  - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. For Workers AI, pick from a list of open models (Kimi, gpt-oss, GLM, Llama, Gemma, Qwen…) or type any model id. Applies to chat and Telegram; the coding agent stays on Workers AI
+  - **Model**: Workers AI (default), OpenAI, Anthropic, Google or DeepSeek with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. For Workers AI, pick from a list of open models (Kimi, gpt-oss, GLM, Llama, Gemma, Qwen…) or type any model id. Applies to chat and Telegram; the coding agent stays on Workers AI
   - **Skills**: write reusable instructions (name, when to use it, Markdown body). The assistant sees only names and descriptions, and loads a skill's full text with `useSkill` when a request fits. Stored per account
   - **Connectors (MCP servers)**: pick a popular one or add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
   - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
@@ -62,7 +62,7 @@ Cot is meant to be forked and changed. The usual first steps:
 3. **Who can sign in.** `ALLOWED_EMAILS` is the allow-list: just you, your
    family, or your team.
 4. **Model.** Workers AI works with no extra key; each user can switch to
-   OpenAI, Anthropic or Google with their own key in **Settings → Model**.
+   OpenAI, Anthropic, Google or DeepSeek with their own key in **Settings → Model**.
    **Usage limits** keep a shared deployment's bill in check. They are `vars`
    in `apps/server/wrangler.jsonc` (`"0"` turns one off):
    - `DAILY_MESSAGE_LIMIT` (default 500) and `MINUTE_MESSAGE_LIMIT`
