@@ -23,3 +23,18 @@
   --accent-text: #1a1917;
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
+
+/* Streamdown (tables, code blocks, their fullscreen view and download menu)
+   styles itself with shadcn colour names. Map them onto our tokens so its
+   surfaces are opaque and follow light/dark mode; undefined, they render
+   transparent with currentColor borders. */
+@theme inline {
+  --color-background: var(--surface);
+  --color-foreground: var(--text);
+  --color-muted: var(--user-bubble);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--line);
+  --color-sidebar: var(--bg);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-text);
+}
