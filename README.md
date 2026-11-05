@@ -106,8 +106,19 @@ Cot is meant to be forked and changed. The usual first steps:
    `apps/server/src/agents/think/tools/`, or connect an MCP server from
    **Settings → Connectors** without writing code; edit the one-tap list in
    `packages/shared/src/connectors.ts` (and the copy in
-   `apps/mobile/Cot/Settings/McpSection.swift`). Business-specific knowledge can go into the `cot-knowledge`
-   AI Search instance that the knowledge tool searches.
+   `apps/mobile/Cot/Settings/McpSection.swift`).
+
+   **Knowledge base.** Each user uploads their own documents (PDF, Word,
+   Excel, text, Markdown, CSV, HTML, images; up to 4 MB each) in
+   **Settings → Knowledge base**, and the assistant searches them with the
+   `searchKnowledge` tool. Every account gets its own AI Search instance
+   with built-in storage, created on the first upload, so there's nothing
+   to set up. For material everyone should see (company docs, industry
+   references), create an AI Search instance named `cot-knowledge` in the
+   `default` namespace in the Cloudflare dashboard and add files there; set
+   `KNOWLEDGE_SHARED_INSTANCE` in `wrangler.jsonc` to use another name, or
+   to `""` to turn the shared library off. See
+   `apps/server/src/knowledge/README.md`.
 
    **Apps (one tap).** With a [Composio](https://composio.dev) project key
    (`bunx wrangler secret put COMPOSIO_API_KEY`), **Settings → Apps** lets
@@ -258,7 +269,8 @@ apps/server/               # @cot/server — Cloudflare Worker
   src/integrations/telegram/ # per-user Telegram bots
   src/integrations/apns/   #   iOS push notifications
   src/integrations/webpush/ #  browser push notifications (VAPID)
-  src/tools/               #   sandbox (Container), code runner, knowledge search, browser
+  src/knowledge/           #   knowledge base: per-user AI Search instances, upload/list routes, search
+  src/tools/               #   sandbox (Container), code runner, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
 apps/mobile/               # native SwiftUI iOS app (XcodeGen, not a Bun workspace)
   project.yml              #   bundle id, server URL, URL scheme
