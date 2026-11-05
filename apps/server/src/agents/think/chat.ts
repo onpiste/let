@@ -90,6 +90,7 @@ export class Chat extends Think<Env> {
   override getTools(): ToolSet {
     return localTools({
       env: this.env,
+      owner: this.ownerName,
       sandbox: this.env.SANDBOX.getByName(this.ownerName),
       approvalMode: () => this.settings.approvalMode
     });
