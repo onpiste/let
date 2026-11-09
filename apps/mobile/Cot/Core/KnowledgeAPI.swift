@@ -45,12 +45,13 @@ enum KnowledgeAPI {
         guard size <= maxFileBytes else {
             throw Failure(message: "\(name): files can be up to \(maxFileBytes / 1_000_000) MB.")
         }
-        var components = URLComponents(url: Config.url(route), resolvingAgainstBaseURL: false)
-        components?.queryItems = [URLQueryItem(name: "name", value: name)]
+        guard var components = URLComponents(url: Config.url(route), resolvingAgainstBaseURL: false)
+        else { throw Failure(message: "Bad server URL.") }
+        components.queryItems = [URLQueryItem(name: "name", value: name)]
         // URLComponents leaves "+" alone, which the Worker would read as a space.
-        components?.percentEncodedQuery = components?.percentEncodedQuery?
-            .replacingOccurrences(of: "+", with: "%2B")
-        guard let url = components?.url else { throw Failure(message: "Bad file name.") }
+        let query = components.percentEncodedQuery ?? ""
+        components.percentEncodedQuery = query.replacingOccurrences(of: "+", with: "%2B")
+        guard let url = components.url else { throw Failure(message: "Bad file name.") }
         var req = request(url, "POST", token)
         req.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         let (data, response) = try await URLSession.shared.upload(for: req, fromFile: file)
