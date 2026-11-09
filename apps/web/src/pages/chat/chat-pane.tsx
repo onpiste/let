@@ -175,10 +175,10 @@ export function ChatPane({
       // Trust boundary: the server's UIMessage.
       const edited = (await chatApi(agent).editMessage(id, text)) as UIMessage;
       // The server's new transcript may already have replaced it.
-      setMessages((shown) => {
-        const at = shown.findIndex((m) => m.id === id || m.id === edited.id);
-        return [...shown.slice(0, Math.max(0, at)), edited];
-      });
+      const at = messages.findIndex((m) => m.id === id || m.id === edited.id);
+      // Like iOS: if it's gone from what's shown, leave the transcript alone.
+      if (at < 0) return;
+      setMessages([...messages.slice(0, at), edited]);
       follow();
       await regenerate();
     } catch (e) {
