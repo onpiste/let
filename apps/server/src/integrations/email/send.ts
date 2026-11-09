@@ -1,19 +1,25 @@
 import type { EmailDraft } from "@cot/shared";
 
+/** `<left@right>`, with no spaces, line breaks or stray brackets. */
+const MESSAGE_ID = /^<[^<>@\s]+@[^<>@\s]+>$/;
+
+/**
+ * The Message-ID a reply can cite, or null: older inbox rows have none, and
+ * a malformed one (or one with a line break, which would start a new
+ * header) can't thread the reply.
+ */
+export function threadId(repliesTo: string | null) {
+  return repliesTo && repliesTo.length <= 900 && MESSAGE_ID.test(repliesTo)
+    ? repliesTo
+    : null;
+}
+
 /**
  * Sends one plain-text email from the assistant's address. The binding is
  * called directly rather than through the Agents SDK's `sendAgentEmail`,
  * whose X-Agent-* headers would put the instance name (`google:<sub>`) in
  * every message; replies come back by alias anyway (handler.ts).
  */
-/**
- * The Message-ID a reply can cite, or null: older inbox rows have none, and
- * one with a line break would start a new header.
- */
-export function threadId(repliesTo: string | null) {
-  return repliesTo && !/[\r\n]/.test(repliesTo) ? repliesTo : null;
-}
-
 export async function sendEmail({
   binding,
   from,

@@ -133,7 +133,7 @@ export class EmailFeature {
     log.info("email", "Sent", { reply: draft.inReplyTo !== undefined });
     // Emails filed before Message-IDs were kept can't be threaded.
     return draft.inReplyTo !== undefined && !threadId(repliesTo)
-      ? `Sent to ${draft.to}, but without threading: the original email has no Message-ID, so it may show as a new conversation.`
+      ? `Sent to ${draft.to}, but without threading: the original email has no usable Message-ID, so it may show as a new conversation.`
       : `Sent to ${draft.to}.`;
   }
 }
