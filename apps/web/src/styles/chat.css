@@ -536,8 +536,13 @@
   font-size: 14px;
   overflow-wrap: anywhere;
 }
+/* break-spaces keeps trailing spaces in the box, and the shading shows
+   where the subject starts and ends. */
 .email-draft-subject {
-  white-space: pre-wrap;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--bg);
+  white-space: break-spaces;
 }
 
 .email-draft-body {
