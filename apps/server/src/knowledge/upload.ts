@@ -5,6 +5,35 @@ import { log } from "../log/logger";
 import { ensurePersonal } from "./instances";
 import { countDocs } from "./library";
 
+const TOO_BIG = `Files can be up to ${KNOWLEDGE_LIMITS.fileBytes / 1_000_000} MB.`;
+
+/**
+ * The body, or null as soon as it passes `limit` bytes: Content-Length can
+ * be missing, and buffering an oversized body first would waste memory.
+ */
+async function readCapped(request: Request, limit: number) {
+  const reader = request.body?.getReader();
+  if (!reader) return new Blob();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    // oxlint-disable-next-line no-await-in-loop -- a stream reads in order
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limit) {
+      // Leaves the loop right after, so nothing waits on it in turn.
+      // oxlint-disable-next-line no-await-in-loop -- runs once, then returns
+      await reader.cancel();
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new Blob(chunks, {
+    type: request.headers.get("Content-Type") ?? ""
+  });
+}
+
 /**
  * POST `KNOWLEDGE_ROUTE?name=<file name>` with the file as the body.
  * The file goes into the owner's own instance and indexes in the
@@ -20,14 +49,10 @@ export async function handleKnowledgeUpload(
   }
   const declared = Number(request.headers.get("Content-Length") ?? 0);
   if (declared > KNOWLEDGE_LIMITS.fileBytes) {
-    return jsonResponse(
-      {
-        error: `Files can be up to ${KNOWLEDGE_LIMITS.fileBytes / 1_000_000} MB.`
-      },
-      { status: 413 }
-    );
+    return jsonResponse({ error: TOO_BIG }, { status: 413 });
   }
-  const file = await request.blob();
+  const file = await readCapped(request, KNOWLEDGE_LIMITS.fileBytes);
+  if (file === null) return jsonResponse({ error: TOO_BIG }, { status: 413 });
   let name: string;
   try {
     name = validateKnowledgeFile(
