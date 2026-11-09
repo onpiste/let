@@ -4,6 +4,7 @@ import {
   ASSISTANT,
   AUTH_ROUTES,
   DEV_LOG_ROUTES,
+  KNOWLEDGE_ROUTE,
   TRANSCRIBE_ROUTE
 } from "@cot/shared";
 
@@ -11,6 +12,7 @@ import { handleCallback, handleLogin, handleLogout } from "../auth/google";
 import { handleToken } from "../auth/native";
 import { getUserFromRequest } from "../auth/session";
 import { handleTelegramWebhook } from "../integrations/telegram/webhook";
+import { handleKnowledge } from "../knowledge/routes";
 import { log } from "../log/logger";
 import {
   handleDevHealth,
@@ -62,6 +64,17 @@ export const router = {
           return new Response("Unauthorized", { status: 401 });
         }
         return await handleTranscribe(request, env);
+      }
+
+      if (
+        url.pathname === KNOWLEDGE_ROUTE ||
+        url.pathname.startsWith(`${KNOWLEDGE_ROUTE}/`)
+      ) {
+        const user = await getUserFromRequest(request, env);
+        if (!user) return new Response("Unauthorized", { status: 401 });
+        // The assistant's name, so uploads land in the instance its chats
+        // search.
+        return await handleKnowledge(request, env, `google:${user.id}`);
       }
 
       // The Worker, not the browser, decides which assistant instance a
