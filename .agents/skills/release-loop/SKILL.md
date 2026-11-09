@@ -82,11 +82,17 @@ After it lands on `main`:
    `warn`, so it stops counting as a production error.
 5. `bun run check && bun run build`, commit with `Fixes #<issue>`, and push
    following the Git rules in `AGENTS.md`.
-6. **Verify** after the deploy: `bun run smoke`, note the time the fix
-   went live, wait half an hour, then check that
-   `bun run errors --since <that time, ISO>` no longer lists the
-   fingerprint. Client lines carry the device's clock, so a client error
-   close to the deploy time proves little either way: check its `version`.
+6. **Verify** after the deploy: check that the Deploy workflow for the
+   fix's commit succeeded, then run `bun run smoke --version <fix sha>`.
+   Without `--version` the smoke check can pass against the previous
+   healthy deployment. Note the time the fix went live, wait half an hour,
+   then check that `bun run errors --since <that time, ISO>` no longer
+   lists the fingerprint. Client lines carry the device's clock, so a
+   client error close to the deploy time proves little either way: check
+   its `version`. Only a Worker line or a web build carries a git sha; an
+   iOS line carries the app's build number, and a line with no `version`
+   says nothing. Treat those as inconclusive and confirm on a build you
+   know includes the fix before closing.
 
 For a `regression` issue the earlier fix did not hold: read the previous
 fix (linked from the issue's history) before writing another, and step 3
