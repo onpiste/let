@@ -68,8 +68,10 @@ After it lands on `main`:
    the sample has the error and a `requestId` or `session`.
 2. **Get the story**: `bun run logs --since 1d --grep <requestId>`, then
    `--grep <session>` for what the client did before. Find the code from
-   `scope` (table in the `dev-logs` skill). The first sha in `versions`
-   points at the change that introduced it: `git show <sha> --stat`.
+   `scope` (table in the `dev-logs` skill). `versions` only lists the shas
+   seen in the window the watcher read, so it narrows the search but does
+   not prove which deploy introduced the error: check the issue's history
+   and older logs before blaming a change (`git show <sha> --stat`).
 3. **Reproduce it in a test first.** Move the failing logic into
    `@cot/shared` if it is pure and isn't there yet. The test must fail
    before the fix and pass after; it is what keeps this from coming back.
@@ -80,8 +82,9 @@ After it lands on `main`:
    `warn`, so it stops counting as a production error.
 5. `bun run check && bun run build`, commit with `Fixes #<issue>`, and push
    following the Git rules in `AGENTS.md`.
-6. **Verify** after the deploy: `bun run smoke`, then
-   `bun run errors --since 30m` no longer lists the fingerprint.
+6. **Verify** after the deploy: `bun run smoke`, then wait half an hour
+   and check that `bun run errors --since 30m` no longer lists the
+   fingerprint, or that its `lastSeen` is before the fix went live.
 
 For a `regression` issue the earlier fix did not hold: read the previous
 fix (linked from the issue's history) before writing another, and step 3

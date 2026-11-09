@@ -15,6 +15,9 @@ import { config, parseFlags } from "../devlog/config";
  * A new public route or a new way the Worker can fail to boot belongs here.
  */
 
+/** How long one request may take before the check fails. */
+const TIMEOUT_MS = 10_000;
+
 type Check = { name: string; run: (base: string) => Promise<string | null> };
 
 /** A check passes with null, or fails with what it saw instead. */
@@ -29,7 +32,8 @@ function expectStatus(
     run: async (base) => {
       const response = await fetch(base + path, {
         redirect: "manual",
-        ...init
+        ...init,
+        signal: AbortSignal.timeout(TIMEOUT_MS)
       });
       if (response.status !== status) return `got ${response.status}`;
       return (await also?.(response)) ?? null;
@@ -69,7 +73,9 @@ const CHECKS: Check[] = [
 
 async function health(base: string): Promise<DevHealth | null> {
   try {
-    const response = await fetch(base + DEV_LOG_ROUTES.health);
+    const response = await fetch(base + DEV_LOG_ROUTES.health, {
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
     if (!response.ok) return null;
     // Untrusted JSON from the deployment under test.
     const body = (await response.json()) as Record<string, unknown>;

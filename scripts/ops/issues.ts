@@ -8,7 +8,13 @@ import {
   listIssues,
   updateIssue
 } from "./github";
-import { issueBody, issueTitle, readState, type State } from "./issue-body";
+import {
+  issueBody,
+  issueTitle,
+  readState,
+  shownVersions,
+  type State
+} from "./issue-body";
 import { agentMention, notify } from "./notify";
 
 /**
@@ -30,6 +36,12 @@ const REGRESSION = "regression";
 const MAX_NEW_PER_RUN = 5;
 /** Closing by a fix commit comes minutes before its deploy is live. */
 const DEPLOY_GRACE_MS = 30 * 60 * 1000;
+
+/** " on `sha`, `sha`" for the versions safe to show, or nothing. */
+function versionsNote(versions: string[]) {
+  const shown = shownVersions(versions);
+  return shown.length > 0 ? ` on \`${shown.join("`, `")}\`` : "";
+}
 
 function after(entries: LogEntry[], ts: string) {
   const from = Date.parse(ts);
@@ -55,7 +67,7 @@ async function reopen(issue: Issue, state: State, fresh: ErrorGroup) {
   });
   await commentOnIssue(
     issue.number,
-    `**Regression.** Seen ${fresh.count} more time(s) since this was closed, last at ${fresh.lastSeen}${fresh.versions.length > 0 ? ` on \`${fresh.versions.join("`, `")}\`` : ""}. The fix did not hold: add a test that reproduces it before fixing again.${agentMention()}`
+    `**Regression.** Seen ${fresh.count} more time(s) since this was closed, last at ${fresh.lastSeen}${versionsNote(fresh.versions)}. The fix did not hold: add a test that reproduces it before fixing again.${agentMention()}`
   );
   await notify(`🔁 Regression: ${issue.title}\n${issue.html_url}`);
 }
