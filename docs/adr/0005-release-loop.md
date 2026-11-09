@@ -30,7 +30,7 @@ repository and on services a deployment already has (Cloudflare, GitHub):
    no database. An error that returns after its issue was closed reopens it
    as a `regression`.
 4. **A runbook agents follow** (`.agents/skills/release-loop`): reproduce in
-   a test, fix, close the issue from the commit, verify after the deploy.
+   a test, fix, verify after the deploy, then close the issue by hand.
    `FIX_AGENT_MENTION` can hand new issues to an agent automatically.
 
 Alerts are GitHub's own issue notifications, plus an optional chat webhook.

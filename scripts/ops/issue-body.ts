@@ -107,8 +107,8 @@ export function issueBody(state: State, latest: ErrorGroup) {
     "bun run errors --since 1d   # is it still happening, and how often",
     "```",
     "",
-    "Reproduce it in a test, fix it, and close this issue from the commit",
-    `(\`Fixes #…\`). If the error returns after that, this issue reopens as a`,
+    "Reproduce it in a test, fix it (reference this issue with `Refs #…`),",
+    "and close it once the fix is verified live. If the error returns after that, this issue reopens as a",
     "`regression`. Close it as *not planned* to mute this error for good.",
     "",
     "_Counts are updated in place by the Watch workflow._"

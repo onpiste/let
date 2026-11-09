@@ -22,7 +22,7 @@ Every change goes round one loop, and each step feeds the next:
 | Smoke   | `bun run smoke --version <sha>`; failure rolls back   | `deploy.yml`, `scripts/ops`     |
 | Collect | one JSON log format, server lines carry the sha       | the `dev-logs` skill            |
 | Watch   | error logs → `prod-error` issues, alerts, regressions | `watch.yml`, `scripts/ops`      |
-| Fix     | reproduce in a test, fix, close the issue             | you, with the runbooks below    |
+| Fix     | reproduce in a test, fix, verify, close the issue     | you, with the runbooks below    |
 
 ## Commands
 
@@ -80,8 +80,9 @@ After it lands on `main`:
 4. **Fix the cause**, not the log line. If the error is expected and
    handled (a user's bad API key, a network drop), handle it and log it at
    `warn`, so it stops counting as a production error.
-5. `bun run check && bun run build`, commit with `Fixes #<issue>`, and push
-   following the Git rules in `AGENTS.md`.
+5. `bun run check && bun run build`, commit with `Refs #<issue>` (not
+   `Fixes`, which would close the issue before step 6 has verified the
+   deploy), and push following the Git rules in `AGENTS.md`.
 6. **Verify** after the deploy: check that the Deploy workflow for the
    fix's commit succeeded, then run `bun run smoke --version <sha>`, with
    the fix's sha or, if a later commit has deployed since, that commit's
@@ -97,7 +98,9 @@ After it lands on `main`:
    its `version`. Only Worker lines carry the deployed git sha. iOS lines
    carry the app's build number and web lines carry no `version` at all,
    so treat a client line as inconclusive and confirm on a build you know
-   includes the fix before closing.
+   includes the fix before closing. Then close it as completed
+   (`gh issue close <issue> --reason completed`), so a later return reopens
+   it as a `regression`.
 
 For a `regression` issue the earlier fix did not hold: read the previous
 fix (linked from the issue's history) before writing another, and step 3

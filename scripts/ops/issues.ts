@@ -34,7 +34,7 @@ const LABEL = "prod-error";
 const REGRESSION = "regression";
 /** A flood is one alert, not fifty: the rest wait for the next run. */
 const MAX_NEW_PER_RUN = 5;
-/** Closing by a fix commit comes minutes before its deploy is live. */
+/** Lines from the old build can still arrive just after an issue closes. */
 const DEPLOY_GRACE_MS = 30 * 60 * 1000;
 
 /** " on `sha`, `sha`" for the versions safe to show, or nothing. */
