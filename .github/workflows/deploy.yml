@@ -1,6 +1,9 @@
 name: Deploy
 
-# Every push to main is checked and deployed to Cloudflare (runlet.us).
+# Every push to main is checked, deployed to Cloudflare (runlet.us) and then
+# smoke-tested from the outside; a deploy that fails its smoke test is rolled
+# back, and any failure opens a `deploy-failed` issue that the next good
+# deploy closes (docs/adr/0005-release-loop.md).
 # Needs the CLOUDFLARE_API_TOKEN repository secret. Worker secrets
 # (GOOGLE_CLIENT_ID etc.) live in Cloudflare and are kept across deploys.
 on:
@@ -13,6 +16,11 @@ on:
 concurrency:
   group: deploy
   cancel-in-progress: false
+
+# The issue steps at the end use the workflow's own token.
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   deploy:
@@ -41,8 +49,43 @@ jobs:
 
       # apps/web: vite build (client + the apps/server Worker) && wrangler
       # deploy. The sandbox uses Cloudflare's managed image, so no Docker is
-      # needed here.
-      - run: bun scripts/devlog/index.ts report Deploy -- bun run deploy
+      # needed here. The version is tagged with the git sha, which
+      # /dev/health and every server log line then report.
+      - name: Deploy
+        working-directory: apps/web
+        run: bun ../../scripts/devlog/index.ts report Deploy -- bun run deploy --tag "${GITHUB_SHA::7}" --message "${GITHUB_SHA::7} ${GITHUB_REF_NAME}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 02eec653ae3b648ef566c2469e7fb68e
+
+      # Waits for the new sha to be live, then checks the public routes
+      # (scripts/ops/smoke.ts).
+      - name: Smoke test
+        id: smoke
+        run: bun scripts/devlog/index.ts report Smoke -- bun run smoke --version "${GITHUB_SHA::7}"
+
+      # Back to the previous version. Set the repository variable
+      # AUTO_ROLLBACK to "off" to leave a failed deploy live instead.
+      - name: Roll back
+        id: rollback
+        if: failure() && steps.smoke.outcome == 'failure' && vars.AUTO_ROLLBACK != 'off'
+        working-directory: apps/server
+        run: bunx wrangler rollback --yes --message "Smoke test failed for ${GITHUB_SHA::7}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 02eec653ae3b648ef566c2469e7fb68e
+
+      - name: Open an issue for the failed deploy
+        if: failure()
+        run: bun scripts/ops/index.ts deploy-failed --smoke "${{ steps.smoke.outcome }}" --rollback "${{ steps.rollback.outcome }}"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+          FIX_AGENT_MENTION: ${{ vars.FIX_AGENT_MENTION }}
+
+      - name: Close the issue of an earlier failed deploy
+        if: success()
+        run: bun scripts/ops/index.ts deploy-ok
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}

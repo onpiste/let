@@ -239,7 +239,26 @@ bunx wrangler secret put ALLOWED_EMAILS
 bunx wrangler secret put CLOUDFLARE_API_KEY
 cd ../..
 bun run deploy            # → https://runlet.us (also runs on every push to main)
+bun run smoke             # check the deployment's public routes from outside
 ```
+
+### After the deploy
+
+Pushes to `main` go through a closed loop
+([ADR 0005](docs/adr/0005-release-loop.md)): the Deploy workflow smoke-tests
+the new version and rolls it back if that fails, and the Watch workflow
+files production errors from the logs as GitHub issues (`prod-error`,
+reopened as `regression` if a fixed one returns). To turn it on in a fork:
+
+- `CLOUDFLARE_API_TOKEN` (repository secret, already needed to deploy) must
+  also have _Workers Observability_ access, so Watch can read the logs.
+- Optional: the `ALERT_WEBHOOK_URL` secret for Slack, Discord or Telegram
+  alerts, the `FIX_AGENT_MENTION` variable (e.g. `@claude`) to hand new
+  issues to a coding agent, and `AUTO_ROLLBACK` = `off` to keep a failed
+  deploy live.
+
+Details and runbooks are in the
+[release-loop skill](.agents/skills/release-loop/SKILL.md).
 
 ## Structure
 

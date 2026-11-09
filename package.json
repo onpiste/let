@@ -28,7 +28,9 @@
     "typecheck": "bun run --filter '*' typecheck",
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run knip && bun run test",
     "prepare": "husky",
-    "logs": "bun scripts/devlog/index.ts"
+    "logs": "bun scripts/devlog/index.ts",
+    "smoke": "bun scripts/ops/index.ts smoke",
+    "errors": "bun scripts/ops/index.ts errors"
   },
   "devDependencies": {
     "@cot/shared": "workspace:*",

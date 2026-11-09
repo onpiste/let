@@ -26,7 +26,7 @@ export type LogEntry = {
   /** Joins a client's lines with the server's for the same request. */
   requestId?: string;
   chatId?: string;
-  /** Client build, or the git sha of a build. */
+  /** Client build, the git sha of a build, or the Worker's deployed sha. */
   version?: string;
   /** Errors: {name, message, stack}. Builds: {command, exitCode, file, line, …}. */
   data?: Record<string, unknown>;
@@ -39,10 +39,14 @@ export const DEV_LOG_ROUTES = {
   /** GET: `DevLogStatus`, so clients know whether to send logs. */
   status: "/dev/status",
   /** POST `DevLogBatch`: a client's session, or the DEV_LOGS_TOKEN (builds). */
-  ingest: "/dev/logs"
+  ingest: "/dev/logs",
+  /** GET: `DevHealth`, public. The post-deploy smoke test reads it. */
+  health: "/dev/health"
 } as const;
 
 export type DevLogStatus = { enabled: boolean };
+/** `version` is the deployed git sha ("" for a deploy that set no tag). */
+export type DevHealth = { ok: boolean; version: string };
 export type DevLogBatch = { entries: LogEntry[] };
 
 /** Most entries one ingest request may carry. */

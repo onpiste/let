@@ -1,4 +1,9 @@
-import { LOG_LEVELS, LOG_MARKER, type LogEntry } from "@cot/shared";
+import {
+  LOG_LEVELS,
+  LOG_MARKER,
+  type LogEntry,
+  type LogLevel
+} from "@cot/shared";
 
 import { config, parseFlags, parseSince } from "./config";
 
@@ -62,21 +67,17 @@ function eventsOf(body: unknown): Event[] {
   return Array.isArray(nested) ? (nested as Event[]) : [];
 }
 
-export async function readLogs(args: string[]) {
-  const { flags } = parseFlags(args);
-  if (!config.apiToken) {
-    process.stderr.write(
-      "Set CLOUDFLARE_API_TOKEN to a Cloudflare API token with Workers Observability access (see .agents/skills/dev-logs/SKILL.md).\n"
-    );
-    process.exit(2);
-  }
-  const from = parseSince(flags.since);
-  const sources = flags.source?.split(",").filter(Boolean);
-  const minLevel = LOG_LEVELS.indexOf(
-    (flags.level ?? "debug") as (typeof LOG_LEVELS)[number]
-  );
-  const limit = Number(flags.limit ?? 200);
+export type LogQuery = {
+  since?: string;
+  sources?: string[];
+  level?: LogLevel;
+  grep?: string;
+  limit?: number;
+};
 
+/** Cot's lines from Workers Logs, oldest first. Needs `config.apiToken`. */
+export async function queryLogs(query: LogQuery): Promise<LogEntry[]> {
+  const minLevel = LOG_LEVELS.indexOf(query.level ?? "debug");
   const response = await fetch(QUERY_URL(config.accountId), {
     method: "POST",
     headers: {
@@ -87,7 +88,7 @@ export async function readLogs(args: string[]) {
       queryId: "cot-dev-logs",
       view: "events",
       limit: 2000,
-      timeframe: { from, to: Date.now() },
+      timeframe: { from: parseSince(query.since), to: Date.now() },
       parameters: {
         filters: [
           {
@@ -97,27 +98,59 @@ export async function readLogs(args: string[]) {
             value: config.worker
           },
           // Only Cot's own lines (log/logger.ts adds the marker).
-          { key: LOG_MARKER, operation: "eq", type: "number", value: 1 }
+          { key: LOG_MARKER, operation: "eq", type: "number", value: 1 },
+          // Errors are filtered by the API too, so a busy hour of debug
+          // lines can't push them past its 2000-event limit.
+          ...(query.level === "error"
+            ? [
+                {
+                  key: "level",
+                  operation: "eq",
+                  type: "string",
+                  value: "error"
+                }
+              ]
+            : [])
         ],
-        ...(flags.grep ? { needle: { value: flags.grep } } : {})
+        ...(query.grep ? { needle: { value: query.grep } } : {})
       }
     })
   });
   const body: unknown = await response.json();
   if (!response.ok) {
-    process.stderr.write(
-      `Workers Logs query failed: ${JSON.stringify(body)}\n`
-    );
-    process.exit(1);
+    throw new Error(`Workers Logs query failed: ${JSON.stringify(body)}`);
   }
-
-  const entries = eventsOf(body)
+  return eventsOf(body)
     .map(entryOf)
     .filter((entry): entry is LogEntry => entry !== null)
-    .filter((entry) => !sources || sources.includes(entry.source))
+    .filter((entry) => !query.sources || query.sources.includes(entry.source))
     .filter((entry) => LOG_LEVELS.indexOf(entry.level) >= minLevel)
     .toSorted((a, b) => a.ts.localeCompare(b.ts))
-    .slice(-limit);
+    .slice(-(query.limit ?? 200));
+}
+
+export const MISSING_TOKEN =
+  "Set CLOUDFLARE_API_TOKEN to a Cloudflare API token with Workers Observability access (see .agents/skills/dev-logs/SKILL.md).\n";
+
+export async function readLogs(args: string[]) {
+  const { flags } = parseFlags(args);
+  if (!config.apiToken) {
+    process.stderr.write(MISSING_TOKEN);
+    process.exit(2);
+  }
+  let entries: LogEntry[];
+  try {
+    entries = await queryLogs({
+      since: flags.since,
+      sources: flags.source?.split(",").filter(Boolean),
+      level: LOG_LEVELS.find((level) => level === flags.level),
+      grep: flags.grep,
+      limit: Number(flags.limit ?? 200)
+    });
+  } catch (error) {
+    process.stderr.write(`${String(error)}\n`);
+    process.exit(1);
+  }
   for (const entry of entries)
     process.stdout.write(`${JSON.stringify(entry)}\n`);
   if (entries.length === 0) process.stderr.write("No matching log lines.\n");

@@ -7,6 +7,9 @@
   "ai": { "binding": "AI", "remote": true },
   "browser": { "binding": "BROWSER" },
   "observability": { "enabled": true },
+  // The deployed version's tag, which the Deploy workflow sets to the git
+  // sha: /dev/health reports it and every server log line carries it.
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Dynamic Workers: runCode loads each snippet into a fresh isolate.
   "worker_loaders": [{ "binding": "LOADER" }],
   // Knowledge base for the searchKnowledge tool. Create the instance named in

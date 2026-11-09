@@ -3,6 +3,7 @@ export * from "./apps";
 export * from "./chats";
 export * from "./connectors";
 export * from "./email";
+export * from "./log-groups";
 export * from "./logs";
 export * from "./push";
 export * from "./research";
