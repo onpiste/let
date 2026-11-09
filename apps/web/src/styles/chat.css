@@ -536,6 +536,10 @@
   font-size: 14px;
   overflow-wrap: anywhere;
 }
+.email-draft-subject {
+  white-space: pre-wrap;
+}
+
 .email-draft-body {
   margin-top: 6px;
   white-space: pre-wrap;

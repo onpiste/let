@@ -12,7 +12,9 @@ export function EmailDraft({ input }: { input: Record<string, unknown> }) {
         <span className="muted">To</span> {text("to")}
       </div>
       <div>
-        <span className="muted">Subject</span> {text("subject")}
+        <span className="muted">Subject</span>{" "}
+        {/* Spaces kept as sent, so the preview matches what goes out. */}
+        <span className="email-draft-subject">{text("subject")}</span>
       </div>
       {/* Model output, rendered as text: never as HTML. */}
       <div className="email-draft-body">{text("body")}</div>
