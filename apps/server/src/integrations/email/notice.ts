@@ -1,6 +1,6 @@
 import type { LanguageModel } from "ai";
 
-import type { ServerEvent } from "@cot/shared";
+import { inboxPath, type ServerEvent } from "@cot/shared";
 
 import { log } from "../../log/logger";
 import type { PushAlert } from "../push";
@@ -26,21 +26,32 @@ export async function triagedNotice(
     // Still tell the owner, just without the summary.
     log.error("email", "Triage failed", error);
   }
-  return emailNotice({ ...email, triage, preview: null });
+  log.info("email", "Triaged", { id, category: triage?.category ?? null });
+  return emailNotice({
+    ...email,
+    unread: inbox.unreadCount(),
+    triage,
+    preview: null
+  });
 }
 
 /**
  * What the owner is told about a new email: the event for open clients, and
  * the text for Telegram and the phone's alert, or null when it needn't
- * interrupt them (spam and bulk mail just wait in the inbox).
+ * interrupt them (spam and bulk mail just wait in the inbox, counted in
+ * the unread badge). The alert opens the email when tapped.
  */
 export function emailNotice({
+  id,
+  unread,
   from,
   subject,
   trusted,
   triage,
   preview
 }: {
+  id: number;
+  unread: number;
   from: string;
   subject: string;
   trusted: boolean;
@@ -53,6 +64,8 @@ export function emailNotice({
 } {
   const event: ServerEvent = {
     type: "email",
+    id,
+    unread,
     from,
     subject,
     trusted,
@@ -71,7 +84,8 @@ export function emailNotice({
       text: `${heading} from ${sender}\n${subject}${detail ? `\n\n${detail}` : ""}`,
       alert: {
         title: `${heading} from ${sender}`,
-        body: detail ? `${subject}\n${detail}` : subject
+        body: detail ? `${subject}\n${detail}` : subject,
+        path: inboxPath(id)
       }
     }
   };

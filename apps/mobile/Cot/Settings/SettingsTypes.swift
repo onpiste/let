@@ -45,7 +45,11 @@ enum Providers {
             id: "anthropic", label: "Anthropic", defaultModel: "claude-sonnet-5-5",
             suggestions: ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]
         ),
-        ProviderInfo(id: "google", label: "Google", defaultModel: "", suggestions: [])
+        ProviderInfo(id: "google", label: "Google", defaultModel: "", suggestions: []),
+        ProviderInfo(
+            id: "deepseek", label: "DeepSeek", defaultModel: "deepseek-v4-flash",
+            suggestions: ["deepseek-v4-flash", "deepseek-v4-pro"]
+        )
     ]
 
     static func info(_ id: String) -> ProviderInfo {

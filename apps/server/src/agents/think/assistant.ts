@@ -13,11 +13,7 @@ import {
   type WebPushSubscription
 } from "@cot/shared";
 
-import { isAllowed } from "../../auth/session";
-import { EmailChannel } from "../../integrations/email/channel";
-import { emailAddress } from "../../integrations/email/config";
-import { Inbox } from "../../integrations/email/inbox";
-import { emailNotice, triagedNotice } from "../../integrations/email/notice";
+import { EmailFeature } from "../../integrations/email/feature";
 import { OwnerPush } from "../../integrations/push";
 import { TelegramChannel } from "../../integrations/telegram/channel";
 import { log } from "../../log/logger";
@@ -58,7 +54,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       env: this.env,
       userId: () => this.name.slice("google:".length),
       store: this.store,
-      ownerAllowed: () => this.allowedOwner() !== null,
+      ownerAllowed: () => this.store.allowedOwner(this.env) !== null,
       // Restart after the current reply goes out so Think re-reads the bot.
       onBotChanged: () => {
         setTimeout(() => this.ctx.abort("Telegram bot changed"), 500);
@@ -67,22 +63,15 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   }
 
   private get email() {
-    return new EmailChannel({
+    return new EmailFeature({
       env: this.env,
-      userId: () => this.name.slice("google:".length),
+      agent: this,
       store: this.store,
-      inbox: () => new Inbox(this),
-      owner: () => this.allowedOwner(),
-      ownerName: () => this.store.getOwnerName(),
-      // Gmail's forwarding confirmation is passed on as is: the owner needs
-      // its link now. Everything else is read by the model first.
-      onEmail: async (id, email, trusted, preview) => {
-        if (preview === null) await this.schedule(1, "triageNewEmail", id);
-        else
-          await this.notify(
-            emailNotice({ ...email, trusted, preview, triage: null })
-          );
-      }
+      owner: () => this.store.allowedOwner(this.env),
+      model: () => languageModelFor(this.store.getSettings(), this.env),
+      notify: (notice) => this.notify(notice),
+      triageLater: (id) => this.schedule(1, "triageNewEmail", id),
+      startChat: (message) => this.chats.startWith(message)
     });
   }
 
@@ -102,16 +91,6 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     return new ResearchJobs(this, this.env, this.store, (topic, ok) =>
       this.notify(researchNotice(topic, ok))
     );
-  }
-
-  /** The owner's email while it is still in ALLOWED_EMAILS. */
-  private allowedOwner() {
-    const email = this.store.getOwnerEmail();
-    return email && isAllowed(email, this.env) ? email : null;
-  }
-
-  private emailAddress() {
-    return emailAddress(this.store.getEmailConfig(), this.env.EMAIL_DOMAIN);
   }
 
   override onStart() {
@@ -190,15 +169,13 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   /** What a chat uses of this assistant, over DO RPC (not a callable). */
   chatServices(chatId: string) {
     this.store.ensureTables();
-    const address = this.emailAddress();
     return new ChatServices(chatId, {
       env: this.env,
       agent: this,
       store: this.store,
       history: this.history,
       research: this.research,
-      inbox: address ? new Inbox(this) : null,
-      emailAddress: address,
+      email: this.email,
       mcp: this.mcp,
       notifyMessenger: (text) => this.telegram.notify(text),
       notifyTask: (description, reply) =>
@@ -338,31 +315,56 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   @callable()
   async getEmailStatus() {
-    return this.email.status();
+    return this.email.channel.status();
   }
 
   @callable()
   async setEmailAlias(alias: string) {
-    return this.email.setAlias(alias);
+    return this.email.channel.setAlias(alias);
   }
 
   @callable()
   async updateEmailPolicy(policy: EmailPolicy) {
-    return this.email.updatePolicy(policy);
+    return this.email.channel.updatePolicy(policy);
+  }
+
+  @callable()
+  async listInbox(archived: boolean, offset: number) {
+    return this.email.mailbox.page(archived, offset);
+  }
+
+  @callable()
+  async openEmail(id: number) {
+    return this.email.mailbox.open(id);
+  }
+
+  @callable()
+  async archiveEmail(id: number, archived: boolean) {
+    this.email.mailbox.archive(id, archived);
+  }
+
+  @callable()
+  async markAllEmailsRead() {
+    this.email.mailbox.markAllRead();
+  }
+
+  @callable()
+  async askAboutEmail(id: number) {
+    return this.email.mailbox.ask(id);
   }
 
   /** Called by the Worker's email handler with the raw message. */
   async receiveEmail(envelopeFrom: string, raw: Uint8Array) {
     this.store.ensureTables();
-    return this.email.receive(envelopeFrom, raw);
+    return this.email.channel.receive(envelopeFrom, raw);
   }
 
-  /** Reads a new email and tells the owner what it is, without being asked. */
+  /**
+   * Reads a new email and tells the owner what it is, without being asked.
+   * Scheduled by receiveEmail, which has already made the tables.
+   */
   async triageNewEmail(id: number) {
-    this.store.ensureTables();
-    const model = () => languageModelFor(this.store.getSettings(), this.env);
-    const notice = await triagedNotice(new Inbox(this), model, id);
-    if (notice) await this.notify(notice);
+    await this.email.triage(id);
   }
 
   /** Tells the owner outside the chat: open clients, Telegram, push. */
@@ -379,7 +381,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     this.store.setOwner(email, name);
     // The inbox tools and the prompt's email section only exist once the
     // address is allocated, so don't wait for the settings page to do it.
-    await this.email.status();
+    await this.email.channel.status();
   }
 
   async addMemory(content: string) {

@@ -4,6 +4,7 @@ import type { UIMessage } from "ai";
 import { Chat } from "./chat";
 import { migrateChats } from "./chat-migration";
 import { checkChatId, type ChatHistory } from "./history";
+import { taskMessage } from "./scheduled-turn";
 
 /** An empty chat nobody wrote in is dropped after this long. */
 const EMPTY_CHAT_MS = 24 * 60 * 60 * 1000;
@@ -122,7 +123,15 @@ export class ChatDirectory {
   /** Runs a scheduled task as a turn in the chat in use. */
   async runTask(description: string) {
     const id = await this.current();
-    await (await this.chat(id)).runTask(description);
+    await (await this.chat(id)).startTurn(taskMessage(description));
+  }
+
+  /** Starts a new chat with `message`, makes it the one in use, returns its id. */
+  async startWith(message: UIMessage) {
+    const id = await this.create();
+    await this.open(id);
+    await (await this.chat(id)).startTurn(message);
+    return id;
   }
 
   /** Chats opened but never written in, except the one in use. */

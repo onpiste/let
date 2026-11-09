@@ -41,9 +41,22 @@
 .history-head strong {
   flex: 1;
 }
-.history-search {
-  width: 100%;
+.history-search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 8px;
+  animation: history-search-in 0.2s ease-out;
+}
+@keyframes history-search-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+.history-search {
+  flex: 1;
+  min-width: 0;
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid var(--line);

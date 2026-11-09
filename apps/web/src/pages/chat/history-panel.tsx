@@ -28,6 +28,8 @@ export function HistoryPanel({
   onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
+  // Search hides behind an icon until asked for, like `HistoryHeader.swift`.
+  const [searchOpen, setSearchOpen] = useState(false);
   const { chats, setChats, error, setError, hasMore, more } = useChatSearch(
     agent,
     query
@@ -105,19 +107,44 @@ export function HistoryPanel({
           >
             New chat
           </button>
+          {!searchOpen && (
+            <button
+              className="icon-btn"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search chats"
+            >
+              ⌕
+            </button>
+          )}
           <button className="icon-btn" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
-        <input
-          className="history-search"
-          type="search"
-          placeholder="Search chats"
-          aria-label="Search chats"
-          maxLength={CHAT_QUERY_LENGTH}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
+        {searchOpen && (
+          <div className="history-search-row">
+            <input
+              className="history-search"
+              type="search"
+              placeholder="Search chats"
+              aria-label="Search chats"
+              maxLength={CHAT_QUERY_LENGTH}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- opened on request
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <button
+              className="icon-btn"
+              aria-label="Cancel search"
+              onClick={() => {
+                setQuery("");
+                setSearchOpen(false);
+              }}
+            >
+              ×
+            </button>
+          </div>
+        )}
         {error && <p className="error">{error}</p>}
         {chats?.length === 0 && (
           <p className="muted">

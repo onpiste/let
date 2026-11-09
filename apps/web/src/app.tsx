@@ -1,22 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { User } from "@cot/shared";
+import { emailIdFromPath, inboxPath, type User } from "@cot/shared";
 
 import { fetchCurrentUser, signOut as requestSignOut } from "./lib/auth";
 import { ChatPage } from "./pages/chat/chat-page";
+import { InboxPage } from "./pages/inbox/inbox-page";
 import { SettingsPage } from "./pages/settings/settings-page";
 import { SignInPage } from "./pages/sign-in-page";
 import { TasksPage } from "./pages/tasks/tasks-page";
 
 // ── Routing ───────────────────────────────────────────────────────────
-// Two pages, so a router library isn't worth it: the path picks the page
-// and history.pushState keeps the back button working.
+// A few pages, so a router library isn't worth it: the path picks the page
+// and history.pushState keeps the back button working. `/inbox/12` opens
+// one email; push alerts for new mail link there (sw.js).
 
-type Page = "chat" | "settings" | "tasks";
+type Page = "chat" | "settings" | "tasks" | "inbox";
 
 function currentPage(): Page {
-  if (location.pathname === "/settings") return "settings";
-  return location.pathname === "/tasks" ? "tasks" : "chat";
+  const path = location.pathname;
+  if (path === "/settings") return "settings";
+  if (path === "/tasks") return "tasks";
+  if (path === inboxPath() || emailIdFromPath(path) !== null) return "inbox";
+  return "chat";
 }
 
 /** Session state and page switching; each page owns its own agent socket. */
@@ -25,11 +30,17 @@ export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(currentPage);
+  const [emailId, setEmailId] = useState(() =>
+    emailIdFromPath(location.pathname)
+  );
   // Text to put in the chat box, e.g. from the Tasks page's Edit button.
   const [draft, setDraft] = useState("");
 
   useEffect(() => {
-    const onPop = () => setPage(currentPage());
+    const onPop = () => {
+      setPage(currentPage());
+      setEmailId(emailIdFromPath(location.pathname));
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -37,6 +48,14 @@ export default function App() {
   const navigate = (to: Page) => {
     history.pushState(null, "", to === "chat" ? "/" : `/${to}`);
     setPage(to);
+    setEmailId(null);
+  };
+
+  /** The inbox with one email open, or the list for null. */
+  const openEmail = (id: number | null) => {
+    history.pushState(null, "", inboxPath(id ?? undefined));
+    setPage("inbox");
+    setEmailId(id);
   };
 
   const refresh = useCallback(() => {
@@ -61,6 +80,16 @@ export default function App() {
   if (page === "settings") {
     return <SettingsPage user={user} onBack={() => navigate("chat")} />;
   }
+  if (page === "inbox") {
+    return (
+      <InboxPage
+        emailId={emailId}
+        onOpen={openEmail}
+        onBack={() => navigate("chat")}
+        onChat={() => navigate("chat")}
+      />
+    );
+  }
   if (page === "tasks") {
     return (
       <TasksPage
@@ -80,6 +109,7 @@ export default function App() {
       onAuthCheck={refresh}
       onOpenSettings={() => navigate("settings")}
       onOpenTasks={() => navigate("tasks")}
+      onOpenEmail={openEmail}
     />
   );
 }

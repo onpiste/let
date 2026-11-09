@@ -5,8 +5,11 @@ import { PushDevices } from "./apns/devices";
 import { WebPushChannel } from "./webpush/channel";
 import { WebPushSubscriptions } from "./webpush/subscriptions";
 
-/** A notification's visible text. */
-export type PushAlert = { title: string; body: string };
+/**
+ * A notification's visible text, and the web path a tap opens (the iOS app
+ * maps the same path to its own screen).
+ */
+export type PushAlert = { title: string; body: string; path?: string };
 
 /**
  * Every way to reach the owner while no app is open: APNs for the iOS app,

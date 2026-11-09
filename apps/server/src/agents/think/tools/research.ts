@@ -3,9 +3,8 @@ import { z } from "zod";
 
 import { browsePage } from "../../../tools/browser";
 import { runCode } from "../../../tools/code-runner";
-import { searchKnowledge } from "../../../tools/knowledge";
 
-/** Stateless tools: run a snippet, search the knowledge base, read a page. */
+/** Stateless tools: run a snippet, read a page. */
 export function researchTools(env: Env) {
   return {
     runCode: tool({
@@ -20,21 +19,6 @@ export function researchTools(env: Env) {
           return await runCode(env, language, code);
         } catch (error) {
           return { logs: "", error: `The runtime stopped: ${String(error)}` };
-        }
-      }
-    }),
-
-    searchKnowledge: tool({
-      description:
-        "Search the user's knowledge base (documents uploaded to AI Search) for passages relevant to a question. Use it before answering questions about the user's own documents or notes.",
-      inputSchema: z.object({
-        query: z.string().describe("What to look for, in natural language")
-      }),
-      execute: async ({ query }) => {
-        try {
-          return await searchKnowledge(env, query);
-        } catch (error) {
-          return `Error searching the knowledge base: ${String(error)}`;
         }
       }
     }),

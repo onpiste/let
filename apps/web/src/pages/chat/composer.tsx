@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 
-import { ArrowUp, Mic, Plus, Square } from "../../components/icons";
+import { ArrowUp, Mic, Square } from "../../components/icons";
 import type { Attachment } from "../../lib/attachments";
+import { AttachMenu } from "./attach-menu";
 import { useVoiceInput } from "./use-voice-input";
 import { VoiceBar } from "./voice-bar";
 
@@ -19,6 +20,7 @@ export function Composer({
   attachments,
   onChange,
   onAttach,
+  onPhoto,
   onError,
   onRemoveAttachment,
   onSend,
@@ -29,13 +31,13 @@ export function Composer({
   attachments: Attachment[];
   onChange: (value: string) => void;
   onAttach: (files: File[]) => void;
+  onPhoto: (file: File) => void;
   onError: (message: string) => void;
   onRemoveAttachment: (index: number) => void;
   onSend: () => void;
   onStop: () => void;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // The transcript lands after an async upload; append to the live text.
   const valueRef = useRef(value);
@@ -108,26 +110,7 @@ export function Composer({
             send();
           }}
         >
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            hidden
-            accept="text/*,image/*,application/pdf,.md,.csv,.json,.yaml,.yml,.log,.py,.js,.ts,.tsx,.go,.rs,.java,.sql"
-            onChange={(e) => {
-              onAttach(Array.from(e.target.files ?? []));
-              e.target.value = "";
-            }}
-          />
-          <button
-            type="button"
-            className="attach-btn"
-            onClick={() => fileRef.current?.click()}
-            aria-label="Attach files"
-            title="Attach files"
-          >
-            <Plus />
-          </button>
+          <AttachMenu onAttach={onAttach} onPhoto={onPhoto} />
           <div className="composer-box">
             <textarea
               ref={textareaRef}

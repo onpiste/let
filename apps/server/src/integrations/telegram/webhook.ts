@@ -1,5 +1,6 @@
 import { getAgentByName } from "agents";
 
+import { log } from "../../log/logger";
 import { ROUTE_PATTERN, routes, THINK_WEBHOOK_PATH } from "./routes";
 
 /** Telegram retries non-2xx responses, so dropped updates still get 200. */
@@ -25,11 +26,18 @@ export async function handleTelegramWebhook(request: Request, env: Env) {
   if (result === "handled") return ok();
 
   // Hand the update to Think's messenger runtime on its own route.
-  return assistant.fetch(
+  const response = await assistant.fetch(
     new Request(`${url.origin}${THINK_WEBHOOK_PATH}`, {
       method: "POST",
       headers: request.headers,
       body
     })
   );
+  // Think logs the cause only as plain console lines; flag it in ours.
+  if (!response.ok) {
+    log.warn("telegram", "Messenger runtime rejected an update", {
+      status: response.status
+    });
+  }
+  return response;
 }

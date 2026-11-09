@@ -16,6 +16,8 @@ final class SettingsModel {
     private(set) var connected = false
     var error: String?
     private(set) var busy = false
+    /// Apps with a connect/disconnect in flight; only their rows wait.
+    private(set) var busyApps: Set<String> = []
 
     private let socket: AgentSocket
 
@@ -81,19 +83,23 @@ final class SettingsModel {
         await run { [self] in _ = try await socket.call("removeMcp", [.string(id)]) }
     }
 
+    /// Quiet background refresh (e.g. back from a sign-in page): it doesn't
+    /// mark the page busy, so the rows stay usable while it runs.
     func refreshApps() async {
-        await run { [self] in apps = try await call("listApps") }
+        if let fresh: AppsStatus = try? await call("listApps") {
+            apps = fresh
+        }
     }
 
     /// The app's sign-in page; listApps shows it as connected once done.
     func connectApp(_ slug: String) async -> URL? {
         var link: AppLink?
-        await run { [self] in link = try await call("connectApp", [.string(slug)]) }
+        await runApp(slug) { [self] in link = try await call("connectApp", [.string(slug)]) }
         return link.flatMap { URL(string: $0.url) }
     }
 
     func disconnectApp(_ slug: String) async {
-        await run { [self] in apps = try await call("disconnectApp", [.string(slug)]) }
+        await runApp(slug) { [self] in apps = try await call("disconnectApp", [.string(slug)]) }
     }
 
     func connectTelegram(token: String) async {
@@ -126,6 +132,19 @@ final class SettingsModel {
 
     private func call<T: Decodable>(_ method: String, _ args: [JSONValue] = []) async throws -> T {
         try await socket.call(method, args).decoded(as: T.self)
+    }
+
+    /// Like `run`, but only marks that one app busy, so a slow sign-in link
+    /// doesn't lock every other row (and the rest of the page).
+    private func runApp(_ slug: String, _ work: () async throws -> Void) async {
+        error = nil
+        busyApps.insert(slug)
+        defer { busyApps.remove(slug) }
+        do {
+            try await work()
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     @discardableResult

@@ -18,7 +18,15 @@ export function AppsSettings({
   epoch: number;
 }) {
   const [status, setStatus] = useState<AppsStatus | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  // Apps with a request in flight; only their rows wait, the rest stay usable.
+  const [busy, setBusy] = useState<ReadonlySet<string>>(new Set());
+  const mark = (slug: string, on: boolean) =>
+    setBusy((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(slug);
+      else next.delete(slug);
+      return next;
+    });
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
@@ -40,7 +48,7 @@ export function AppsSettings({
     setError(null);
     // Open the popup now so it isn't blocked, then point it at the sign-in.
     const popup = window.open("", "_blank", "width=600,height=720");
-    setBusy(slug);
+    mark(slug, true);
     try {
       const { url } = await api(agent).connectApp(slug);
       if (popup) {
@@ -57,20 +65,20 @@ export function AppsSettings({
       popup?.close();
       setError(errorText(e));
     } finally {
-      setBusy(null);
+      mark(slug, false);
     }
   };
 
   const disconnect = async (app: AppStatus) => {
     if (!confirm(`Disconnect ${app.name}?`)) return;
     setError(null);
-    setBusy(app.slug);
+    mark(app.slug, true);
     try {
       setStatus(await api(agent).disconnectApp(app.slug));
     } catch (e) {
       setError(errorText(e));
     } finally {
-      setBusy(null);
+      mark(app.slug, false);
     }
   };
 
@@ -101,19 +109,19 @@ export function AppsSettings({
               <button
                 type="button"
                 className="link-btn"
-                disabled={busy !== null}
+                disabled={busy.has(app.slug)}
                 onClick={() => void disconnect(app)}
               >
-                Disconnect
+                {busy.has(app.slug) ? "Disconnecting…" : "Disconnect"}
               </button>
             ) : (
               <button
                 type="button"
                 className="primary-btn"
-                disabled={busy !== null}
+                disabled={busy.has(app.slug)}
                 onClick={() => void connect(app.slug)}
               >
-                {busy === app.slug ? "Opening…" : "Connect"}
+                {busy.has(app.slug) ? "Opening…" : "Connect"}
               </button>
             )}
           </li>

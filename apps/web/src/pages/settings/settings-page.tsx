@@ -8,6 +8,7 @@ import { AppsSettings } from "./apps-settings";
 import { AssistantSettings } from "./assistant-settings";
 import { EmailSettings } from "./email-settings";
 import { IntegrationSettings } from "./integration-settings";
+import { KnowledgeSettings } from "./knowledge-settings";
 import { McpSettings } from "./mcp-settings";
 import { SkillsSettings } from "./skills-settings";
 
@@ -45,6 +46,7 @@ export function SettingsPage({
         <div className="column settings">
           <AssistantSettings agent={agent} />
           <SkillsSettings agent={agent} epoch={epoch} />
+          <KnowledgeSettings />
           <AppsSettings agent={agent} epoch={epoch} />
           <McpSettings agent={agent} state={mcp} />
           <IntegrationSettings user={user} agent={agent} epoch={epoch} />

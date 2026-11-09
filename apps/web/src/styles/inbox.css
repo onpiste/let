@@ -1,0 +1,116 @@
+/* Inbox page (pages/inbox) and the unread badge on the top bar's inbox
+   button. Layout mirrors InboxView.swift / EmailView.swift. */
+
+.badge-host {
+  position: relative;
+}
+.badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* The Inbox / Archived switch, with "Mark all read" at the trailing end. */
+.inbox-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--user-bubble);
+}
+.segmented button {
+  padding: 5px 14px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.segmented button.on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.email-list {
+  gap: 0;
+  padding: 4px 0;
+}
+.email-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 20px;
+  text-align: left;
+}
+.email-row + .email-row {
+  border-top: 1px solid var(--line);
+}
+.email-row:hover {
+  background: var(--user-bubble);
+}
+.email-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.email-from {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.email-subject {
+  font-size: 15px;
+}
+.email-row.unread .email-from,
+.email-row.unread .email-subject {
+  color: var(--text);
+  font-weight: 600;
+}
+.email-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.pill.action {
+  background: rgba(217, 119, 75, 0.15);
+  color: var(--accent);
+}
+
+.email-view {
+  overflow-wrap: anywhere;
+}
+.email-summary-box {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--user-bubble);
+  font-size: 14px;
+}
+.email-actions {
+  justify-content: flex-start;
+}
+.email-body {
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}

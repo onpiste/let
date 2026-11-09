@@ -36,12 +36,13 @@ Features:
 - **Sign in with Google**: each account gets its own Durable Object (chat history, memory, reminders). Only emails in `ALLOWED_EMAILS` can sign in, and the Worker — not the browser — picks which assistant a request reaches
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant
 - **Chat history**: every conversation is saved; the clock icon at the top left (or a swipe from the left edge on iOS) opens a drawer where you can search them by keyword, open, delete or start a new one. Each conversation is its own agent, so you can switch chats (or start several) while the assistant is still answering: the reply keeps running on the server, the drawer marks it "Answering…", and it is there when you come back. Telegram continues in the chat you last wrote in. The assistant can also search earlier chats (`searchChats` / `readChat`, a full-text index in SQLite) when you refer to something discussed before
+- **Inbox** (envelope icon with an unread badge, `/inbox`): mail sent or forwarded to the assistant's own address (see the email settings). The assistant sorts each one (needs action / FYI / low priority) with a one-line summary; open one to read it, archive it, or press **Ask Cot** to start a chat in which the assistant reads it and says what to do. **Mark all read** clears the badge in one tap. A new-mail toast, browser notification or iOS push opens the email directly
 - **Tasks page** (calendar icon, `/tasks`): every scheduled reminder, with pause, resume and delete buttons. Change one in words: press Edit (or just ask in chat) and say e.g. "move it to 9am"
 - **Scheduled tasks**: "remind me in 10 minutes to…" or "every morning at 8, tell me the weather" schedules a task. When it fires, the assistant carries it out as a turn of its own in your current chat, with its tools (search, MCP, …; tools that need approval are left out, since nobody is there to approve), and sends you the result as an in-app toast, a push notification in the browser and on the iOS app even when they're closed (once set up, see [Web Push](#web-push) and [iOS push notifications](#ios-push-notifications)) and, if you connected a bot, a Telegram message
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (your latest chat, same memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
 - **Settings page** (gear icon, `/settings`), saved per account:
   - **Assistant**: name, reply language and custom instructions, used by the assistant
-  - **Model**: Workers AI (default), OpenAI, Anthropic or Google with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. For Workers AI, pick from a list of open models (Kimi, gpt-oss, GLM, Llama, Gemma, Qwen…) or type any model id. Applies to chat and Telegram; the coding agent stays on Workers AI
+  - **Model**: Workers AI (default), OpenAI, Anthropic, Google or DeepSeek with your own API key, and the model id. Keys are stored in your assistant's Durable Object and only the last four characters are ever sent back to the browser. For Workers AI, pick from a list of open models (Kimi, gpt-oss, GLM, Llama, Gemma, Qwen…) or type any model id. Applies to chat and Telegram; the coding agent stays on Workers AI
   - **Skills**: write reusable instructions (name, when to use it, Markdown body). The assistant sees only names and descriptions, and loads a skill's full text with `useSkill` when a request fits. Stored per account
   - **Connectors (MCP servers)**: pick a popular one or add remote MCP servers by URL, including ones that need OAuth (a popup opens; the callback returns through `/chat/mcp-callback`, so it reaches only your own assistant). Their tools are available in every Think chat
   - **Integrations**: Google account, and your Telegram bot (connect with its token, claim, disconnect)
@@ -61,7 +62,7 @@ Cot is meant to be forked and changed. The usual first steps:
 3. **Who can sign in.** `ALLOWED_EMAILS` is the allow-list: just you, your
    family, or your team.
 4. **Model.** Workers AI works with no extra key; each user can switch to
-   OpenAI, Anthropic or Google with their own key in **Settings → Model**.
+   OpenAI, Anthropic, Google or DeepSeek with their own key in **Settings → Model**.
    **Usage limits** keep a shared deployment's bill in check. They are `vars`
    in `apps/server/wrangler.jsonc` (`"0"` turns one off):
    - `DAILY_MESSAGE_LIMIT` (default 500) and `MINUTE_MESSAGE_LIMIT`
@@ -105,8 +106,19 @@ Cot is meant to be forked and changed. The usual first steps:
    `apps/server/src/agents/think/tools/`, or connect an MCP server from
    **Settings → Connectors** without writing code; edit the one-tap list in
    `packages/shared/src/connectors.ts` (and the copy in
-   `apps/mobile/Cot/Settings/McpSection.swift`). Business-specific knowledge can go into the `cot-knowledge`
-   AI Search instance that the knowledge tool searches.
+   `apps/mobile/Cot/Settings/McpSection.swift`).
+
+   **Knowledge base.** Each user uploads their own documents (PDF, Word,
+   Excel, text, Markdown, CSV, HTML, images; up to 4 MB each) in
+   **Settings → Knowledge base**, and the assistant searches them with the
+   `searchKnowledge` tool. Every account gets its own AI Search instance
+   with built-in storage, created on the first upload, so there's nothing
+   to set up. For material everyone should see (company docs, industry
+   references), create an AI Search instance named `cot-knowledge` in the
+   `default` namespace in the Cloudflare dashboard and add files there; set
+   `KNOWLEDGE_SHARED_INSTANCE` in `wrangler.jsonc` to use another name, or
+   to `""` to turn the shared library off. See
+   `apps/server/src/knowledge/README.md`.
 
    **Apps (one tap).** With a [Composio](https://composio.dev) project key
    (`bunx wrangler secret put COMPOSIO_API_KEY`), **Settings → Apps** lets
@@ -257,7 +269,8 @@ apps/server/               # @cot/server — Cloudflare Worker
   src/integrations/telegram/ # per-user Telegram bots
   src/integrations/apns/   #   iOS push notifications
   src/integrations/webpush/ #  browser push notifications (VAPID)
-  src/tools/               #   sandbox (Container), code runner, knowledge search, browser
+  src/knowledge/           #   knowledge base: per-user AI Search instances, upload/list routes, search
+  src/tools/               #   sandbox (Container), code runner, browser
   wrangler.jsonc           #   bindings, Durable Objects, migrations
 apps/mobile/               # native SwiftUI iOS app (XcodeGen, not a Bun workspace)
   project.yml              #   bundle id, server URL, URL scheme

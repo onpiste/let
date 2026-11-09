@@ -1,6 +1,12 @@
 import type { AppsStatus } from "./apps";
 import type { ChatPage, ChatSummary } from "./chats";
-import type { EmailCategory, EmailPolicy, EmailStatus } from "./email";
+import type {
+  EmailCategory,
+  EmailDetail,
+  EmailPolicy,
+  EmailStatus,
+  InboxPage
+} from "./email";
 import type { PushDevice, PushStatus, WebPushSubscription } from "./push";
 import type { ResearchJob } from "./research";
 import type { PublicSettings, SettingsPatch } from "./settings";
@@ -68,6 +74,21 @@ export interface AssistantRpc {
   getEmailStatus(): Promise<EmailStatus>;
   setEmailAlias(alias: string): Promise<EmailStatus>;
   updateEmailPolicy(policy: EmailPolicy): Promise<EmailStatus>;
+  /**
+   * Received mail, newest first, `INBOX_PAGE_SIZE` from `offset`, with the
+   * unread count for the badge.
+   */
+  listInbox(archived: boolean, offset: number): Promise<InboxPage>;
+  /** One email, marked read; null if it was never there. */
+  openEmail(id: number): Promise<EmailDetail | null>;
+  archiveEmail(id: number, archived: boolean): Promise<void>;
+  /** Marks every email read, archived ones too, clearing the badge. */
+  markAllEmailsRead(): Promise<void>;
+  /**
+   * Starts a new chat in which the assistant reads the email and says what
+   * it is and what to do; returns the chat's id, now the one in use.
+   */
+  askAboutEmail(id: number): Promise<string>;
   /** Saves a phone's APNs token so reminders and mail reach it when the app is closed. */
   registerPushDevice(device: PushDevice): Promise<PushStatus>;
   /** The VAPID public key browsers subscribe with; null when Web Push is off. */
@@ -107,8 +128,14 @@ export type ServerEvent =
   | { type: "research"; topic: string; ok: boolean; timestamp: string }
   /** The running Deep Research runs changed: one started, was checked or ended. */
   | { type: "research-jobs"; jobs: ResearchJob[] }
+  /** Mail was read or (un)archived on some client; the badge's new count. */
+  | { type: "inbox"; unread: number }
   | {
       type: "email";
+      /** Opens it with `openEmail`; `inboxPath(id)` on the web. */
+      id: number;
+      /** Unread mail outside the archive, this one included. */
+      unread: number;
       from: string;
       subject: string;
       /** False for mail from a stranger. */
