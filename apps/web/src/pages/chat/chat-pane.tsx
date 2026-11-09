@@ -1,7 +1,7 @@
 import { useAgentChat } from "@cloudflare/think/react";
 import { useAgent } from "agents/react";
 import type { UIMessage } from "ai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ASSISTANT,
@@ -61,6 +61,9 @@ export function ChatPane({
 }) {
   const [input, setInput] = useState(draft);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // The transcript before a regenerate, to put the old reply back if the
+  // request fails before a new one arrives.
+  const beforeRegenerate = useRef<UIMessage[] | null>(null);
 
   const agent = useAgent({
     agent: ASSISTANT.agent,
@@ -90,6 +93,18 @@ export function ChatPane({
   } = useAgentChat({
     agent,
     experimental_throttle: 50,
+    onFinish: () => {
+      beforeRegenerate.current = null;
+    },
+    onError: () => {
+      const saved = beforeRegenerate.current;
+      beforeRegenerate.current = null;
+      if (saved) {
+        setMessages((shown) =>
+          shown[shown.length - 1]?.role === "user" ? saved : shown
+        );
+      }
+    },
     // Show the cached chat at once; the socket sends the real list on
     // connect. Without a cache, fetch it like the SDK does.
     getInitialMessages: async ({ url }) => {
@@ -144,6 +159,7 @@ export function ChatPane({
 
   // Think keeps the old reply as a hidden branch; the chat shows the new one.
   const regenerateReply = () => {
+    beforeRegenerate.current = messages;
     follow();
     regenerate().catch((e: unknown) =>
       onNotice({ icon: "⚠️", title: "Can't regenerate", text: errorText(e) })

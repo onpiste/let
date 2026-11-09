@@ -192,6 +192,8 @@ final class ChatStore {
             let json = try await chatSocket.call(
                 "editMessage", [.string(messageID), .string(text)]
             )
+            // A chat switched to meanwhile owns the turn state now.
+            guard self.chatSocket === chatSocket else { return }
             // The server's new transcript may already have replaced it.
             guard let edited = ChatMessage(json: json),
                   let index = messages.firstIndex(where: {
@@ -202,6 +204,7 @@ final class ChatStore {
             messages = Array(messages[..<index]) + [edited]
             startTurn(trigger: "regenerate-message")
         } catch {
+            guard self.chatSocket === chatSocket else { return }
             report(error.localizedDescription)
             finishTurn()
         }
