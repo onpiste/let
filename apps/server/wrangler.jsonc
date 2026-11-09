@@ -9,8 +9,8 @@
   "observability": { "enabled": true },
   // Dynamic Workers: runCode loads each snippet into a fresh isolate.
   "worker_loaders": [{ "binding": "LOADER" }],
-  // Knowledge base for the searchKnowledge tool. Create the instance named in
-  // src/tools/knowledge.ts (KNOWLEDGE_INSTANCE) in the Cloudflare dashboard first.
+  // Knowledge base (src/knowledge): each account gets its own AI Search
+  // instance with built-in storage, created on its first upload.
   "ai_search_namespaces": [
     { "binding": "AI_SEARCH", "namespace": "default", "remote": true }
   ],
@@ -69,7 +69,11 @@
     // Workers Logs (read them with `bun run logs`). Warnings and errors are
     // always logged. "" turns it off. Builds and CI report failures there
     // with the optional DEV_LOGS_TOKEN secret.
-    "DEV_LOGS": "on"
+    "DEV_LOGS": "on",
+    // A library every user's assistant also searches (industry references,
+    // company docs): an AI Search instance in the same namespace that you
+    // fill from the Cloudflare dashboard. "" turns it off.
+    "KNOWLEDGE_SHARED_INSTANCE": "cot-knowledge"
   },
   // The client is built by apps/web (its Vite config points the Cloudflare
   // plugin at this file), so there is no assets directory here.

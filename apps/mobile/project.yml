@@ -49,6 +49,7 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: Cot uses the camera to take a photo to attach to your message.
         NSMicrophoneUsageDescription: Cot records your voice to turn it into text for your message.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:

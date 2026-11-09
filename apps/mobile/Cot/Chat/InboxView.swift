@@ -20,11 +20,21 @@ struct InboxView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                Picker("Mailbox", selection: $archived) {
-                    Text("Inbox").tag(false)
-                    Text("Archived").tag(true)
+                HStack {
+                    Picker("Mailbox", selection: $archived) {
+                        Text("Inbox").tag(false)
+                        Text("Archived").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                    Spacer()
+                    if !archived, store.unreadEmails > 0 {
+                        // The `inbox` event that follows reloads the list.
+                        Button("Mark all read") { Task { await markAllRead() } }
+                            .buttonStyle(.borderless)
+                            .font(.subheadline)
+                    }
                 }
-                .pickerStyle(.segmented)
                 .listRowSeparator(.hidden)
                 if let error {
                     Text(error).font(.footnote).foregroundStyle(.red)
@@ -70,6 +80,15 @@ struct InboxView: View {
             let page = try await store.inbox(archived: archived)
             emails = page.emails
             more = page.more
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    private func markAllRead() async {
+        do {
+            try await store.markAllEmailsRead()
             error = nil
         } catch {
             self.error = error.localizedDescription

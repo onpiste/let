@@ -6,6 +6,7 @@ import type { Sandbox } from "../../../tools/sandbox";
 import { chatTools, type ChatReader } from "./chats";
 import { codeTools } from "./code";
 import { emailTools, type InboxReader } from "./email";
+import { knowledgeTools } from "./knowledge";
 import type { MemoryWriter } from "./memory";
 import { memoryTools } from "./memory";
 import { reminderTools, type Reminders } from "./reminders";
@@ -25,20 +26,24 @@ export const NEEDS_APPROVAL = new Set([
   "codeTask"
 ]);
 
-/** Tools a chat runs itself: stateless ones and the user's sandbox. */
+/** Tools a chat runs itself: stateless ones, the user's sandbox and documents. */
 export function localTools({
   env,
+  owner,
   sandbox,
   approvalMode
 }: {
   env: Env;
+  /** The assistant's name, whose knowledge base the chat searches. */
+  owner: string;
   sandbox: DurableObjectStub<Sandbox>;
   approvalMode: () => ApprovalMode;
 }): ToolSet {
   return {
     ...sandboxTools(sandbox, approvalMode),
     ...codeTools(env, sandbox, approvalMode),
-    ...researchTools(env)
+    ...researchTools(env),
+    ...knowledgeTools(env, owner)
   };
 }
 

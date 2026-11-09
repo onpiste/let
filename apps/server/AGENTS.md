@@ -29,7 +29,7 @@ src/
       history.ts            Chat catalog: titles, dates, running flag, the chat in use
       chat-index.ts         FTS5 index over all chats, for the searchChats / readChat tools
       store.ts              Its SQLite tables (settings, owner, Telegram and email config, memories)
-      model.ts              Settings → model (Workers AI / OpenAI / Anthropic / Google)
+      model.ts              Settings → model (Workers AI / OpenAI / Anthropic / Google / DeepSeek)
       system-prompt.ts      System prompt
       tools/                AI SDK tools by group (memory, chats, reminders, sandbox, code, research, web, email)
     pi/

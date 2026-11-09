@@ -1,7 +1,7 @@
 import Foundation
 
 /// The inbox calls of AssistantRpc (listInbox / openEmail / archiveEmail /
-/// askAboutEmail) and the unread badge. Mirrors use-unread-emails.ts and
+/// markAllEmailsRead / askAboutEmail) and the unread badge. Mirrors use-unread-emails.ts and
 /// inbox-page.tsx.
 extension ChatStore {
     func inbox(archived: Bool, offset: Int = 0) async throws -> InboxPage {
@@ -19,6 +19,10 @@ extension ChatStore {
 
     func archiveEmail(_ id: Int, archived: Bool) async throws {
         _ = try await socket.call("archiveEmail", [.number(Double(id)), .bool(archived)])
+    }
+
+    func markAllEmailsRead() async throws {
+        _ = try await socket.call("markAllEmailsRead")
     }
 
     /// Starts a chat in which the assistant reads the email, and shows it.

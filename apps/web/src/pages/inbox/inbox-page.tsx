@@ -35,6 +35,7 @@ export function InboxPage({
   const [archived, setArchived] = useState(false);
   const [emails, setEmails] = useState<EmailSummary[] | null>(null);
   const [more, setMore] = useState(false);
+  const [unread, setUnread] = useState(0);
   const [email, setEmail] = useState<EmailDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function InboxPage({
       .then((page) => {
         setEmails(page.emails);
         setMore(page.more);
+        setUnread(page.unread);
       })
       .catch(fail);
   }, [agent, epoch, archived]);
@@ -111,6 +113,9 @@ export function InboxPage({
       onOpen(null);
     });
 
+  // The `inbox` event that follows reloads the list.
+  const readAll = () => run(() => api(agent).markAllEmailsRead());
+
   return (
     <div className="app">
       <header className="topbar">
@@ -143,19 +148,31 @@ export function InboxPage({
             )
           ) : (
             <>
-              <div className="segmented" role="tablist">
-                {[false, true].map((tab) => (
+              <div className="inbox-bar">
+                <div className="segmented" role="tablist">
+                  {[false, true].map((tab) => (
+                    <button
+                      key={String(tab)}
+                      type="button"
+                      role="tab"
+                      aria-selected={archived === tab}
+                      className={archived === tab ? "on" : ""}
+                      onClick={() => setArchived(tab)}
+                    >
+                      {tab ? "Archived" : "Inbox"}
+                    </button>
+                  ))}
+                </div>
+                {!archived && unread > 0 && (
                   <button
-                    key={String(tab)}
                     type="button"
-                    role="tab"
-                    aria-selected={archived === tab}
-                    className={archived === tab ? "on" : ""}
-                    onClick={() => setArchived(tab)}
+                    className="link-btn"
+                    disabled={busy}
+                    onClick={() => void readAll()}
                   >
-                    {tab ? "Archived" : "Inbox"}
+                    Mark all read
                   </button>
-                ))}
+                )}
               </div>
               {!emails && !error && <p className="muted">Loading…</p>}
               {emails?.length === 0 && (
