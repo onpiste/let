@@ -83,12 +83,16 @@ After it lands on `main`:
 5. `bun run check && bun run build`, commit with `Fixes #<issue>`, and push
    following the Git rules in `AGENTS.md`.
 6. **Verify** after the deploy: check that the Deploy workflow for the
-   fix's commit succeeded, then run `bun run smoke --version <fix sha>`.
-   Without `--version` the smoke check can pass against the previous
-   healthy deployment. Note the time the fix went live, wait half an hour,
-   then check that `bun run errors --since <that time, ISO>` no longer
-   lists the fingerprint. Client lines carry the device's clock, so a
-   client error close to the deploy time proves little either way: check
+   fix's commit succeeded, then run `bun run smoke --version <sha>`, with
+   the fix's sha or, if a later commit has deployed since, that commit's
+   (check `git merge-base --is-ancestor <fix sha> <live sha>`). Without
+   `--version` the smoke check can pass against the previous healthy
+   deployment. Note the time the fix went live, wait half an hour, then
+   check that `bun run errors --since <that time, ISO>` no longer lists the
+   fingerprint. The query reads at most 2,000 error lines, so if it returns
+   that many, a missing fingerprint proves nothing: narrow the window or
+   reproduce on the live build. Client lines carry the device's clock, so
+   a client error close to the deploy time proves little either way: check
    its `version`. Only Worker lines carry the deployed git sha. iOS lines
    carry the app's build number and web lines carry no `version` at all,
    so treat a client line as inconclusive and confirm on a build you know
