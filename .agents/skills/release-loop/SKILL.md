@@ -59,8 +59,11 @@ After it lands on `main`:
 5. The Deploy workflow deploys, waits for `/dev/health` to report the new
    sha and runs the smoke test. Nothing to do when it is green.
 6. Half an hour later, `bun run errors --since 1h`: a group whose
-   `versions` holds only your sha is yours. Fix it now, while the change is
-   fresh, rather than waiting for the issue.
+   `versions` holds only your sha may be yours, but an hour of logs can't
+   show that. Check that it doesn't also appear before your deploy
+   (`bun run errors --since <a time before it, ISO>`, or its issue's
+   history). If it doesn't, fix it now, while the change is fresh, rather
+   than waiting for the issue.
 
 ## Runbook: a `prod-error` or `regression` issue
 
