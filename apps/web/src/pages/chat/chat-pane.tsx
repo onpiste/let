@@ -116,6 +116,10 @@ export function ChatPane({
       return res?.ok ? ((await res.json()) as UIMessage[]) : [];
     }
   });
+  const shown = useRef(messages);
+  useEffect(() => {
+    shown.current = messages;
+  }, [messages]);
 
   // An edit counts as busy from its first request, so a message sent
   // meanwhile queues behind the edit's reply instead of racing it.
@@ -174,11 +178,13 @@ export function ChatPane({
     try {
       // Trust boundary: the server's UIMessage.
       const edited = (await chatApi(agent).editMessage(id, text)) as UIMessage;
-      // The server's new transcript may already have replaced it.
-      const at = messages.findIndex((m) => m.id === id || m.id === edited.id);
+      // What's shown now, not when the edit began: the server's broadcast
+      // (or another device's) may have replaced it while the call ran.
+      const now = shown.current;
+      const at = now.findIndex((m) => m.id === id || m.id === edited.id);
       // Like iOS: if it's gone from what's shown, leave the transcript alone.
       if (at < 0) return;
-      setMessages([...messages.slice(0, at), edited]);
+      setMessages([...now.slice(0, at), edited]);
       follow();
       await regenerate();
     } catch (e) {
