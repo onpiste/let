@@ -82,9 +82,11 @@ After it lands on `main`:
    `warn`, so it stops counting as a production error.
 5. `bun run check && bun run build`, commit with `Fixes #<issue>`, and push
    following the Git rules in `AGENTS.md`.
-6. **Verify** after the deploy: `bun run smoke`, then wait half an hour
-   and check that `bun run errors --since 30m` no longer lists the
-   fingerprint, or that its `lastSeen` is before the fix went live.
+6. **Verify** after the deploy: `bun run smoke`, note the time the fix
+   went live, wait half an hour, then check that
+   `bun run errors --since <that time, ISO>` no longer lists the
+   fingerprint. Client lines carry the device's clock, so a client error
+   close to the deploy time proves little either way: check its `version`.
 
 For a `regression` issue the earlier fix did not hold: read the previous
 fix (linked from the issue's history) before writing another, and step 3

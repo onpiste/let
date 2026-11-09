@@ -52,14 +52,17 @@ async function call<T>(method: string, path: string, body?: unknown) {
   return (await response.json()) as T;
 }
 
-/** Every issue with `label`, open and closed, newest first (500 at most). */
+/**
+ * Every issue with `label`, open and closed, newest first. Stops at 50
+ * pages (5,000 issues) only so a bad response can't page forever.
+ */
 export async function listIssues(label: string, page = 1): Promise<Issue[]> {
   const batch = await call<Issue[]>(
     "GET",
     `/issues?labels=${encodeURIComponent(label)}&state=all&per_page=100&page=${page}`
   );
   const issues = batch.filter((issue) => !issue.pull_request);
-  if (batch.length < 100 || page >= 5) return issues;
+  if (batch.length < 100 || page >= 50) return issues;
   return [...issues, ...(await listIssues(label, page + 1))];
 }
 
