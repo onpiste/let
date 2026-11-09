@@ -123,9 +123,13 @@ export class EmailFeature {
         { cause: error }
       );
     }
-    // Outside the try: the mail is out, so a failure here must not read as
-    // a failed send the model would offer to retry.
-    outbox.add(draft, messageId);
+    // The mail is out, so a failure from here on must not read as a failed
+    // send the model would offer to retry. Unrecorded, it misses the cap.
+    try {
+      outbox.add(draft, messageId);
+    } catch (error) {
+      log.error("email", "Sent, but not recorded", error);
+    }
     log.info("email", "Sent", { reply: draft.inReplyTo !== undefined });
     return `Sent to ${draft.to}.`;
   }
