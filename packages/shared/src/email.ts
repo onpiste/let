@@ -172,10 +172,18 @@ export function normalizeEmailDraft(draft: unknown): EmailDraft {
     throw new Error("Expected an email draft.");
   }
   const { to, subject, body, inReplyTo } = draft as Record<string, unknown>;
-  const [address, ...rest] = normalizeSenders([to]);
-  if (!address || rest.length > 0) throw new Error("Give one address in to.");
+  // Case is kept: the part before the @ may be case-sensitive.
+  const address = typeof to === "string" ? to.trim() : "";
+  if (!EMAIL_PATTERN.test(address) || address.length > 254) {
+    throw new Error("Give one address in to.");
+  }
   if (typeof subject !== "string" || !subject.trim()) {
     throw new Error("The email needs a subject.");
+  }
+  // Rejected rather than rewritten, so the draft the owner approves is the
+  // one that goes out (a newline would also start a new header).
+  if (/[\r\n]/.test(subject)) {
+    throw new Error("Keep the subject on one line.");
   }
   if (typeof body !== "string" || !body.trim()) {
     throw new Error("The email needs a body.");
@@ -194,8 +202,7 @@ export function normalizeEmailDraft(draft: unknown): EmailDraft {
   }
   return {
     to: address,
-    // A newline in a subject would start a new header.
-    subject: subject.replace(/[\r\n]+/g, " ").trim(),
+    subject: subject.trim(),
     body,
     ...(inReplyTo === undefined ? {} : { inReplyTo })
   };

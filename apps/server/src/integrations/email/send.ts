@@ -18,13 +18,16 @@ export async function sendEmail({
   /** The Message-ID of the email this answers, to thread the reply. */
   repliesTo: string | null;
 }) {
+  // A stored Message-ID with a line break would start a new header; drop
+  // the threading rather than send it.
+  const threadTo = repliesTo && !/[\r\n]/.test(repliesTo) ? repliesTo : null;
   const result = await binding.send({
     from,
     to: draft.to,
     subject: draft.subject,
     text: draft.body,
-    ...(repliesTo
-      ? { headers: { "In-Reply-To": repliesTo, References: repliesTo } }
+    ...(threadTo
+      ? { headers: { "In-Reply-To": threadTo, References: threadTo } }
       : {})
   });
   return result.messageId;

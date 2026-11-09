@@ -108,16 +108,14 @@ export class EmailFeature {
         ? null
         : this.inbox.messageId(draft.inReplyTo);
     const name = this.host.store.getOwnerName() ?? address;
+    let messageId: string;
     try {
-      const messageId = await sendEmail({
+      messageId = await sendEmail({
         binding: this.host.env.EMAIL,
         from: { email: address, name },
         draft,
         repliesTo
       });
-      outbox.add(draft, messageId);
-      log.info("email", "Sent", { reply: draft.inReplyTo !== undefined });
-      return `Sent to ${draft.to}.`;
     } catch (error) {
       log.error("email", "Sending failed", error);
       throw new Error(
@@ -125,5 +123,10 @@ export class EmailFeature {
         { cause: error }
       );
     }
+    // Outside the try: the mail is out, so a failure here must not read as
+    // a failed send the model would offer to retry.
+    outbox.add(draft, messageId);
+    log.info("email", "Sent", { reply: draft.inReplyTo !== undefined });
+    return `Sent to ${draft.to}.`;
   }
 }

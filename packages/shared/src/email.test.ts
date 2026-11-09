@@ -18,19 +18,19 @@ describe("inbox paths", () => {
 describe("normalizeEmailDraft", () => {
   const draft = { to: " Bob@Example.com ", subject: "Hi", body: "Hello" };
 
-  it("cleans the address and keeps the rest", () => {
+  it("trims the address, keeps its case and keeps the rest", () => {
     expect(normalizeEmailDraft({ ...draft, inReplyTo: 3 })).toEqual({
-      to: "bob@example.com",
+      to: "Bob@Example.com",
       subject: "Hi",
       body: "Hello",
       inReplyTo: 3
     });
   });
 
-  it("keeps a subject on one line", () => {
-    expect(
-      normalizeEmailDraft({ ...draft, subject: "Hi\r\nBcc: x@y.z" }).subject
-    ).toBe("Hi Bcc: x@y.z");
+  it("rejects a subject over more than one line", () => {
+    expect(() =>
+      normalizeEmailDraft({ ...draft, subject: "Hi\r\nBcc: x@y.z" })
+    ).toThrow();
   });
 
   it("rejects bad addresses and empty parts", () => {
