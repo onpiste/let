@@ -55,7 +55,13 @@ function Message({
           </div>
         )}
         {text && <div className="bubble-user">{text}</div>}
-        {text && <MessageActions text={text} align="end" onReply={reply} />}
+        {quote && (
+          <MessageActions
+            text={text || files.join(", ")}
+            align="end"
+            onReply={reply}
+          />
+        )}
       </div>
     );
   }

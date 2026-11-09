@@ -31,6 +31,14 @@ struct MessageRow: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Color(.secondarySystemBackground), in: Capsule())
+                        // A file-only message can be replied to as well.
+                        .contextMenu {
+                            MessageMenu(text: name) {
+                                if let quote {
+                                    onReply(quote)
+                                }
+                            }
+                        }
                 }
                 if !message.plainText.isEmpty {
                     Text(message.plainText)

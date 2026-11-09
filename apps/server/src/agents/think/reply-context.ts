@@ -6,6 +6,14 @@ function uiText(message: UIMessage) {
   return message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
+/** Whether a model message carries a file or image (a file-only reply). */
+function hasFile(message: ModelMessage) {
+  return (
+    typeof message.content !== "string" &&
+    message.content.some((p) => p.type === "file" || p.type === "image")
+  );
+}
+
 function modelText(message: ModelMessage) {
   if (typeof message.content === "string") return message.content;
   return message.content.map((p) => (p.type === "text" ? p.text : "")).join("");
@@ -37,7 +45,10 @@ export function withReplyContext(
     let k = next - 1;
     for (; k >= 0; k--) {
       const candidate = out[k];
-      if (candidate?.role === "user" && modelText(candidate).startsWith(text)) {
+      if (candidate?.role !== "user") continue;
+      // A message with no text (only attachments) must match one with a
+      // file, not whichever user message comes first.
+      if (text ? modelText(candidate).startsWith(text) : hasFile(candidate)) {
         break;
       }
     }
