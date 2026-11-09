@@ -16,12 +16,12 @@ describe("inbox paths", () => {
 });
 
 describe("normalizeEmailDraft", () => {
-  const draft = { to: " Bob@Example.com ", subject: "Hi", body: "Hello" };
+  const draft = { to: " Bob@Example.com ", subject: "  Hi  ", body: "Hello" };
 
   it("trims the address, keeps its case and keeps the rest", () => {
     expect(normalizeEmailDraft({ ...draft, inReplyTo: 3 })).toEqual({
       to: "Bob@Example.com",
-      subject: "Hi",
+      subject: "  Hi  ",
       body: "Hello",
       inReplyTo: 3
     });

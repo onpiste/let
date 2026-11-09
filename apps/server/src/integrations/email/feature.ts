@@ -10,7 +10,7 @@ import { Inbox } from "./inbox";
 import { Mailbox } from "./mailbox";
 import { emailNotice, triagedNotice } from "./notice";
 import { Outbox } from "./outbox";
-import { sendEmail } from "./send";
+import { sendEmail, threadId } from "./send";
 
 /** Most mail one assistant sends in a day: a cap on a misled model. */
 const DAILY_SEND_LIMIT = 20;
@@ -131,6 +131,9 @@ export class EmailFeature {
       log.error("email", "Sent, but not recorded", error);
     }
     log.info("email", "Sent", { reply: draft.inReplyTo !== undefined });
-    return `Sent to ${draft.to}.`;
+    // Emails filed before Message-IDs were kept can't be threaded.
+    return draft.inReplyTo !== undefined && !threadId(repliesTo)
+      ? `Sent to ${draft.to}, but without threading: the original email has no Message-ID, so it may show as a new conversation.`
+      : `Sent to ${draft.to}.`;
   }
 }
