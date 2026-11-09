@@ -202,7 +202,7 @@ export function normalizeEmailDraft(draft: unknown): EmailDraft {
   }
   return {
     to: address,
-    subject: subject.trim(),
+    subject,
     body,
     ...(inReplyTo === undefined ? {} : { inReplyTo })
   };
