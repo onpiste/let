@@ -89,10 +89,10 @@ After it lands on `main`:
    then check that `bun run errors --since <that time, ISO>` no longer
    lists the fingerprint. Client lines carry the device's clock, so a
    client error close to the deploy time proves little either way: check
-   its `version`. Only a Worker line or a web build carries a git sha; an
-   iOS line carries the app's build number, and a line with no `version`
-   says nothing. Treat those as inconclusive and confirm on a build you
-   know includes the fix before closing.
+   its `version`. Only Worker lines carry the deployed git sha. iOS lines
+   carry the app's build number and web lines carry no `version` at all,
+   so treat a client line as inconclusive and confirm on a build you know
+   includes the fix before closing.
 
 For a `regression` issue the earlier fix did not hold: read the previous
 fix (linked from the issue's history) before writing another, and step 3
