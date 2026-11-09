@@ -180,8 +180,9 @@ export class ChatHistory {
       // Cosmetic: the list keeps the first-message title.
       log.warn("chat", "Title failed", { chatId: id, error: String(error) });
     }
-    // The chat may have been deleted while the model was thinking.
-    if (!title || !this.ids().has(id)) return;
+    // The chat may have been deleted, or renamed by the user, while the
+    // model was thinking.
+    if (!title || !this.ids().has(id) || this.namedTitle(id)) return;
     this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
       VALUES (${`title:${id}`}, ${title})`;
     this.host.sql`UPDATE chats SET title = ${title} WHERE id = ${id}`;
