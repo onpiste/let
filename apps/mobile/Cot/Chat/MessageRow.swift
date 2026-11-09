@@ -8,10 +8,22 @@ struct MessageRow: View {
     /// The reply is still arriving; hide its actions until it settles.
     var streaming = false
     let onApproval: (String, Bool) -> Void
+    /// Quote this message in the composer for a follow-up.
+    let onReply: (ReplyQuote) -> Void
+    /// Scroll to the message with this id (a tapped quote's original).
+    let onShowMessage: (String) -> Void
+
+    private var quote: ReplyQuote? {
+        ReplyQuote(message: message)
+    }
 
     var body: some View {
         if message.isUser {
             VStack(alignment: .trailing, spacing: 4) {
+                if let replyTo = message.replyTo {
+                    QuotedMessageView(quote: replyTo) { onShowMessage(replyTo.id) }
+                        .padding(.bottom, 4)
+                }
                 ForEach(Array(message.attachmentNames.enumerated()), id: \.offset) { _, name in
                     Label(name, systemImage: "paperclip")
                         .font(.footnote)
@@ -30,7 +42,13 @@ struct MessageRow: View {
                             in: RoundedRectangle(cornerRadius: 18, style: .continuous)
                         )
                         .textSelection(.enabled)
-                        .contextMenu { MessageMenu(text: message.plainText) }
+                        .contextMenu {
+                            MessageMenu(text: message.plainText) {
+                                if let quote {
+                                    onReply(quote)
+                                }
+                            }
+                        }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -48,7 +66,11 @@ struct MessageRow: View {
                     }
                 }
                 if !streaming, !message.shareText.isEmpty {
-                    MessageActions(text: message.shareText)
+                    MessageActions(text: message.shareText) {
+                        if let quote {
+                            onReply(quote)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -56,13 +78,19 @@ struct MessageRow: View {
     }
 }
 
-/// Copy and share buttons under an assistant reply.
+/// Reply, copy and share buttons under an assistant reply, in the order of
+/// `message-actions.tsx`.
 private struct MessageActions: View {
     let text: String
+    let onReply: () -> Void
     @State private var copied = false
 
     var body: some View {
         HStack(spacing: 16) {
+            Button(action: onReply) {
+                Image(systemName: "arrowshape.turn.up.left")
+            }
+            .accessibilityLabel("Reply")
             Button {
                 UIPasteboard.general.string = text
                 copied = true
@@ -89,8 +117,10 @@ private struct MessageActions: View {
 /// Long-press menu on a user bubble.
 private struct MessageMenu: View {
     let text: String
+    let onReply: () -> Void
 
     var body: some View {
+        Button("Reply", systemImage: "arrowshape.turn.up.left", action: onReply)
         Button("Copy", systemImage: "doc.on.doc") {
             UIPasteboard.general.string = text
         }

@@ -3,38 +3,19 @@ import { isToolUIPart, type UIMessage } from "ai";
 import { Fragment } from "react";
 import { Streamdown } from "streamdown";
 
-import { messageCreatedAt, needsTimeDivider } from "@cot/shared";
+import {
+  messageCreatedAt,
+  messageReplyTo,
+  needsTimeDivider,
+  type ReplyQuote
+} from "@cot/shared";
 
 import { MessageActions } from "./message-actions";
+import { assistantText, replyQuoteFor, userContent } from "./message-text";
+import { messageAnchor, QuotedMessage } from "./reply-quote";
 import { Thinking, TypingDots } from "./thinking";
 import { TimeDivider } from "./time-divider";
 import { ToolChip } from "./tool-chip";
-
-const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
-
-/** A user message's typed text plus the names of the files attached to it. */
-function userContent(m: UIMessage) {
-  const files: string[] = [];
-  let text = "";
-  for (const p of m.parts) {
-    if (p.type === "file") files.push(p.filename ?? "file");
-    if (p.type !== "text") continue;
-    // Text files travel inline; show them as chips, not as a wall of text.
-    text += p.text.replace(INLINE_FILE, (_, name: string) => {
-      files.push(name);
-      return "";
-    });
-  }
-  return { text: text.trim(), files };
-}
-
-/** An assistant message's answer text, for copying and sharing. */
-function assistantText(m: UIMessage) {
-  return m.parts
-    .flatMap((p) => (p.type === "text" ? [p.text.trim()] : []))
-    .filter(Boolean)
-    .join("\n\n");
-}
 
 /** One turn: a user bubble, or the assistant's text, reasoning and tools. */
 function Message({
@@ -42,18 +23,28 @@ function Message({
   isLast,
   busy,
   toolLabels,
-  onApproval
+  onApproval,
+  onReply
 }: {
   m: UIMessage;
   isLast: boolean;
   busy: boolean;
   toolLabels: Record<string, string>;
   onApproval: (id: string, approved: boolean) => void;
+  onReply: (quote: ReplyQuote) => void;
 }) {
+  const quote = replyQuoteFor(m);
+  const reply = quote ? () => onReply(quote) : undefined;
   if (m.role === "user") {
     const { text, files } = userContent(m);
+    const replyTo = messageReplyTo(m);
     return (
-      <div key={m.id} className="message flex flex-col items-end gap-1">
+      <div
+        key={m.id}
+        id={messageAnchor(m.id)}
+        className="message flex flex-col items-end gap-1"
+      >
+        {replyTo && <QuotedMessage quote={replyTo} />}
         {files.length > 0 && (
           <div className="attachments justify-end">
             {files.map((f, k) => (
@@ -64,14 +55,14 @@ function Message({
           </div>
         )}
         {text && <div className="bubble-user">{text}</div>}
-        {text && <MessageActions text={text} align="end" />}
+        {text && <MessageActions text={text} align="end" onReply={reply} />}
       </div>
     );
   }
   const answer = assistantText(m);
   const streaming = busy && isLast;
   return (
-    <div key={m.id} className="message assistant">
+    <div key={m.id} id={messageAnchor(m.id)} className="message assistant">
       {m.parts.map((part, j) => {
         if (part.type === "reasoning") {
           return (
@@ -106,7 +97,7 @@ function Message({
         }
         return null;
       })}
-      {answer && !streaming && <MessageActions text={answer} />}
+      {answer && !streaming && <MessageActions text={answer} onReply={reply} />}
     </div>
   );
 }
@@ -117,7 +108,8 @@ export function MessageList({
   busy,
   waiting,
   toolLabels,
-  onApproval
+  onApproval,
+  onReply
 }: {
   messages: UIMessage[];
   /** A turn is streaming; the last message may still change. */
@@ -126,6 +118,8 @@ export function MessageList({
   waiting: boolean;
   toolLabels: Record<string, string>;
   onApproval: (id: string, approved: boolean) => void;
+  /** Quote this message in the composer for a follow-up. */
+  onReply: (quote: ReplyQuote) => void;
 }) {
   return (
     <div className="messages">
@@ -145,6 +139,7 @@ export function MessageList({
               busy={busy}
               toolLabels={toolLabels}
               onApproval={onApproval}
+              onReply={onReply}
             />
           </Fragment>
         );

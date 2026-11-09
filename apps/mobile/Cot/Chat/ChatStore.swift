@@ -29,6 +29,8 @@ final class ChatStore {
         let id = UUID()
         let text: String
         let attachments: [Attachment]
+        /// The message it replies to, if any.
+        let replyTo: ReplyQuote?
     }
 
     private(set) var messages: [ChatMessage] = []
@@ -148,23 +150,23 @@ final class ChatStore {
 
     // MARK: Actions
 
-    func send(_ text: String, attachments: [Attachment] = []) {
+    func send(_ text: String, attachments: [Attachment] = [], replyTo: ReplyQuote? = nil) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty || !attachments.isEmpty else { return }
         if busy {
-            queue.append(Queued(text: trimmed, attachments: attachments))
+            queue.append(Queued(text: trimmed, attachments: attachments, replyTo: replyTo))
             return
         }
-        dispatch(trimmed, attachments)
+        dispatch(trimmed, attachments, replyTo)
     }
 
     func removeQueued(_ id: Queued.ID) {
         queue.removeAll { $0.id == id }
     }
 
-    private func dispatch(_ trimmed: String, _ attachments: [Attachment]) {
+    private func dispatch(_ trimmed: String, _ attachments: [Attachment], _ replyTo: ReplyQuote?) {
         errorText = nil
-        messages.append(.user(text: trimmed, attachments: attachments))
+        messages.append(.user(text: trimmed, attachments: attachments, replyTo: replyTo))
         let id = randomID(length: 8)
         requestID = id
         status = .submitted
@@ -434,7 +436,7 @@ final class ChatStore {
         requestID = nil
         if !queue.isEmpty {
             let next = queue.removeFirst()
-            dispatch(next.text, next.attachments)
+            dispatch(next.text, next.attachments, next.replyTo)
         }
     }
 }

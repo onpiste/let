@@ -1,0 +1,88 @@
+/* Replying to one message (reply-quote.tsx ↔ ReplyQuote.swift). */
+
+/* The quoted message above a user's bubble: smaller and dimmer, inset from
+   the right so a curved line can join it to the bubble below. */
+.reply-quote {
+  position: relative;
+  max-width: 75%;
+  margin: 0 16px 6px 0;
+  padding: 8px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--user-bubble) 55%, transparent);
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  animation: rise 0.25s ease-out;
+}
+.reply-quote:hover {
+  color: var(--text);
+}
+.reply-quote::after {
+  content: "";
+  position: absolute;
+  right: -13px;
+  bottom: -9px;
+  width: 11px;
+  height: 14px;
+  border-top: 1.5px solid var(--line);
+  border-right: 1.5px solid var(--line);
+  border-top-right-radius: 9px;
+  pointer-events: none;
+}
+.reply-quote-text,
+.reply-preview-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.reply-quote-text {
+  -webkit-line-clamp: 3;
+}
+
+/* Above the composer while replying. */
+.reply-preview {
+  max-width: 720px;
+  margin: 0 auto 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--user-bubble);
+}
+.reply-preview-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.reply-preview-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.reply-preview-text {
+  -webkit-line-clamp: 2;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.reply-preview-close {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--muted);
+}
+.reply-preview-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}

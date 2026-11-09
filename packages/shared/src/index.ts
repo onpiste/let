@@ -6,6 +6,7 @@ export * from "./email";
 export * from "./knowledge";
 export * from "./logs";
 export * from "./push";
+export * from "./reply";
 export * from "./research";
 export * from "./routes";
 export * from "./rpc";

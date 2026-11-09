@@ -39,15 +39,19 @@ struct ChatMessage: Identifiable, Equatable {
         return .object(object)
     }
 
-    static func user(text: String, attachments: [Attachment]) -> ChatMessage {
+    static func user(
+        text: String, attachments: [Attachment], replyTo: ReplyQuote? = nil
+    ) -> ChatMessage {
         var parts = attachments.map(\.part)
         if !text.isEmpty {
             parts.append(.object(["type": .string("text"), "text": .string(text)]))
         }
-        let createdAt = Date().timeIntervalSince1970 * 1000
+        var metadata: [String: JSONValue] = ["createdAt": .number(Date().timeIntervalSince1970 * 1000)]
+        if let replyTo {
+            metadata["replyTo"] = replyTo.json
+        }
         return ChatMessage(
-            id: randomID(), role: "user", parts: parts,
-            extra: ["metadata": .object(["createdAt": .number(createdAt)])]
+            id: randomID(), role: "user", parts: parts, extra: ["metadata": .object(metadata)]
         )
     }
 

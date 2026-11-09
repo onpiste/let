@@ -1,14 +1,19 @@
 import { useState } from "react";
 
-import { Check, Copy, Share } from "../../components/icons";
+import { Check, Copy, Reply, Share } from "../../components/icons";
 
-/** Copy and share buttons under a message. Share uses the system sheet. */
+/**
+ * Reply, copy and share buttons under a message. Share uses the system
+ * sheet. Reply quotes the message in the composer for a follow-up.
+ */
 export function MessageActions({
   text,
-  align = "start"
+  align = "start",
+  onReply
 }: {
   text: string;
   align?: "start" | "end";
+  onReply?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   // The Web Share API is missing on most desktop browsers; hide the button
@@ -35,6 +40,17 @@ export function MessageActions({
 
   return (
     <div className={`msg-actions ${align === "end" ? "justify-end" : ""}`}>
+      {onReply && (
+        <button
+          type="button"
+          className="msg-action"
+          aria-label="Reply"
+          title="Reply"
+          onClick={onReply}
+        >
+          <Reply />
+        </button>
+      )}
       <button
         type="button"
         className="msg-action"
