@@ -32,15 +32,26 @@ export interface AssistantRpc {
    * before. Switching between them never interrupts a reply: each runs in
    * its own agent.
    */
-  listChats(cursor?: string | null): Promise<ChatPage>;
+  listChatPage(cursor?: string | null): Promise<ChatPage>;
+  /**
+   * Every conversation, newest first, in one list. Kept for iOS builds
+   * from before paging; new clients use `listChatPage`.
+   */
+  listChats(): Promise<ChatSummary[]>;
   /** The chat to open on start: the one last used, or a new empty one. */
   currentChat(): Promise<string>;
   /** Creates an empty chat and returns its id, for `chatSocketPath`. */
   newChat(): Promise<string>;
-  /** Marks a chat as the one in use (Telegram follows it). */
-  openChat(id: string): Promise<void>;
-  /** Deletes a chat, stopping a reply that is still running in it. */
-  deleteChat(id: string): Promise<void>;
+  /**
+   * Marks a chat as the one in use (Telegram follows it). Returns every
+   * chat, as older iOS builds expect; new clients ignore it.
+   */
+  openChat(id: string): Promise<ChatSummary[]>;
+  /**
+   * Deletes a chat, stopping a reply that is still running in it. Returns
+   * every chat left, as older iOS builds expect; new clients ignore it.
+   */
+  deleteChat(id: string): Promise<ChatSummary[]>;
   /** Gives a chat the user's own title, which the model then leaves alone. */
   renameChat(id: string, title: string): Promise<void>;
   /**

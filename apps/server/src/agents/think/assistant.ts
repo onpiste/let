@@ -116,16 +116,17 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   // ── Chats (callables) ───────────────────────────────────────────────
 
-  private directory: ChatDirectory | null = null;
+  // Holds the one-time migration, so it is a field, not a getter.
+  private readonly chats = new ChatDirectory(this, () => this.history);
 
-  private get chats() {
-    this.directory ??= new ChatDirectory(this, () => this.history);
-    return this.directory;
+  @callable()
+  async listChatPage(cursor?: string | null) {
+    return this.chats.page(cursor);
   }
 
   @callable()
-  async listChats(cursor?: string | null) {
-    return this.chats.list(cursor);
+  async listChats() {
+    return this.chats.list();
   }
 
   @callable()

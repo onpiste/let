@@ -68,9 +68,15 @@ export class ChatDirectory {
     return undefined;
   }
 
-  async list(cursor: unknown) {
+  async page(cursor: unknown) {
     await this.ready();
     return this.history().page(cursor);
+  }
+
+  /** Every chat in one list, for iOS builds from before paging. */
+  async list() {
+    await this.ready();
+    return this.history().list();
   }
 
   async current() {
@@ -93,6 +99,7 @@ export class ChatDirectory {
     await this.ready();
     if (!this.exists(id)) throw new Error("That chat no longer exists.");
     this.history().setActive(id);
+    return this.history().list();
   }
 
   /** Deleting the agent also stops a reply still running in it. */
@@ -101,6 +108,7 @@ export class ChatDirectory {
     await this.ready();
     await this.host.dynamicAgents.delete(Chat, id);
     this.history().remove(id);
+    return this.history().list();
   }
 
   async rename(id: unknown, title: unknown) {

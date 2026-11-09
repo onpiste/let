@@ -18,12 +18,12 @@ export type ChatSummary = {
 };
 
 /**
- * One page of the history list (`listChats`). Pass `next` back to get the
+ * One page of the history list (`listChatPage`). Pass `next` back to get the
  * page after it; null means this was the last one.
  */
 export type ChatPage = { chats: ChatSummary[]; next: string | null };
 
-/** How many chats `listChats` returns at a time. */
+/** How many chats `listChatPage` returns at a time. */
 export const CHAT_PAGE_SIZE = 30;
 
 /** Where a page ends: the last chat's date and id, newest-first order. */

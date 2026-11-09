@@ -208,7 +208,7 @@ export class ChatHistory {
   }
 
   /**
-   * One page of the history list after `cursor` (the `listChats`
+   * One page of the history list after `cursor` (the `listChatPage`
    * callable). Keyset paging: a chat updated meanwhile moves to the top
    * rather than shifting every later page.
    */

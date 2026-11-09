@@ -64,6 +64,9 @@ final class ChatStore {
     var onConnectionLost: (() -> Void)?
 
     private var requestID: String?
+    /// The transcript before a regenerate dropped the last reply, put back
+    /// if the turn fails before a new reply arrives.
+    private var beforeRegenerate: [ChatMessage]?
     private var streamingMessageID: String?
     private var reducer = ChunkReducer()
     private var appliedSeq: [String: Int] = [:]
@@ -173,26 +176,34 @@ final class ChatStore {
     func regenerate() {
         guard !busy, let last = messages.lastIndex(where: \.isUser) else { return }
         errorText = nil
+        beforeRegenerate = messages
         messages.removeSubrange((last + 1)...)
         startTurn(trigger: "regenerate-message")
     }
 
     /// Replaces a user message, dropping what followed it, then answers the
     /// edit (ChatRpc.editMessage; web: chat-pane.tsx editMessage).
+    /// Busy from the start, so a message sent meanwhile queues behind the
+    /// edit's reply instead of racing it.
     func edit(_ messageID: String, text: String) async {
         guard !busy, let chatSocket else { return }
+        status = .submitted
         do {
             let json = try await chatSocket.call(
                 "editMessage", [.string(messageID), .string(text)]
             )
+            // The server's new transcript may already have replaced it.
             guard let edited = ChatMessage(json: json),
-                  let index = messages.firstIndex(where: { $0.id == messageID })
-            else { return }
+                  let index = messages.firstIndex(where: {
+                      $0.id == messageID || $0.id == edited.id
+                  })
+            else { return finishTurn() }
             errorText = nil
             messages = Array(messages[..<index]) + [edited]
             startTurn(trigger: "regenerate-message")
         } catch {
             report(error.localizedDescription)
+            finishTurn()
         }
     }
 
@@ -386,6 +397,10 @@ final class ChatStore {
 
         if frame["error"]?.bool == true {
             errorText = frame["body"]?.string
+            // A regenerate that failed before answering: show the old reply.
+            if let before = beforeRegenerate, messages.last?.isUser ?? false {
+                messages = before
+            }
             finishTurn()
             return
         }
@@ -457,6 +472,7 @@ final class ChatStore {
         turnAtProbe = nil
         streamingMessageID = nil
         requestID = nil
+        beforeRegenerate = nil
         reducer = ChunkReducer()
         appliedSeq = [:]
     }
@@ -466,6 +482,7 @@ final class ChatStore {
         status = .ready
         streamingMessageID = nil
         requestID = nil
+        beforeRegenerate = nil
         if !queue.isEmpty {
             let next = queue.removeFirst()
             dispatch(next.text, next.attachments)

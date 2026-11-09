@@ -38,7 +38,7 @@ export function useChatSearch(agent: AgentHandle, query: string) {
           ? rpc
               .searchChats(needle)
               .then((list) => ({ chats: list, next: null }))
-          : rpc.listChats();
+          : rpc.listChatPage();
         request
           .then((page) => {
             if (run !== generation.current) return;
@@ -61,7 +61,7 @@ export function useChatSearch(agent: AgentHandle, query: string) {
     const run = generation.current;
     loading.current = true;
     api(agent)
-      .listChats(next)
+      .listChatPage(next)
       .then((page) => {
         if (run !== generation.current) return;
         setChats((shown) => appendChats(shown ?? [], page.chats));

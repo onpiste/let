@@ -102,7 +102,10 @@ export function ChatPane({
     }
   });
 
-  const busy = status === "streaming" || status === "submitted";
+  // An edit counts as busy from its first request, so a message sent
+  // meanwhile queues behind the edit's reply instead of racing it.
+  const [editing, setEditing] = useState(false);
+  const busy = editing || status === "streaming" || status === "submitted";
 
   // Not mid-stream: that would write the whole chat on every chunk.
   useEffect(() => {
@@ -150,15 +153,22 @@ export function ChatPane({
   // The server swaps in the edited message (dropping what followed it),
   // then a regenerate request answers it like a normal send.
   const editMessage = async (id: string, text: string) => {
+    if (busy) return;
+    setEditing(true);
     try {
       // Trust boundary: the server's UIMessage.
       const edited = (await chatApi(agent).editMessage(id, text)) as UIMessage;
-      const at = messages.findIndex((m) => m.id === id);
-      setMessages([...messages.slice(0, Math.max(0, at)), edited]);
+      // The server's new transcript may already have replaced it.
+      setMessages((shown) => {
+        const at = shown.findIndex((m) => m.id === id || m.id === edited.id);
+        return [...shown.slice(0, Math.max(0, at)), edited];
+      });
       follow();
       await regenerate();
     } catch (e) {
       onNotice({ icon: "⚠️", title: "Can't edit", text: errorText(e) });
+    } finally {
+      setEditing(false);
     }
   };
 

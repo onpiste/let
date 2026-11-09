@@ -30,7 +30,7 @@ struct ChatSummary: Decodable, Identifiable, Equatable {
 }
 
 /// One page of the history list (ChatPage in @cot/shared chats.ts): pass
-/// `next` back to `listChats` for the page after it; nil on the last one.
+/// `next` back to `listChatPage` for the page after it; nil on the last one.
 struct ChatPage: Decodable {
     let chats: [ChatSummary]
     let next: String?

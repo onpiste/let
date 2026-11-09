@@ -1,13 +1,14 @@
 import Foundation
 
-/// The conversations (AssistantRpc listChats / currentChat / newChat /
+/// The conversations (AssistantRpc listChatPage / currentChat / newChat /
 /// openChat / deleteChat / renameChat / searchChats). Each chat is its own agent on the
 /// server, so opening another one never stops a reply that is still running.
 extension ChatStore {
     /// The newest chats, a page at a time: nil for the first page, then the
     /// `next` of the page before.
     func chats(after cursor: String? = nil) async throws -> ChatPage {
-        try await socket.call("listChats", [cursor.map { .string($0) } ?? .null])
+        // listChatPage; listChats (one array) stays for older builds.
+        try await socket.call("listChatPage", [cursor.map { .string($0) } ?? .null])
             .decoded(as: ChatPage.self)
     }
 
