@@ -89,9 +89,10 @@ After it lands on `main`:
    `--version` the smoke check can pass against the previous healthy
    deployment. Note the time the fix went live, wait half an hour, then
    check that `bun run errors --since <that time, ISO>` no longer lists the
-   fingerprint. The query reads at most 2,000 error lines, so if it returns
-   that many, a missing fingerprint proves nothing: narrow the window or
-   reproduce on the live build. Client lines carry the device's clock, so
+   fingerprint. The query reads at most 2,000 lines before it filters them
+   and prints groups, not a raw count, so it can't show it was cut short:
+   a missing fingerprint is a hint, not proof. Close only after the
+   original failure no longer reproduces on the live build. Client lines carry the device's clock, so
    a client error close to the deploy time proves little either way: check
    its `version`. Only Worker lines carry the deployed git sha. iOS lines
    carry the app's build number and web lines carry no `version` at all,
