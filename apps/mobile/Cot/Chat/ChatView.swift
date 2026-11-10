@@ -103,25 +103,29 @@ struct ChatView: View {
                         scrollToEnd(proxy)
                     }
                 }
+                // The animation is scoped to the button: on the scroll view it
+                // also animated the rows whenever the end marker came and went.
                 .overlay(alignment: .bottom) {
-                    if !following, !endVisible {
-                        Button {
-                            following = true
-                            scrollToEnd(proxy)
-                        } label: {
-                            Image(systemName: "arrow.down")
-                                .font(.system(size: 15, weight: .semibold))
-                                .frame(width: 36, height: 36)
-                                .background(.regularMaterial, in: Circle())
-                                .overlay(Circle().strokeBorder(Color(.systemGray4), lineWidth: 1))
+                    ZStack {
+                        if !following, !endVisible {
+                            Button {
+                                following = true
+                                scrollToEnd(proxy, animated: true)
+                            } label: {
+                                Image(systemName: "arrow.down")
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .frame(width: 36, height: 36)
+                                    .background(.regularMaterial, in: Circle())
+                                    .overlay(Circle().strokeBorder(Color(.systemGray4), lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.bottom, 8)
+                            .transition(.scale.combined(with: .opacity))
+                            .accessibilityLabel("Scroll to latest")
                         }
-                        .buttonStyle(.plain)
-                        .padding(.bottom, 8)
-                        .transition(.scale.combined(with: .opacity))
-                        .accessibilityLabel("Scroll to latest")
                     }
+                    .animation(.default, value: following || endVisible)
                 }
-                .animation(.default, value: following || endVisible)
             }
             .safeAreaInset(edge: .bottom) {
                 VStack(spacing: 0) {
@@ -223,8 +227,17 @@ struct ChatView: View {
         attachments = []
     }
 
-    private func scrollToEnd(_ proxy: ScrollViewProxy) {
-        withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo("end", anchor: .bottom) }
+    /// Following new content jumps without animation: an animated scroll
+    /// on a lazy stack, fired again on every streamed chunk, lands on rows
+    /// it hasn't measured yet and shows a blank screen until they are, so
+    /// the chat seemed to empty and reload after each send. Only the
+    /// scroll-to-latest button animates.
+    private func scrollToEnd(_ proxy: ScrollViewProxy, animated: Bool = false) {
+        if animated {
+            withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo("end", anchor: .bottom) }
+        } else {
+            proxy.scrollTo("end", anchor: .bottom)
+        }
     }
 }
 
