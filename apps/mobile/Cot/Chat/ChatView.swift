@@ -116,7 +116,10 @@ struct ChatView: View {
                                     .font(.system(size: 15, weight: .semibold))
                                     .frame(width: 36, height: 36)
                                     .background(.regularMaterial, in: Circle())
-                                    .overlay(Circle().strokeBorder(Color(.systemGray4), lineWidth: 1))
+                                    .overlay(Circle().strokeBorder(
+                                        Color(.systemGray4),
+                                        lineWidth: 1
+                                    ))
                             }
                             .buttonStyle(.plain)
                             .padding(.bottom, 8)

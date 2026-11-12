@@ -19,10 +19,10 @@ struct InboxEmail: Decodable, Identifiable, Equatable {
 
     var categoryLabel: String? {
         switch category {
-        case "action": return "Needs action"
-        case "notify": return "FYI"
-        case "ignore": return "Low priority"
-        default: return nil
+        case "action": "Needs action"
+        case "notify": "FYI"
+        case "ignore": "Low priority"
+        default: nil
         }
     }
 
