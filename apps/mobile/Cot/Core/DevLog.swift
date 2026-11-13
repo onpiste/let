@@ -61,7 +61,10 @@ final class DevLog {
     }
 
     func add(_ level: String, _ scope: String, _ msg: String, _ data: [String: String]?) {
-        logger.log("[\(level, privacy: .public)] \(scope, privacy: .public): \(msg, privacy: .public)")
+        logger
+            .log(
+                "[\(level, privacy: .public)] \(scope, privacy: .public): \(msg, privacy: .public)"
+            )
         guard enabled != false else { return }
         queue.append(Entry(
             ts: Self.iso.string(from: Date()), level: level, source: "ios", scope: scope,
@@ -87,7 +90,11 @@ final class DevLog {
         }
         apply(enabled: status == true)
         guard enabled == true else { return }
-        DevLog.info("app", "App launched", ["system": ProcessInfo.processInfo.operatingSystemVersionString])
+        DevLog.info(
+            "app",
+            "App launched",
+            ["system": ProcessInfo.processInfo.operatingSystemVersionString]
+        )
         timer?.cancel()
         timer = Task { [weak self] in
             while !Task.isCancelled {

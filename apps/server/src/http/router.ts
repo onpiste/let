@@ -14,7 +14,11 @@ import { getUserFromRequest } from "../auth/session";
 import { handleTelegramWebhook } from "../integrations/telegram/webhook";
 import { handleKnowledge } from "../knowledge/routes";
 import { log } from "../log/logger";
-import { handleDevIngest, handleDevStatus } from "../log/routes";
+import {
+  handleDevHealth,
+  handleDevIngest,
+  handleDevStatus
+} from "../log/routes";
 import { jsonResponse } from "./responses";
 import { handleTranscribe } from "./transcribe";
 
@@ -41,6 +45,7 @@ export const router = {
         return handleLogout(request);
       }
       if (url.pathname === DEV_LOG_ROUTES.status) return handleDevStatus();
+      if (url.pathname === DEV_LOG_ROUTES.health) return handleDevHealth();
       if (url.pathname === DEV_LOG_ROUTES.ingest) {
         return await handleDevIngest(request, env);
       }

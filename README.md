@@ -36,7 +36,7 @@ Features:
 - **Sign in with Google**: each account gets its own Durable Object (chat history, memory, reminders). Only emails in `ALLOWED_EMAILS` can sign in, and the Worker — not the browser — picks which assistant a request reaches
 - **Long-term memory**: the assistant saves facts about you (`remember` / `forget` tools in SQLite) and uses them in later chats. The memories live in the Think assistant
 - **Chat history**: every conversation is saved; the clock icon at the top left (or a swipe from the left edge on iOS) opens a drawer where you can search them by keyword, open, delete or start a new one. Each conversation is its own agent, so you can switch chats (or start several) while the assistant is still answering: the reply keeps running on the server, the drawer marks it "Answering…", and it is there when you come back. Telegram continues in the chat you last wrote in. The assistant can also search earlier chats (`searchChats` / `readChat`, a full-text index in SQLite) when you refer to something discussed before
-- **Inbox** (envelope icon with an unread badge, `/inbox`): mail sent or forwarded to the assistant's own address (see the email settings). The assistant sorts each one (needs action / FYI / low priority) with a one-line summary; open one to read it, archive it, or press **Ask Cot** to start a chat in which the assistant reads it and says what to do. **Mark all read** clears the badge in one tap. A new-mail toast, browser notification or iOS push opens the email directly
+- **Inbox** (envelope icon with an unread badge, `/inbox`): mail sent or forwarded to the assistant's own address (see the email settings). The assistant sorts each one (needs action / FYI / low priority) with a one-line summary; open one to read it, archive it, or press **Ask Cot** to start a chat in which the assistant reads it and says what to do. **Mark all read** clears the badge in one tap. A new-mail toast, browser notification or iOS push opens the email directly. Ask the assistant to reply or write an email and it sends it from that address, under your name, after you approve the full draft in the chat (needs Email Sending on for the domain, see `apps/server/src/integrations/email/README.md`)
 - **Tasks page** (calendar icon, `/tasks`): every scheduled reminder, with pause, resume and delete buttons. Change one in words: press Edit (or just ask in chat) and say e.g. "move it to 9am"
 - **Scheduled tasks**: "remind me in 10 minutes to…" or "every morning at 8, tell me the weather" schedules a task. When it fires, the assistant carries it out as a turn of its own in your current chat, with its tools (search, MCP, …; tools that need approval are left out, since nobody is there to approve), and sends you the result as an in-app toast, a push notification in the browser and on the iOS app even when they're closed (once set up, see [Web Push](#web-push) and [iOS push notifications](#ios-push-notifications)) and, if you connected a bot, a Telegram message
 - **Telegram, with your own bot**: paste a @BotFather token in settings and chat with the same Think assistant (your latest chat, same memory and reminders) from Telegram. Only you — the account that claims the bot with Start — reach the assistant, in one-to-one chats
@@ -250,7 +250,26 @@ bunx wrangler secret put ALLOWED_EMAILS
 bunx wrangler secret put CLOUDFLARE_API_KEY
 cd ../..
 bun run deploy            # → https://runlet.us (also runs on every push to main)
+bun run smoke             # check the deployment's public routes from outside
 ```
+
+### After the deploy
+
+Pushes to `main` go through a closed loop
+([ADR 0005](docs/adr/0005-release-loop.md)): the Deploy workflow smoke-tests
+the new version and rolls it back if that fails, and the Watch workflow
+files production errors from the logs as GitHub issues (`prod-error`,
+reopened as `regression` if a fixed one returns). To turn it on in a fork:
+
+- `CLOUDFLARE_API_TOKEN` (repository secret, already needed to deploy) must
+  also have _Workers Observability_ access, so Watch can read the logs.
+- Optional: the `ALERT_WEBHOOK_URL` secret for Slack, Discord or Telegram
+  alerts, the `FIX_AGENT_MENTION` variable (e.g. `@claude`) to hand new
+  issues to a coding agent, and `AUTO_ROLLBACK` = `off` to keep a failed
+  deploy live.
+
+Details and runbooks are in the
+[release-loop skill](.agents/skills/release-loop/SKILL.md).
 
 ## Structure
 

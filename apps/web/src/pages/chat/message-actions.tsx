@@ -1,19 +1,32 @@
 import { useState } from "react";
 
-import { Check, Copy, Reply, Share } from "../../components/icons";
+import {
+  Check,
+  Copy,
+  Pencil,
+  Reply,
+  Retry,
+  Share
+} from "../../components/icons";
 
 /**
- * Reply, copy and share buttons under a message. Share uses the system
- * sheet. Reply quotes the message in the composer for a follow-up.
+ * Reply, copy and share buttons under a message, plus edit (user messages)
+ * or regenerate (the last reply) when offered. Share uses the system sheet.
+ * Reply quotes the message in the composer for a follow-up.
+ * Mirrors `MessageActions` and `MessageMenu` in `MessageRow.swift`.
  */
 export function MessageActions({
   text,
   align = "start",
-  onReply
+  onReply,
+  onEdit,
+  onRegenerate
 }: {
   text: string;
   align?: "start" | "end";
   onReply?: () => void;
+  onEdit?: () => void;
+  onRegenerate?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   // The Web Share API is missing on most desktop browsers; hide the button
@@ -60,6 +73,28 @@ export function MessageActions({
       >
         {copied ? <Check /> : <Copy />}
       </button>
+      {onEdit && (
+        <button
+          type="button"
+          className="msg-action"
+          aria-label="Edit"
+          title="Edit"
+          onClick={onEdit}
+        >
+          <Pencil />
+        </button>
+      )}
+      {onRegenerate && (
+        <button
+          type="button"
+          className="msg-action"
+          aria-label="Regenerate"
+          title="Regenerate"
+          onClick={onRegenerate}
+        >
+          <Retry />
+        </button>
+      )}
       {canShare && (
         <button
           type="button"

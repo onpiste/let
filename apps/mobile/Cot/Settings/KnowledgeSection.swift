@@ -23,9 +23,11 @@ struct KnowledgeSection: View {
                     row(doc)
                 }
                 if library.shared > 0 {
-                    Text("The assistant also searches \(library.shared) shared documents from this deployment.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    Text(
+                        "The assistant also searches \(library.shared) shared documents from this deployment."
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 }
             } else {
                 Text("Loading…").foregroundStyle(.secondary)

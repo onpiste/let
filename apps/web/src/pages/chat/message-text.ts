@@ -1,8 +1,6 @@
 import type { UIMessage } from "ai";
 
-import { makeReplyQuote, type ReplyQuote } from "@cot/shared";
-
-const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
+import { INLINE_FILE, makeReplyQuote, type ReplyQuote } from "@cot/shared";
 
 /** A user message's typed text plus the names of the files attached to it. */
 export function userContent(m: UIMessage) {

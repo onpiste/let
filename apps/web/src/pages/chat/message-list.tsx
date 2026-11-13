@@ -1,6 +1,6 @@
 import { code } from "@streamdown/code";
 import { isToolUIPart, type UIMessage } from "ai";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Streamdown } from "streamdown";
 
 import {
@@ -11,6 +11,7 @@ import {
 } from "@cot/shared";
 
 import { MessageActions } from "./message-actions";
+import { MessageEdit } from "./message-edit";
 import { assistantText, replyQuoteFor, userContent } from "./message-text";
 import { messageAnchor, QuotedMessage } from "./reply-quote";
 import { Thinking, TypingDots } from "./thinking";
@@ -24,7 +25,9 @@ function Message({
   busy,
   toolLabels,
   onApproval,
-  onReply
+  onReply,
+  onEdit,
+  onRegenerate
 }: {
   m: UIMessage;
   isLast: boolean;
@@ -32,12 +35,30 @@ function Message({
   toolLabels: Record<string, string>;
   onApproval: (id: string, approved: boolean) => void;
   onReply: (quote: ReplyQuote) => void;
+  onEdit: (id: string, text: string) => void;
+  onRegenerate: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
   const quote = replyQuoteFor(m);
   const reply = quote ? () => onReply(quote) : undefined;
   if (m.role === "user") {
     const { text, files } = userContent(m);
     const replyTo = messageReplyTo(m);
+    if (editing) {
+      return (
+        <div key={m.id} className="message flex flex-col items-end gap-1">
+          <MessageEdit
+            text={text}
+            hasFiles={files.length > 0}
+            onCancel={() => setEditing(false)}
+            onSave={(edited) => {
+              setEditing(false);
+              onEdit(m.id, edited);
+            }}
+          />
+        </div>
+      );
+    }
     return (
       <div
         key={m.id}
@@ -60,6 +81,8 @@ function Message({
             text={text || files.join(", ")}
             align="end"
             onReply={reply}
+            // Not mid-reply: the edit would race the turn still running.
+            onEdit={busy || !text ? undefined : () => setEditing(true)}
           />
         )}
       </div>
@@ -103,7 +126,13 @@ function Message({
         }
         return null;
       })}
-      {answer && !streaming && <MessageActions text={answer} onReply={reply} />}
+      {answer && !streaming && (
+        <MessageActions
+          text={answer}
+          onReply={reply}
+          onRegenerate={isLast && !busy ? onRegenerate : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -115,7 +144,9 @@ export function MessageList({
   waiting,
   toolLabels,
   onApproval,
-  onReply
+  onReply,
+  onEdit,
+  onRegenerate
 }: {
   messages: UIMessage[];
   /** A turn is streaming; the last message may still change. */
@@ -126,6 +157,10 @@ export function MessageList({
   onApproval: (id: string, approved: boolean) => void;
   /** Quote this message in the composer for a follow-up. */
   onReply: (quote: ReplyQuote) => void;
+  /** Replaces a user message and everything after it with a new answer. */
+  onEdit: (id: string, text: string) => void;
+  /** Answers the last user message again, replacing the last reply. */
+  onRegenerate: () => void;
 }) {
   return (
     <div className="messages">
@@ -146,6 +181,8 @@ export function MessageList({
               toolLabels={toolLabels}
               onApproval={onApproval}
               onReply={onReply}
+              onEdit={onEdit}
+              onRegenerate={onRegenerate}
             />
           </Fragment>
         );

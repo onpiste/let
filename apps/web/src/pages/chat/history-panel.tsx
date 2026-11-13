@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 
-import { CHAT_QUERY_LENGTH } from "@cot/shared";
+import { CHAT_QUERY_LENGTH, CHAT_TITLE_LENGTH } from "@cot/shared";
 
+import { Pencil } from "../../components/icons";
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
+import { HistoryMore } from "./history-more";
 import { useChatSearch } from "./use-chat-search";
 
 /**
- * Conversations in a drawer from the left: search them, open one, delete
- * one, or start a new one. A chat whose reply is still running says so;
+ * Conversations in a drawer from the left: search them, open, rename or
+ * delete one, or start a new one. A chat whose reply is still running says so;
  * switching away never stops it. Mirrors `HistoryView.swift`.
  */
 export function HistoryPanel({
@@ -28,7 +30,10 @@ export function HistoryPanel({
   const [query, setQuery] = useState("");
   // Search hides behind an icon until asked for, like `HistoryHeader.swift`.
   const [searchOpen, setSearchOpen] = useState(false);
-  const { chats, setChats, error, setError } = useChatSearch(agent, query);
+  const { chats, setChats, error, setError, hasMore, more } = useChatSearch(
+    agent,
+    query
+  );
   const searching = query.trim() !== "";
 
   useEffect(() => {
@@ -53,16 +58,30 @@ export function HistoryPanel({
 
   const remove = async (id: string) => {
     try {
-      const list = await api(agent).deleteChat(id);
+      await api(agent).deleteChat(id);
+      setChats((old) => old?.filter((c) => c.id !== id) ?? null);
       // The open chat is gone: show the one the server picks next.
       if (id === currentId) {
         onOpen(await api(agent).currentChat());
       }
-      if (!searching) setChats(list);
-      else
-        setChats(
-          (old) => old?.filter((c) => list.some((n) => n.id === c.id)) ?? null
-        );
+    } catch (e) {
+      setError(errorText(e));
+    }
+  };
+
+  const rename = async (id: string, current: string) => {
+    const title = prompt("Rename conversation", current)?.trim();
+    if (!title || title === current) return;
+    if (title.length > CHAT_TITLE_LENGTH) {
+      setError(`Keep the title under ${CHAT_TITLE_LENGTH} characters.`);
+      return;
+    }
+    try {
+      await api(agent).renameChat(id, title);
+      setChats(
+        (old) => old?.map((c) => (c.id === id ? { ...c, title } : c)) ?? null
+      );
+      setError(null);
     } catch (e) {
       setError(errorText(e));
     }
@@ -146,6 +165,13 @@ export function HistoryPanel({
               </button>
               <button
                 className="icon-btn"
+                aria-label={`Rename ${chat.title}`}
+                onClick={() => void rename(chat.id, chat.title)}
+              >
+                <Pencil />
+              </button>
+              <button
+                className="icon-btn"
                 aria-label={`Delete ${chat.title}`}
                 onClick={() => {
                   if (confirm("Delete this conversation?")) {
@@ -157,6 +183,7 @@ export function HistoryPanel({
               </button>
             </li>
           ))}
+          {hasMore && <HistoryMore onMore={more} />}
         </ul>
       </aside>
     </>

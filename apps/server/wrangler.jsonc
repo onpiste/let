@@ -7,6 +7,9 @@
   "ai": { "binding": "AI", "remote": true },
   "browser": { "binding": "BROWSER" },
   "observability": { "enabled": true },
+  // The deployed version's tag, which the Deploy workflow sets to the git
+  // sha: /dev/health reports it and every server log line carries it.
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // Dynamic Workers: runCode loads each snippet into a fresh isolate.
   "worker_loaders": [{ "binding": "LOADER" }],
   // Knowledge base (src/knowledge): each account gets its own AI Search
@@ -15,6 +18,11 @@
     { "binding": "AI_SEARCH", "namespace": "default", "remote": true }
   ],
   "routes": [{ "pattern": "runlet.us", "custom_domain": true }],
+  // Outgoing mail from each assistant's own address (the sendEmail tool,
+  // always approved by the owner first). Needs Email Sending turned on for
+  // EMAIL_DOMAIN in the Cloudflare dashboard; until then sending fails with
+  // an error the assistant passes on, and receiving is unaffected.
+  "send_email": [{ "name": "EMAIL" }],
   // The Pi assistant calls Workers AI over REST, so it needs the account id
   // and an API token (set with `wrangler secret put CLOUDFLARE_API_KEY`).
   // TELEGRAM_API_BASE_URL points the bot at a self-hosted Bot API server;
