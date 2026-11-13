@@ -2,6 +2,8 @@ import { getToolApproval } from "@cloudflare/think/react";
 import type { MCPServersState } from "agents";
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
 
+import { EmailDraft } from "./email-draft";
+
 const TOOL_LABELS: Record<string, string> = {
   remember: "Saved to memory",
   forget: "Removed from memory",
@@ -22,7 +24,11 @@ const TOOL_LABELS: Record<string, string> = {
   updateScheduledTask: "Task updated",
   pauseScheduledTask: "Task paused",
   resumeScheduledTask: "Task resumed",
-  useSkill: "Used skill"
+  useSkill: "Used skill",
+  sendEmail: "Email",
+  listEmails: "Checked inbox",
+  searchEmails: "Searched inbox",
+  readEmail: "Read email"
 };
 
 /** "server · tool" for MCP tools, keyed by the AI SDK tool name. */
@@ -74,6 +80,7 @@ export function ToolChip({
         </span>
         {detail && <span className="truncate opacity-70">· {detail}</span>}
       </div>
+      {name === "sendEmail" && input && <EmailDraft input={input} />}
       {approval && (
         <div className="approval-actions">
           <button

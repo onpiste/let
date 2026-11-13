@@ -2,7 +2,7 @@ import type { MCPClientManager } from "agents/mcp/client";
 import type { UIMessage } from "ai";
 import { RpcTarget } from "cloudflare:workers";
 
-import type { Settings, Skill, TaskSchedule } from "@cot/shared";
+import type { EmailDraft, Settings, Skill, TaskSchedule } from "@cot/shared";
 
 import type { EmailFeature } from "../../integrations/email/feature";
 import { searchWeb } from "../../tools/web-search";
@@ -40,7 +40,7 @@ export type ChatServicesHost = {
   history: ChatHistory;
   research: ResearchJobs;
   /** The inbox exists once the assistant has an address. */
-  email: Pick<EmailFeature, "address" | "inbox">;
+  email: Pick<EmailFeature, "address" | "inbox" | "send">;
   mcp: MCPClientManager;
   /** Messages the owner on Telegram, outside the chat. */
   notifyMessenger: (text: string) => Promise<void>;
@@ -208,6 +208,11 @@ export class ChatServices extends RpcTarget implements AssistantServices {
 
   async readEmail(id: number) {
     return this.inbox.get(id);
+  }
+
+  /** Only reached once the owner approved the call in the chat. */
+  async sendEmail(draft: EmailDraft) {
+    return this.host.email.send(draft);
   }
 
   // ── MCP ─────────────────────────────────────────────────────────────

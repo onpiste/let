@@ -1,5 +1,5 @@
 import type { AppsStatus } from "./apps";
-import type { ChatSummary } from "./chats";
+import type { ChatPage, ChatSummary } from "./chats";
 import type {
   EmailCategory,
   EmailDetail,
@@ -27,18 +27,33 @@ export type AddMcpResult =
  */
 export interface AssistantRpc {
   /**
-   * Conversations with at least one message, newest first. Switching between
-   * them never interrupts a reply: each runs in its own agent.
+   * Conversations with at least one message, newest first, `CHAT_PAGE_SIZE`
+   * at a time: no cursor for the first page, then the `next` of the one
+   * before. Switching between them never interrupts a reply: each runs in
+   * its own agent.
+   */
+  listChatPage(cursor?: string | null): Promise<ChatPage>;
+  /**
+   * Every conversation, newest first, in one list. Kept for iOS builds
+   * from before paging; new clients use `listChatPage`.
    */
   listChats(): Promise<ChatSummary[]>;
   /** The chat to open on start: the one last used, or a new empty one. */
   currentChat(): Promise<string>;
   /** Creates an empty chat and returns its id, for `chatSocketPath`. */
   newChat(): Promise<string>;
-  /** Marks a chat as the one in use (Telegram follows it). */
+  /**
+   * Marks a chat as the one in use (Telegram follows it). Returns every
+   * chat, as older iOS builds expect; new clients ignore it.
+   */
   openChat(id: string): Promise<ChatSummary[]>;
-  /** Deletes a chat, stopping a reply that is still running in it. */
+  /**
+   * Deletes a chat, stopping a reply that is still running in it. Returns
+   * every chat left, as older iOS builds expect; new clients ignore it.
+   */
   deleteChat(id: string): Promise<ChatSummary[]>;
+  /** Gives a chat the user's own title, which the model then leaves alone. */
+  renameChat(id: string, title: string): Promise<void>;
   /**
    * Conversations whose title or text contains `query` (case-insensitive),
    * newest first, each with a `snippet` around the match.
@@ -93,6 +108,28 @@ export interface AssistantRpc {
   registerWebPush(subscription: WebPushSubscription): Promise<PushStatus>;
   /** Deep Research runs still going, oldest first. */
   listResearch(): Promise<ResearchJob[]>;
+}
+
+/** A message as the chat protocol carries it (the AI SDK's `UIMessage`). */
+export type ChatMessageJson = {
+  id: string;
+  role: "system" | "user" | "assistant";
+  parts: unknown[];
+  metadata?: unknown;
+};
+
+/**
+ * The callables of one chat's own agent (the socket at `chatSocketPath`),
+ * beside the chat protocol, which sends, regenerates and stops replies.
+ */
+export interface ChatRpc {
+  /**
+   * Replaces the user message `messageId` with one saying `text` (its
+   * attachments kept), dropping everything after it from the conversation,
+   * and returns the replacement. Send a `regenerate-message` request next
+   * to answer it.
+   */
+  editMessage(messageId: string, text: string): Promise<ChatMessageJson>;
 }
 
 /** Messages the server pushes to connected clients outside the chat stream. */

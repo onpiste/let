@@ -40,7 +40,8 @@ struct InboxView: View {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }
                 if emails?.isEmpty == true {
-                    Text(archived ? "Nothing archived." : "No mail yet. Your address is in Settings.")
+                    Text(archived ? "Nothing archived." :
+                        "No mail yet. Your address is in Settings.")
                         .foregroundStyle(.secondary)
                 }
                 ForEach(emails ?? []) { email in
@@ -146,7 +147,7 @@ struct CategoryPill: View {
             .padding(.vertical, 1)
             .foregroundStyle(action ? Color.orange : Color.secondary)
             .background(
-                (action ? Color.orange.opacity(0.15) : Color(.systemGray5)),
+                action ? Color.orange.opacity(0.15) : Color(.systemGray5),
                 in: Capsule()
             )
     }

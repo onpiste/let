@@ -8,6 +8,7 @@ import {
   type Skill
 } from "@cot/shared";
 
+import { isAllowed } from "../../auth/session";
 import type { AppsRecord } from "../../integrations/composio/apps";
 import type { EmailConfig } from "../../integrations/email/config";
 import type { TelegramConfig } from "../../integrations/telegram/config";
@@ -85,6 +86,12 @@ export class AssistantStore {
 
   getOwnerEmail() {
     return this.read("owner_email");
+  }
+
+  /** The owner's email while it is still in ALLOWED_EMAILS. */
+  allowedOwner(env: Env) {
+    const email = this.getOwnerEmail();
+    return email && isAllowed(email, env) ? email : null;
   }
 
   getOwnerName() {

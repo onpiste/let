@@ -55,11 +55,15 @@ final class KnowledgeModel {
             } catch {
                 failed.append(error.localizedDescription)
             }
-            if scoped { file.stopAccessingSecurityScopedResource() }
+            if scoped {
+                file.stopAccessingSecurityScopedResource()
+            }
             uploading -= 1
         }
         await refresh()
-        if !failed.isEmpty { error = failed.joined(separator: "\n") }
+        if !failed.isEmpty {
+            error = failed.joined(separator: "\n")
+        }
     }
 
     func delete(_ id: String) async {
@@ -76,7 +80,11 @@ final class KnowledgeModel {
         do {
             try await work()
         } catch {
-            DevLog.warn("knowledge", "Knowledge request failed", ["error": String(describing: error)])
+            DevLog.warn(
+                "knowledge",
+                "Knowledge request failed",
+                ["error": String(describing: error)]
+            )
             self.error = error.localizedDescription
         }
     }

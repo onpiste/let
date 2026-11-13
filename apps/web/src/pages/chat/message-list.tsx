@@ -1,16 +1,15 @@
 import { code } from "@streamdown/code";
 import { isToolUIPart, type UIMessage } from "ai";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { Streamdown } from "streamdown";
 
-import { messageCreatedAt, needsTimeDivider } from "@cot/shared";
+import { INLINE_FILE, messageCreatedAt, needsTimeDivider } from "@cot/shared";
 
 import { MessageActions } from "./message-actions";
+import { MessageEdit } from "./message-edit";
 import { Thinking, TypingDots } from "./thinking";
 import { TimeDivider } from "./time-divider";
 import { ToolChip } from "./tool-chip";
-
-const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
 
 /** A user message's typed text plus the names of the files attached to it. */
 function userContent(m: UIMessage) {
@@ -42,16 +41,36 @@ function Message({
   isLast,
   busy,
   toolLabels,
-  onApproval
+  onApproval,
+  onEdit,
+  onRegenerate
 }: {
   m: UIMessage;
   isLast: boolean;
   busy: boolean;
   toolLabels: Record<string, string>;
   onApproval: (id: string, approved: boolean) => void;
+  onEdit: (id: string, text: string) => void;
+  onRegenerate: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
   if (m.role === "user") {
     const { text, files } = userContent(m);
+    if (editing) {
+      return (
+        <div key={m.id} className="message flex flex-col items-end gap-1">
+          <MessageEdit
+            text={text}
+            hasFiles={files.length > 0}
+            onCancel={() => setEditing(false)}
+            onSave={(edited) => {
+              setEditing(false);
+              onEdit(m.id, edited);
+            }}
+          />
+        </div>
+      );
+    }
     return (
       <div key={m.id} className="message flex flex-col items-end gap-1">
         {files.length > 0 && (
@@ -64,7 +83,14 @@ function Message({
           </div>
         )}
         {text && <div className="bubble-user">{text}</div>}
-        {text && <MessageActions text={text} align="end" />}
+        {text && (
+          <MessageActions
+            text={text}
+            align="end"
+            // Not mid-reply: the edit would race the turn still running.
+            onEdit={busy ? undefined : () => setEditing(true)}
+          />
+        )}
       </div>
     );
   }
@@ -106,7 +132,12 @@ function Message({
         }
         return null;
       })}
-      {answer && !streaming && <MessageActions text={answer} />}
+      {answer && !streaming && (
+        <MessageActions
+          text={answer}
+          onRegenerate={isLast && !busy ? onRegenerate : undefined}
+        />
+      )}
     </div>
   );
 }
@@ -117,7 +148,9 @@ export function MessageList({
   busy,
   waiting,
   toolLabels,
-  onApproval
+  onApproval,
+  onEdit,
+  onRegenerate
 }: {
   messages: UIMessage[];
   /** A turn is streaming; the last message may still change. */
@@ -126,6 +159,10 @@ export function MessageList({
   waiting: boolean;
   toolLabels: Record<string, string>;
   onApproval: (id: string, approved: boolean) => void;
+  /** Replaces a user message and everything after it with a new answer. */
+  onEdit: (id: string, text: string) => void;
+  /** Answers the last user message again, replacing the last reply. */
+  onRegenerate: () => void;
 }) {
   return (
     <div className="messages">
@@ -145,6 +182,8 @@ export function MessageList({
               busy={busy}
               toolLabels={toolLabels}
               onApproval={onApproval}
+              onEdit={onEdit}
+              onRegenerate={onRegenerate}
             />
           </Fragment>
         );

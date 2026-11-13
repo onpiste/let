@@ -13,7 +13,6 @@ import {
   type WebPushSubscription
 } from "@cot/shared";
 
-import { isAllowed } from "../../auth/session";
 import { EmailFeature } from "../../integrations/email/feature";
 import { OwnerPush } from "../../integrations/push";
 import { TelegramChannel } from "../../integrations/telegram/channel";
@@ -55,7 +54,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       env: this.env,
       userId: () => this.name.slice("google:".length),
       store: this.store,
-      ownerAllowed: () => this.allowedOwner() !== null,
+      ownerAllowed: () => this.store.allowedOwner(this.env) !== null,
       // Restart after the current reply goes out so Think re-reads the bot.
       onBotChanged: () => {
         setTimeout(() => this.ctx.abort("Telegram bot changed"), 500);
@@ -68,7 +67,7 @@ export class Assistant extends Think<Env> implements AssistantRpc {
       env: this.env,
       agent: this,
       store: this.store,
-      owner: () => this.allowedOwner(),
+      owner: () => this.store.allowedOwner(this.env),
       model: () => languageModelFor(this.store.getSettings(), this.env),
       notify: (notice) => this.notify(notice),
       triageLater: (id) => this.schedule(1, "triageNewEmail", id),
@@ -94,12 +93,6 @@ export class Assistant extends Think<Env> implements AssistantRpc {
     );
   }
 
-  /** The owner's email while it is still in ALLOWED_EMAILS. */
-  private allowedOwner() {
-    const email = this.store.getOwnerEmail();
-    return email && isAllowed(email, this.env) ? email : null;
-  }
-
   override onStart() {
     this.store.ensureTables();
 
@@ -123,11 +116,12 @@ export class Assistant extends Think<Env> implements AssistantRpc {
 
   // ── Chats (callables) ───────────────────────────────────────────────
 
-  private directory: ChatDirectory | null = null;
+  // Holds the one-time migration, so it is a field, not a getter.
+  private readonly chats = new ChatDirectory(this, () => this.history);
 
-  private get chats() {
-    this.directory ??= new ChatDirectory(this, () => this.history);
-    return this.directory;
+  @callable()
+  async listChatPage(cursor?: string | null) {
+    return this.chats.page(cursor);
   }
 
   @callable()
@@ -153,6 +147,11 @@ export class Assistant extends Think<Env> implements AssistantRpc {
   @callable()
   async deleteChat(id: string) {
     return this.chats.remove(id);
+  }
+
+  @callable()
+  async renameChat(id: string, title: string) {
+    return this.chats.rename(id, title);
   }
 
   @callable()

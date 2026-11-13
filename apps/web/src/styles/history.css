@@ -114,3 +114,9 @@
   color: var(--accent);
   font-weight: 600;
 }
+
+/* The end of a list with more pages to load (history-more.tsx). */
+.history-more {
+  justify-content: center;
+  padding: 8px 10px;
+}

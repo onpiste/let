@@ -1,10 +1,9 @@
 import type { Agent } from "agents";
 import type { UIMessage } from "ai";
 
-type Host = Pick<Agent<Env>, "sql">;
+import { INLINE_FILE } from "@cot/shared";
 
-/** A file pasted into a message as text; history and search keep its name. */
-export const INLINE_FILE = /<file name="([^"]*)">\n[\s\S]*?\n<\/file>\n?/g;
+type Host = Pick<Agent<Env>, "sql">;
 
 /** The trigram tokenizer matches substrings of at least this many characters. */
 const MIN_TERM = 3;
