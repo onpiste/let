@@ -31,7 +31,9 @@ private struct AppRow: View {
     @Environment(\.openURL) private var openURL
     @State private var confirmingDisconnect = false
 
-    private var busy: Bool { model.busyApps.contains(app.slug) }
+    private var busy: Bool {
+        model.busyApps.contains(app.slug)
+    }
 
     var body: some View {
         HStack(spacing: 12) {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Conversations in the side drawer: search them, tap to open one, swipe to
-/// delete, or start a new one. A chat whose reply is still running says so;
+/// rename or delete one, or start a new one. A chat whose reply is still running says so;
 /// switching away never stops it. Mirrors `history-panel.tsx`.
 struct HistoryView: View {
     let store: ChatStore
@@ -12,6 +12,12 @@ struct HistoryView: View {
     @State private var chats: [ChatSummary]?
     @State private var error: String?
     @State private var query = ""
+    /// The cursor of the page after the ones shown; nil when all are.
+    @State private var next: String?
+    @State private var loadingMore = false
+    /// The chat whose title is being edited.
+    @State private var renaming: ChatSummary?
+    @State private var newTitle = ""
 
     private var needle: String {
         query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -71,6 +77,14 @@ struct HistoryView: View {
                 ForEach(chats ?? []) { chat in
                     row(chat)
                 }
+                // Loads the next page as the end scrolls into view
+                // (history-more.tsx on the web).
+                if next != nil {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                        .onAppear { Task { await more() } }
+                }
             }
             .listStyle(.plain)
             .environment(\.defaultMinListRowHeight, 0)
@@ -81,14 +95,29 @@ struct HistoryView: View {
                     ProgressView()
                 }
             }
+            .alert(
+                "Rename conversation",
+                isPresented: Binding(
+                    get: { renaming != nil },
+                    set: { if !$0 { renaming = nil } }
+                )
+            ) {
+                TextField("Title", text: $newTitle)
+                Button("Cancel", role: .cancel) { renaming = nil }
+                Button("Save") { Task { await rename() } }
+            }
             .onOverscroll { overscroll = $0 }
             .onPullReleased {
-                if pull >= 1 { openSearch() }
+                if pull >= 1 {
+                    openSearch()
+                }
             }
             .onChange(of: pull >= 1) { _, armed in
                 // Without scroll phases (iOS 17) there is no release to wait for.
                 if #unavailable(iOS 18) {
-                    if armed { openSearch() }
+                    if armed {
+                        openSearch()
+                    }
                 }
             }
         }
@@ -134,16 +163,20 @@ struct HistoryView: View {
         .listRowInsets(EdgeInsets())
         .listRowSeparator(.hidden)
         .listRowBackground(chat.id == store.chatID ? Color(.secondarySystemBackground) : nil)
+        // Delete stays first, so a full swipe still deletes.
         .swipeActions {
             Button("Delete", role: .destructive) {
                 Task {
-                    _ = await run {
-                        let all = try await store.deleteChat(chat.id)
-                        // Keep showing the search results, minus this one.
-                        return needle.isEmpty ? all : (chats ?? []).filter { $0.id != chat.id }
+                    if await perform({ try await store.deleteChat(chat.id) }) {
+                        chats = chats?.filter { $0.id != chat.id }
                     }
                 }
             }
+            Button("Rename", systemImage: "pencil") {
+                newTitle = chat.title
+                renaming = chat
+            }
+            .tint(.blue)
         }
     }
 
@@ -152,12 +185,22 @@ struct HistoryView: View {
         let query: String
     }
 
-    /// Every chat, or the matches once typing pauses; nothing while closed.
+    /// The newest chats, or the matches once typing pauses; nothing while
+    /// closed.
     private func load() async {
+        next = nil
         guard isOpen else { return }
         let query = needle
         if query.isEmpty {
-            _ = await run { try await store.chats() }
+            do {
+                let page = try await store.chats()
+                guard !Task.isCancelled else { return }
+                chats = page.chats
+                next = page.next
+                error = nil
+            } catch {
+                self.error = error.localizedDescription
+            }
             return
         }
         try? await Task.sleep(for: .milliseconds(250))
@@ -165,7 +208,41 @@ struct HistoryView: View {
         _ = await run { try await store.searchChats(query) }
     }
 
-    /// Runs a call that switches chats; false (with the error shown) on failure.
+    /// Saves the title typed in the rename alert (web: history-panel.tsx).
+    private func rename() async {
+        guard let chat = renaming else { return }
+        renaming = nil
+        let title = newTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title != chat.title else { return }
+        if await perform({ try await store.renameChat(chat.id, title: title) }) {
+            chats = chats?.map { item in
+                var copy = item
+                if copy.id == chat.id {
+                    copy.title = title
+                }
+                return copy
+            }
+        }
+    }
+
+    /// The page after the ones shown, added below them, once at a time.
+    private func more() async {
+        guard let cursor = next, !loadingMore else { return }
+        loadingMore = true
+        defer { loadingMore = false }
+        do {
+            let page = try await store.chats(after: cursor)
+            // The query changed meanwhile and the list was reloaded.
+            guard next == cursor, needle.isEmpty else { return }
+            chats = (chats ?? []).appending(page.chats)
+            next = page.next
+            error = nil
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Runs a call that switches or deletes chats; false (with the error shown) on failure.
     private func perform(_ action: () async throws -> Void) async -> Bool {
         do {
             try await action()
