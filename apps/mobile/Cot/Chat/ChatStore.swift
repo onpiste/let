@@ -12,25 +12,6 @@ import UIKit
 @MainActor
 @Observable
 final class ChatStore {
-    enum Status { case ready, submitted, streaming }
-
-    struct Notice: Identifiable, Equatable {
-        let id = UUID()
-        let icon: String
-        let title: String
-        let text: String
-        /// A new email's id: tapping the banner opens it in the inbox.
-        var emailID: Int?
-    }
-
-    /// A message written while the assistant was still answering; sent when
-    /// the turn ends.
-    struct Queued: Identifiable, Equatable {
-        let id = UUID()
-        let text: String
-        let attachments: [Attachment]
-    }
-
     private(set) var messages: [ChatMessage] = []
     private(set) var queue: [Queued] = []
     private(set) var status: Status = .ready
@@ -47,6 +28,7 @@ final class ChatStore {
             }
         }
     }
+
     var notice: Notice?
     /// Deep Research runs still going; set from ChatStore+Research.swift.
     var researchJobs: [ResearchJob] = []
@@ -67,9 +49,7 @@ final class ChatStore {
     /// The transcript before a regenerate dropped the last reply, put back
     /// if the turn fails before a new reply arrives.
     private var beforeRegenerate: [ChatMessage]?
-    private var streamingMessageID: String?
-    private var reducer = ChunkReducer()
-    private var appliedSeq: [String: Int] = [:]
+    private var stream = ReplyStream()
     /// The server's latest transcript, which the reply being streamed here
     /// overrides until its stream ends.
     private var serverMessages: [ChatMessage] = []
@@ -349,7 +329,7 @@ final class ChatStore {
     private func streamEnded() {
         // A message sent after the probe went out is a new turn; leave it.
         guard status != .ready, requestID == turnAtProbe else { return }
-        streamingMessageID = nil
+        stream.end()
         if loaded {
             messages = serverMessages
         }
@@ -360,7 +340,7 @@ final class ChatStore {
     private func replaceMessages(with json: [JSONValue]) {
         var incoming = json.compactMap(ChatMessage.init(json:))
         serverMessages = incoming
-        if let id = streamingMessageID, let local = messages.first(where: { $0.id == id }) {
+        if let id = stream.messageID, let local = messages.first(where: { $0.id == id }) {
             if let index = incoming.firstIndex(where: { $0.id == id }) {
                 incoming[index] = local
             } else {
@@ -393,79 +373,22 @@ final class ChatStore {
     }
 
     private func handleResponse(_ frame: JSONValue) {
-        let id = frame["id"]?.string ?? ""
-        let replay = frame["replay"]?.bool == true
-        let continuation = frame["continuation"]?.bool == true
-        let seq = frame["seq"]?.number.map { Int($0) }
-
-        if frame["error"]?.bool == true {
-            errorText = frame["body"]?.string
-            // A regenerate that failed before answering: show the old reply.
-            if let before = beforeRegenerate, messages.last?.isUser ?? false {
-                messages = before
-            }
+        let outcome = stream.receive(frame, into: &messages)
+        if outcome.failed {
+            errorText = outcome.errorText
+        }
+        // A regenerate that failed before answering: show the old reply.
+        if outcome.aborted, let before = beforeRegenerate, messages.last?.isUser ?? false {
+            messages = before
+        }
+        if outcome.streaming, status != .streaming {
+            status = .streaming
+        }
+        if outcome.done, status != .ready {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+        if outcome.aborted || outcome.done {
             finishTurn()
-            return
-        }
-        // A continuation replays chunks this client already applied.
-        let alreadyApplied = replay && continuation && seq
-            .map { $0 <= (appliedSeq[id] ?? -1) } == true
-        if !alreadyApplied {
-            if let seq {
-                appliedSeq[id] = max(seq, appliedSeq[id] ?? -1)
-            }
-            if let body = frame["body"]?.string, !body.trimmingCharacters(in: .whitespaces).isEmpty,
-               let chunk = JSONValue.parse(body)
-            {
-                apply(chunk, replay: replay, continuation: continuation)
-            }
-        }
-        if frame["done"]?.bool == true {
-            appliedSeq[id] = nil
-            if status != .ready {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            }
-            finishTurn()
-        }
-    }
-
-    private func apply(_ chunk: JSONValue, replay: Bool, continuation: Bool) {
-        switch chunk["type"]?.string {
-        case "start":
-            beginMessage(
-                id: chunk["messageId"]?.string ?? randomID(),
-                replay: replay,
-                continuation: continuation
-            )
-            if let id = streamingMessageID,
-               let index = messages.firstIndex(where: { $0.id == id })
-            {
-                messages[index].stamp(with: chunk["messageMetadata"])
-            }
-        case "error":
-            errorText = chunk["errorText"]?.string
-        default:
-            guard let id = streamingMessageID,
-                  let index = messages.firstIndex(where: { $0.id == id })
-            else { return }
-            if status != .streaming {
-                status = .streaming
-            }
-            reducer.apply(chunk, to: &messages[index])
-        }
-    }
-
-    private func beginMessage(id: String, replay: Bool, continuation: Bool) {
-        reducer = ChunkReducer()
-        streamingMessageID = id
-        status = .streaming
-        if let index = messages.firstIndex(where: { $0.id == id }) {
-            // A resumed stream replays from its first chunk; rebuild the reply.
-            if replay, !continuation {
-                messages[index].parts = []
-            }
-        } else {
-            messages.append(ChatMessage(id: id, role: "assistant", parts: []))
         }
     }
 
@@ -473,17 +396,15 @@ final class ChatStore {
         status = .ready
         serverMessages = []
         turnAtProbe = nil
-        streamingMessageID = nil
         requestID = nil
         beforeRegenerate = nil
-        reducer = ChunkReducer()
-        appliedSeq = [:]
+        stream = ReplyStream()
     }
 
     private func finishTurn() {
         cache()
         status = .ready
-        streamingMessageID = nil
+        stream.end()
         requestID = nil
         beforeRegenerate = nil
         if !queue.isEmpty {

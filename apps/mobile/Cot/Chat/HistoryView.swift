@@ -108,12 +108,16 @@ struct HistoryView: View {
             }
             .onOverscroll { overscroll = $0 }
             .onPullReleased {
-                if pull >= 1 { openSearch() }
+                if pull >= 1 {
+                    openSearch()
+                }
             }
             .onChange(of: pull >= 1) { _, armed in
                 // Without scroll phases (iOS 17) there is no release to wait for.
                 if #unavailable(iOS 18) {
-                    if armed { openSearch() }
+                    if armed {
+                        openSearch()
+                    }
                 }
             }
         }
