@@ -77,6 +77,9 @@ Run from the repository root.
 | `bun run test`               | Vitest unit tests (`@cot/shared` pure logic)               |
 | `bun run build`              | Production build of client + Worker                        |
 | `bun run types`              | Regenerate `apps/server/env.d.ts` from `wrangler.jsonc`    |
+| `bun run logs`               | Read the unified logs (see "Logs and debugging")           |
+| `bun run smoke`              | Smoke-test the deployment's public routes                  |
+| `bun run errors`             | Production errors grouped into problems                    |
 | `bun run deploy`             | Build and deploy to Cloudflare                             |
 | `bun run --filter <pkg> <s>` | Run a script in one workspace, e.g. `--filter @cot/server` |
 
@@ -227,6 +230,24 @@ build, follow the `dev-logs` skill:
   `bun scripts/devlog/index.ts report "<Step>" -- <command>` so their
   failures are recorded too.
 - No chat text, attachments or secrets at `info` and above.
+
+## Release loop
+
+Every change goes round one loop: check and tests, deploy, smoke test (a
+failure rolls production back), error logs watched and filed as GitHub
+issues, fix with a regression test
+([ADR 0005](docs/adr/0005-release-loop.md)). **When shipping a change or
+working on a `prod-error`, `regression` or `deploy-failed` issue, follow the
+`release-loop` skill:
+[.agents/skills/release-loop/SKILL.md](.agents/skills/release-loop/SKILL.md).**
+
+- A fix for a production error comes with a test that fails without it.
+- A new public route gets a check in `scripts/ops/smoke.ts`; a new failure
+  path gets a `log.error`, or the Watch workflow can't see it.
+- An expected, handled failure is logged at `warn`, not `error`: every
+  `error` line becomes an issue.
+- `bun run smoke` checks production from outside; `bun run errors` lists
+  its errors grouped into problems.
 
 ## Git
 

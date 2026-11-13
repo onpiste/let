@@ -57,6 +57,8 @@ Exit code 2 means `CLOUDFLARE_API_TOKEN` is missing (see Setup).
 - `user` is set by the server from the session; a client can't fake it.
 - `session` groups one page load / app launch / CI run; `requestId` joins a
   client's request with the server's lines for it.
+- `version` on a `server` line is the git sha that deploy was built from
+  (set by the Deploy workflow), so an error can be pinned to a release.
 - Errors carry `data.error` = `{name, message, stack}`.
 - A `build`/`ci` failure is one entry with `data.step`, `command`,
   `exitCode`, `branch`, `runUrl` (CI) and `output` (the last 200 lines),
@@ -64,6 +66,9 @@ Exit code 2 means `CLOUDFLARE_API_TOKEN` is missing (see Setup).
   with `data.file` and `data.line`, and `version` = the git sha.
 
 ## Runbooks
+
+For production errors as a whole (`bun run errors`, the `prod-error` issues
+the Watch workflow files, a failed deploy), see the `release-loop` skill.
 
 **A build, check or CI run failed.**
 

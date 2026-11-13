@@ -1,4 +1,5 @@
 import {
+  type DevHealth,
   type DevLogStatus,
   type LogSource,
   MAX_LOG_BATCH,
@@ -7,7 +8,7 @@ import {
 
 import { getUserFromRequest } from "../auth/session";
 import { jsonResponse } from "../http/responses";
-import { devLogsEnabled, emit } from "./logger";
+import { deployedVersion, devLogsEnabled, emit } from "./logger";
 
 /**
  * The developer-mode routes (DEV_LOG_ROUTES). Clients ask whether to send
@@ -23,6 +24,15 @@ const BUILD_SOURCES: LogSource[] = ["build", "ci"];
 export function handleDevStatus() {
   const status: DevLogStatus = { enabled: devLogsEnabled() };
   return jsonResponse(status);
+}
+
+/**
+ * Public and cheap: proves the Worker booted and says which deploy is live.
+ * `bun run smoke` waits for the new sha here after a deploy.
+ */
+export function handleDevHealth() {
+  const health: DevHealth = { ok: true, version: deployedVersion() };
+  return jsonResponse(health);
 }
 
 /** Who may post, and which sources they may claim, or null. */

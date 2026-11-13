@@ -26,6 +26,11 @@ export function devLogsEnabled() {
   return mode === "on";
 }
 
+/** The git sha this Worker was deployed from, "" outside the Deploy workflow. */
+export function deployedVersion() {
+  return env.CF_VERSION_METADATA.tag;
+}
+
 /** Prints an entry as it is, for ones already checked (see routes.ts). */
 export function emit(entry: LogEntry) {
   const line = JSON.stringify({ [LOG_MARKER]: 1, ...entry });
@@ -51,6 +56,9 @@ function write(
     msg,
     ...context
   };
+  // Which deploy a line came from, so an error can be pinned to a release.
+  const version = deployedVersion();
+  if (version) entry.version = version;
   if (data) entry.data = redact(data) as Data;
   emit(entry);
 }
