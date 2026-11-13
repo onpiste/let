@@ -8,6 +8,8 @@ struct ChatView: View {
     @State private var store: ChatStore
     @State private var input = ""
     @State private var attachments: [Attachment] = []
+    /// The message the next one replies to, quoted above the composer.
+    @State private var replyTo: ReplyQuote?
     @State private var showSettings = false
     @State private var showHistory = false
     @State private var showTasks = false
@@ -43,7 +45,7 @@ struct ChatView: View {
                             {
                                 TimeDivider(date: sent)
                             }
-                            messageRow(row.message)
+                            messageRow(row.message, proxy)
                         }
                         if waiting {
                             TypingDots()
@@ -131,6 +133,7 @@ struct ChatView: View {
                     QueuedView(queue: store.queue, onRemove: store.removeQueued)
                     ComposerView(
                         text: $input, attachments: $attachments, busy: store.busy,
+                        replyTo: replyTo, onCancelReply: { replyTo = nil },
                         token: { auth.token }, onError: { store.report($0) },
                         onSend: { send(input) }, onStop: store.stopTurn
                     )
@@ -172,6 +175,8 @@ struct ChatView: View {
             takePendingEmail()
         }
         .onDisappear { store.disconnect() }
+        // A reply belongs to the chat it was started in.
+        .onChange(of: store.chatID) { replyTo = nil }
         .onChange(of: scenePhase) {
             if scenePhase == .active {
                 store.resume()
@@ -217,7 +222,7 @@ struct ChatView: View {
     }
 
     /// One message with its actions; on its own so `body` type-checks in time.
-    private func messageRow(_ message: ChatMessage) -> MessageRow {
+    private func messageRow(_ message: ChatMessage, _ proxy: ScrollViewProxy) -> MessageRow {
         let isLast = message.id == store.messages.last?.id
         // Not mid-reply: an edit or a regenerate would race the turn still running.
         let onEdit: ((String) -> Void)? = store.busy ? nil : { text in
@@ -230,6 +235,11 @@ struct ChatView: View {
             toolLabels: store.mcp?.toolLabels ?? [:],
             streaming: store.busy && isLast,
             onApproval: store.respond(toApproval:approved:),
+            onReply: { replyTo = $0 },
+            onShowMessage: { id in
+                following = false
+                withAnimation { proxy.scrollTo(id, anchor: .center) }
+            },
             onEdit: onEdit,
             onRegenerate: onRegenerate
         )
@@ -239,9 +249,10 @@ struct ChatView: View {
         Reminders.requestPermission()
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         following = true
-        store.send(text, attachments: attachments)
+        store.send(text, attachments: attachments, replyTo: replyTo)
         input = ""
         attachments = []
+        replyTo = nil
     }
 
     /// Following new content jumps without animation: an animated scroll

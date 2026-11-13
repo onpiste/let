@@ -1,9 +1,13 @@
 import type { UIMessage } from "ai";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type { ReplyQuote } from "@cot/shared";
+
 export type QueuedMessage = {
   id: number;
   parts: UIMessage["parts"];
+  /** The message it replies to, if any. */
+  replyTo: ReplyQuote | null;
 };
 
 /**
@@ -13,14 +17,17 @@ export type QueuedMessage = {
  */
 export function useSendQueue(
   busy: boolean,
-  send: (parts: UIMessage["parts"]) => void
+  send: (parts: UIMessage["parts"], replyTo: ReplyQuote | null) => void
 ) {
   const [queue, setQueue] = useState<QueuedMessage[]>([]);
   const nextId = useRef(0);
 
-  const enqueue = useCallback((parts: UIMessage["parts"]) => {
-    setQueue((q) => [...q, { id: nextId.current++, parts }]);
-  }, []);
+  const enqueue = useCallback(
+    (parts: UIMessage["parts"], replyTo: ReplyQuote | null) => {
+      setQueue((q) => [...q, { id: nextId.current++, parts, replyTo }]);
+    },
+    []
+  );
 
   const remove = useCallback((id: number) => {
     setQueue((q) => q.filter((m) => m.id !== id));
@@ -37,7 +44,7 @@ export function useSendQueue(
     const [next, ...rest] = queue;
     if (!finished || !next) return;
     setQueue(rest);
-    send(next.parts);
+    send(next.parts, next.replyTo);
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- edge-triggered
   }, [busy]);
 

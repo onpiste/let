@@ -9,6 +9,9 @@ struct ComposerView: View {
     @Binding var text: String
     @Binding var attachments: [Attachment]
     let busy: Bool
+    /// The message being replied to, shown above the box.
+    let replyTo: ReplyQuote?
+    let onCancelReply: () -> Void
     let token: () -> String?
     let onError: (String) -> Void
     let onSend: () -> Void
@@ -37,6 +40,9 @@ struct ComposerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if let replyTo {
+                ReplyPreview(quote: replyTo, onCancel: onCancelReply)
+            }
             if !attachments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
@@ -114,6 +120,12 @@ struct ComposerView: View {
             }
         }
         .onChange(of: text) { dropEcho() }
+        // Choosing Reply moves the cursor here, ready for the follow-up.
+        .onChange(of: replyTo?.id) {
+            if replyTo != nil {
+                focused = true
+            }
+        }
         .photosPicker(isPresented: $pickingPhoto, selection: $photo, matching: .images)
         .fullScreenCover(isPresented: $takingPhoto) {
             CameraPicker { image in

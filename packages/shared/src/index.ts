@@ -7,6 +7,7 @@ export * from "./knowledge";
 export * from "./log-groups";
 export * from "./logs";
 export * from "./push";
+export * from "./reply";
 export * from "./research";
 export * from "./routes";
 export * from "./rpc";

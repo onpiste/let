@@ -1,20 +1,30 @@
 import { useState } from "react";
 
-import { Check, Copy, Pencil, Retry, Share } from "../../components/icons";
+import {
+  Check,
+  Copy,
+  Pencil,
+  Reply,
+  Retry,
+  Share
+} from "../../components/icons";
 
 /**
- * Copy and share buttons under a message, plus edit (user messages) or
- * regenerate (the last reply) when offered. Share uses the system sheet.
+ * Reply, copy and share buttons under a message, plus edit (user messages)
+ * or regenerate (the last reply) when offered. Share uses the system sheet.
+ * Reply quotes the message in the composer for a follow-up.
  * Mirrors `MessageActions` and `MessageMenu` in `MessageRow.swift`.
  */
 export function MessageActions({
   text,
   align = "start",
+  onReply,
   onEdit,
   onRegenerate
 }: {
   text: string;
   align?: "start" | "end";
+  onReply?: () => void;
   onEdit?: () => void;
   onRegenerate?: () => void;
 }) {
@@ -43,6 +53,17 @@ export function MessageActions({
 
   return (
     <div className={`msg-actions ${align === "end" ? "justify-end" : ""}`}>
+      {onReply && (
+        <button
+          type="button"
+          className="msg-action"
+          aria-label="Reply"
+          title="Reply"
+          onClick={onReply}
+        >
+          <Reply />
+        </button>
+      )}
       <button
         type="button"
         className="msg-action"

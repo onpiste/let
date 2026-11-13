@@ -1,8 +1,11 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 
+import type { ReplyQuote } from "@cot/shared";
+
 import { ArrowUp, Mic, Square } from "../../components/icons";
 import type { Attachment } from "../../lib/attachments";
 import { AttachMenu } from "./attach-menu";
+import { ReplyPreview } from "./reply-quote";
 import { useVoiceInput } from "./use-voice-input";
 import { VoiceBar } from "./voice-bar";
 
@@ -18,22 +21,27 @@ export function Composer({
   value,
   busy,
   attachments,
+  replyTo,
   onChange,
   onAttach,
   onPhoto,
   onError,
   onRemoveAttachment,
+  onCancelReply,
   onSend,
   onStop
 }: {
   value: string;
   busy: boolean;
   attachments: Attachment[];
+  /** The message being replied to, shown above the box. */
+  replyTo: ReplyQuote | null;
   onChange: (value: string) => void;
   onAttach: (files: File[]) => void;
   onPhoto: (file: File) => void;
   onError: (message: string) => void;
   onRemoveAttachment: (index: number) => void;
+  onCancelReply: () => void;
   onSend: () => void;
   onStop: () => void;
 }) {
@@ -69,6 +77,12 @@ export function Composer({
     return () => window.removeEventListener("resize", autosize);
   }, [value, voice.state]);
 
+  // Choosing Reply moves the cursor here, ready for the follow-up.
+  const replyId = replyTo?.id;
+  useEffect(() => {
+    if (replyId) textareaRef.current?.focus();
+  }, [replyId]);
+
   const canSend = value.trim() !== "" || attachments.length > 0;
 
   const send = () => {
@@ -79,6 +93,7 @@ export function Composer({
 
   return (
     <footer className="composer-wrap">
+      {replyTo && <ReplyPreview quote={replyTo} onCancel={onCancelReply} />}
       {attachments.length > 0 && (
         <div className="attachments">
           {attachments.map((a, i) => (
@@ -121,6 +136,11 @@ export function Composer({
                 onChange(e.target.value);
               }}
               onKeyDown={(e) => {
+                if (e.key === "Escape" && replyTo) {
+                  e.preventDefault();
+                  onCancelReply();
+                  return;
+                }
                 if (
                   e.key === "Enter" &&
                   !e.shiftKey &&

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ASSISTANT,
   chatSocketPath,
+  type ReplyQuote,
   type ResearchJob,
   type User
 } from "@cot/shared";
@@ -61,6 +62,8 @@ export function ChatPane({
 }) {
   const [input, setInput] = useState(draft);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  /** The message the next one replies to, quoted above the composer. */
+  const [replyTo, setReplyTo] = useState<ReplyQuote | null>(null);
   // The transcript before a regenerate, to put the old reply back if the
   // request fails before a new one arrives.
   const beforeRegenerate = useRef<UIMessage[] | null>(null);
@@ -133,11 +136,14 @@ export function ChatPane({
   const last = messages[messages.length - 1];
   const waiting = busy && (!last || last.role === "user");
   const submit = useCallback(
-    (parts: UIMessage["parts"]) =>
+    (parts: UIMessage["parts"], quote: ReplyQuote | null) =>
       void sendMessage({
         role: "user",
         parts,
-        metadata: { createdAt: Date.now() }
+        metadata: {
+          createdAt: Date.now(),
+          ...(quote && { replyTo: quote })
+        }
       }),
     [sendMessage]
   );
@@ -202,9 +208,10 @@ export function ChatPane({
     if (t) parts.push({ type: "text", text: t });
     setInput("");
     setAttachments([]);
+    setReplyTo(null);
     follow();
-    if (busy) queued.enqueue(parts);
-    else submit(parts);
+    if (busy) queued.enqueue(parts, replyTo);
+    else submit(parts, replyTo);
   };
 
   return (
@@ -222,6 +229,7 @@ export function ChatPane({
               onApproval={(id, approved) =>
                 void addToolApprovalResponse({ id, approved })
               }
+              onReply={setReplyTo}
               onEdit={(id, text) => void editMessage(id, text)}
               onRegenerate={regenerateReply}
             />
@@ -247,6 +255,7 @@ export function ChatPane({
         value={input}
         busy={busy}
         attachments={attachments}
+        replyTo={replyTo}
         onChange={setInput}
         onAttach={(files) => void attach(files)}
         onPhoto={(file) => void attach([file], shrinkPhoto)}
@@ -254,6 +263,7 @@ export function ChatPane({
         onRemoveAttachment={(i) =>
           setAttachments(attachments.filter((_, j) => j !== i))
         }
+        onCancelReply={() => setReplyTo(null)}
         onSend={() => send()}
         onStop={() => void stop()}
       />

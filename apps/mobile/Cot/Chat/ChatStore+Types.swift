@@ -20,5 +20,7 @@ extension ChatStore {
         let id = UUID()
         let text: String
         let attachments: [Attachment]
+        /// The message it replies to, if any.
+        let replyTo: ReplyQuote?
     }
 }

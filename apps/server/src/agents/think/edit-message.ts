@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 
-import { editedParts } from "@cot/shared";
+import { editedParts, messageReplyTo } from "@cot/shared";
 
 /**
  * Where an edit of the user message `messageId` goes, and what it says.
@@ -27,11 +27,13 @@ export function editTarget(
   }
   const parts = editedParts(original.parts, text);
   if (parts.length === 0) throw new Error("A message needs text or a file.");
+  // An edited reply still replies to the same message.
+  const replyTo = messageReplyTo(original);
   const message: UIMessage = {
     id: crypto.randomUUID(),
     role: "user",
     parts,
-    metadata: { createdAt: Date.now() }
+    metadata: { createdAt: Date.now(), ...(replyTo && { replyTo }) }
   };
   return { parentId: messages[at - 1]?.id ?? null, message };
 }

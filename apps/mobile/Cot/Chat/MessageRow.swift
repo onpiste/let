@@ -8,12 +8,26 @@ struct MessageRow: View {
     /// The reply is still arriving; hide its actions until it settles.
     var streaming = false
     let onApproval: (String, Bool) -> Void
+    /// Quote this message in the composer for a follow-up.
+    let onReply: (ReplyQuote) -> Void
+    /// Scroll to the message with this id (a tapped quote's original).
+    let onShowMessage: (String) -> Void
     /// Replaces this user message with the edited text; nil while busy.
     var onEdit: ((String) -> Void)?
     /// Answers the last user message again; set on the last reply only.
     var onRegenerate: (() -> Void)?
 
     @State private var editing = false
+
+    private var quote: ReplyQuote? {
+        ReplyQuote(message: message)
+    }
+
+    private func reply() {
+        if let quote {
+            onReply(quote)
+        }
+    }
 
     var body: some View {
         if message.isUser, editing {
@@ -30,6 +44,10 @@ struct MessageRow: View {
             .padding(.leading, 48)
         } else if message.isUser {
             VStack(alignment: .trailing, spacing: 4) {
+                if let replyTo = message.replyTo {
+                    QuotedMessageView(quote: replyTo) { onShowMessage(replyTo.id) }
+                        .padding(.bottom, 4)
+                }
                 ForEach(Array(message.attachmentNames.enumerated()), id: \.offset) { _, name in
                     Label(name, systemImage: "paperclip")
                         .font(.footnote)
@@ -37,6 +55,10 @@ struct MessageRow: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Color(.secondarySystemBackground), in: Capsule())
+                        // A file-only message can be replied to as well.
+                        .contextMenu {
+                            MessageMenu(text: name, onReply: reply)
+                        }
                 }
                 if !message.plainText.isEmpty {
                     Text(message.plainText)
@@ -51,6 +73,7 @@ struct MessageRow: View {
                         .contextMenu {
                             MessageMenu(
                                 text: message.plainText,
+                                onReply: reply,
                                 onEdit: onEdit == nil ? nil : { editing = true }
                             )
                         }
@@ -71,7 +94,11 @@ struct MessageRow: View {
                     }
                 }
                 if !streaming, !message.shareText.isEmpty {
-                    MessageActions(text: message.shareText, onRegenerate: onRegenerate)
+                    MessageActions(
+                        text: message.shareText,
+                        onReply: reply,
+                        onRegenerate: onRegenerate
+                    )
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -79,15 +106,20 @@ struct MessageRow: View {
     }
 }
 
-/// Copy and share buttons under an assistant reply, plus regenerate on the
-/// last one (web: message-actions.tsx).
+/// Reply, copy and share buttons under an assistant reply, plus regenerate
+/// on the last one, in the order of `message-actions.tsx`.
 private struct MessageActions: View {
     let text: String
+    let onReply: () -> Void
     let onRegenerate: (() -> Void)?
     @State private var copied = false
 
     var body: some View {
         HStack(spacing: 16) {
+            Button(action: onReply) {
+                Image(systemName: "arrowshape.turn.up.left")
+            }
+            .accessibilityLabel("Reply")
             Button {
                 UIPasteboard.general.string = text
                 copied = true
@@ -117,13 +149,15 @@ private struct MessageActions: View {
     }
 }
 
-/// Long-press menu on a user bubble: the web's copy, edit and share
+/// Long-press menu on a user bubble: the web's reply, copy, edit and share
 /// buttons under it (message-actions.tsx).
 private struct MessageMenu: View {
     let text: String
-    let onEdit: (() -> Void)?
+    let onReply: () -> Void
+    var onEdit: (() -> Void)?
 
     var body: some View {
+        Button("Reply", systemImage: "arrowshape.turn.up.left", action: onReply)
         Button("Copy", systemImage: "doc.on.doc") {
             UIPasteboard.general.string = text
         }

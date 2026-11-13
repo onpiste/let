@@ -15,6 +15,7 @@ import type { ChatServices, TurnSetup } from "./chat-services";
 import { editTarget } from "./edit-message";
 import { stampCreatedAt } from "./history";
 import { modelFor } from "./model";
+import { withReplyContext } from "./reply-context";
 import {
   replyText,
   SCHEDULED_TURN_HINT,
@@ -131,7 +132,8 @@ export class Chat extends Think<Env> implements ChatRpc {
         ? `${setup.instructions}\n\n${SCHEDULED_TURN_HINT}`
         : setup.instructions,
       tools,
-      activeTools
+      activeTools,
+      messages: withReplyContext(this.messages, ctx.messages)
     };
   }
 

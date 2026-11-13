@@ -3,37 +3,20 @@ import { isToolUIPart, type UIMessage } from "ai";
 import { Fragment, useState } from "react";
 import { Streamdown } from "streamdown";
 
-import { INLINE_FILE, messageCreatedAt, needsTimeDivider } from "@cot/shared";
+import {
+  messageCreatedAt,
+  messageReplyTo,
+  needsTimeDivider,
+  type ReplyQuote
+} from "@cot/shared";
 
 import { MessageActions } from "./message-actions";
 import { MessageEdit } from "./message-edit";
+import { assistantText, replyQuoteFor, userContent } from "./message-text";
+import { messageAnchor, QuotedMessage } from "./reply-quote";
 import { Thinking, TypingDots } from "./thinking";
 import { TimeDivider } from "./time-divider";
 import { ToolChip } from "./tool-chip";
-
-/** A user message's typed text plus the names of the files attached to it. */
-function userContent(m: UIMessage) {
-  const files: string[] = [];
-  let text = "";
-  for (const p of m.parts) {
-    if (p.type === "file") files.push(p.filename ?? "file");
-    if (p.type !== "text") continue;
-    // Text files travel inline; show them as chips, not as a wall of text.
-    text += p.text.replace(INLINE_FILE, (_, name: string) => {
-      files.push(name);
-      return "";
-    });
-  }
-  return { text: text.trim(), files };
-}
-
-/** An assistant message's answer text, for copying and sharing. */
-function assistantText(m: UIMessage) {
-  return m.parts
-    .flatMap((p) => (p.type === "text" ? [p.text.trim()] : []))
-    .filter(Boolean)
-    .join("\n\n");
-}
 
 /** One turn: a user bubble, or the assistant's text, reasoning and tools. */
 function Message({
@@ -42,6 +25,7 @@ function Message({
   busy,
   toolLabels,
   onApproval,
+  onReply,
   onEdit,
   onRegenerate
 }: {
@@ -50,12 +34,16 @@ function Message({
   busy: boolean;
   toolLabels: Record<string, string>;
   onApproval: (id: string, approved: boolean) => void;
+  onReply: (quote: ReplyQuote) => void;
   onEdit: (id: string, text: string) => void;
   onRegenerate: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const quote = replyQuoteFor(m);
+  const reply = quote ? () => onReply(quote) : undefined;
   if (m.role === "user") {
     const { text, files } = userContent(m);
+    const replyTo = messageReplyTo(m);
     if (editing) {
       return (
         <div key={m.id} className="message flex flex-col items-end gap-1">
@@ -72,7 +60,12 @@ function Message({
       );
     }
     return (
-      <div key={m.id} className="message flex flex-col items-end gap-1">
+      <div
+        key={m.id}
+        id={messageAnchor(m.id)}
+        className="message flex flex-col items-end gap-1"
+      >
+        {replyTo && <QuotedMessage quote={replyTo} />}
         {files.length > 0 && (
           <div className="attachments justify-end">
             {files.map((f, k) => (
@@ -83,12 +76,13 @@ function Message({
           </div>
         )}
         {text && <div className="bubble-user">{text}</div>}
-        {text && (
+        {quote && (
           <MessageActions
-            text={text}
+            text={text || files.join(", ")}
             align="end"
+            onReply={reply}
             // Not mid-reply: the edit would race the turn still running.
-            onEdit={busy ? undefined : () => setEditing(true)}
+            onEdit={busy || !text ? undefined : () => setEditing(true)}
           />
         )}
       </div>
@@ -97,7 +91,7 @@ function Message({
   const answer = assistantText(m);
   const streaming = busy && isLast;
   return (
-    <div key={m.id} className="message assistant">
+    <div key={m.id} id={messageAnchor(m.id)} className="message assistant">
       {m.parts.map((part, j) => {
         if (part.type === "reasoning") {
           return (
@@ -135,6 +129,7 @@ function Message({
       {answer && !streaming && (
         <MessageActions
           text={answer}
+          onReply={reply}
           onRegenerate={isLast && !busy ? onRegenerate : undefined}
         />
       )}
@@ -149,6 +144,7 @@ export function MessageList({
   waiting,
   toolLabels,
   onApproval,
+  onReply,
   onEdit,
   onRegenerate
 }: {
@@ -159,6 +155,8 @@ export function MessageList({
   waiting: boolean;
   toolLabels: Record<string, string>;
   onApproval: (id: string, approved: boolean) => void;
+  /** Quote this message in the composer for a follow-up. */
+  onReply: (quote: ReplyQuote) => void;
   /** Replaces a user message and everything after it with a new answer. */
   onEdit: (id: string, text: string) => void;
   /** Answers the last user message again, replacing the last reply. */
@@ -182,6 +180,7 @@ export function MessageList({
               busy={busy}
               toolLabels={toolLabels}
               onApproval={onApproval}
+              onReply={onReply}
               onEdit={onEdit}
               onRegenerate={onRegenerate}
             />
