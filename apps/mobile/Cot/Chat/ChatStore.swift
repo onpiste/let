@@ -46,6 +46,9 @@ final class ChatStore {
     var onConnectionLost: (() -> Void)?
 
     private var requestID: String?
+    /// The transcript before a regenerate dropped the last reply, put back
+    /// if the turn fails before a new reply arrives.
+    private var beforeRegenerate: [ChatMessage]?
     private var stream = ReplyStream()
     /// The server's latest transcript, which the reply being streamed here
     /// overrides until its stream ends.
@@ -145,12 +148,57 @@ final class ChatStore {
     private func dispatch(_ trimmed: String, _ attachments: [Attachment]) {
         errorText = nil
         messages.append(.user(text: trimmed, attachments: attachments))
+        startTurn(trigger: "submit-message")
+    }
+
+    /// Answers the last user message again. Think keeps the old reply as a
+    /// hidden branch and shows the new one (web: chat-pane.tsx regenerateReply).
+    func regenerate() {
+        guard !busy, let last = messages.lastIndex(where: \.isUser) else { return }
+        errorText = nil
+        beforeRegenerate = messages
+        messages.removeSubrange((last + 1)...)
+        startTurn(trigger: "regenerate-message")
+    }
+
+    /// Replaces a user message, dropping what followed it, then answers the
+    /// edit (ChatRpc.editMessage; web: chat-pane.tsx editMessage).
+    /// Busy from the start, so a message sent meanwhile queues behind the
+    /// edit's reply instead of racing it.
+    func edit(_ messageID: String, text: String) async {
+        guard !busy, let chatSocket else { return }
+        status = .submitted
+        do {
+            let json = try await chatSocket.call(
+                "editMessage", [.string(messageID), .string(text)]
+            )
+            // A chat switched to meanwhile owns the turn state now.
+            guard self.chatSocket === chatSocket else { return }
+            // The server's new transcript may already have replaced it.
+            guard let edited = ChatMessage(json: json),
+                  let index = messages.firstIndex(where: {
+                      $0.id == messageID || $0.id == edited.id
+                  })
+            else { return finishTurn() }
+            errorText = nil
+            messages = Array(messages[..<index]) + [edited]
+            startTurn(trigger: "regenerate-message")
+        } catch {
+            guard self.chatSocket === chatSocket else { return }
+            report(error.localizedDescription)
+            finishTurn()
+        }
+    }
+
+    /// Posts the transcript as shown and streams the reply; `trigger` is the
+    /// chat protocol's "submit-message" or "regenerate-message".
+    private func startTurn(trigger: String) {
         let id = randomID(length: 8)
         requestID = id
         status = .submitted
         let body = JSONValue.object([
             "messages": .array(messages.map(\.json)),
-            "trigger": .string("submit-message")
+            "trigger": .string(trigger)
         ])
         // Queued while the chat reconnects, so the message isn't lost.
         chatSocket?.send(
@@ -329,6 +377,10 @@ final class ChatStore {
         if outcome.failed {
             errorText = outcome.errorText
         }
+        // A regenerate that failed before answering: show the old reply.
+        if outcome.aborted, let before = beforeRegenerate, messages.last?.isUser ?? false {
+            messages = before
+        }
         if outcome.streaming, status != .streaming {
             status = .streaming
         }
@@ -345,6 +397,7 @@ final class ChatStore {
         serverMessages = []
         turnAtProbe = nil
         requestID = nil
+        beforeRegenerate = nil
         stream = ReplyStream()
     }
 
@@ -353,6 +406,7 @@ final class ChatStore {
         status = .ready
         stream.end()
         requestID = nil
+        beforeRegenerate = nil
         if !queue.isEmpty {
             let next = queue.removeFirst()
             dispatch(next.text, next.attachments)

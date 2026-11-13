@@ -8,9 +8,27 @@ struct MessageRow: View {
     /// The reply is still arriving; hide its actions until it settles.
     var streaming = false
     let onApproval: (String, Bool) -> Void
+    /// Replaces this user message with the edited text; nil while busy.
+    var onEdit: ((String) -> Void)?
+    /// Answers the last user message again; set on the last reply only.
+    var onRegenerate: (() -> Void)?
+
+    @State private var editing = false
 
     var body: some View {
-        if message.isUser {
+        if message.isUser, editing {
+            MessageEditView(
+                text: message.plainText,
+                hasFiles: !message.attachmentNames.isEmpty,
+                onSave: { text in
+                    editing = false
+                    onEdit?(text)
+                },
+                onCancel: { editing = false }
+            )
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .padding(.leading, 48)
+        } else if message.isUser {
             VStack(alignment: .trailing, spacing: 4) {
                 ForEach(Array(message.attachmentNames.enumerated()), id: \.offset) { _, name in
                     Label(name, systemImage: "paperclip")
@@ -30,7 +48,12 @@ struct MessageRow: View {
                             in: RoundedRectangle(cornerRadius: 18, style: .continuous)
                         )
                         .textSelection(.enabled)
-                        .contextMenu { MessageMenu(text: message.plainText) }
+                        .contextMenu {
+                            MessageMenu(
+                                text: message.plainText,
+                                onEdit: onEdit == nil ? nil : { editing = true }
+                            )
+                        }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
@@ -48,7 +71,7 @@ struct MessageRow: View {
                     }
                 }
                 if !streaming, !message.shareText.isEmpty {
-                    MessageActions(text: message.shareText)
+                    MessageActions(text: message.shareText, onRegenerate: onRegenerate)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -56,9 +79,11 @@ struct MessageRow: View {
     }
 }
 
-/// Copy and share buttons under an assistant reply.
+/// Copy and share buttons under an assistant reply, plus regenerate on the
+/// last one (web: message-actions.tsx).
 private struct MessageActions: View {
     let text: String
+    let onRegenerate: (() -> Void)?
     @State private var copied = false
 
     var body: some View {
@@ -75,6 +100,12 @@ private struct MessageActions: View {
             }
             .accessibilityLabel(copied ? "Copied" : "Copy")
             .sensoryFeedback(.success, trigger: copied) { _, new in new }
+            if let onRegenerate {
+                Button(action: onRegenerate) {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .accessibilityLabel("Regenerate")
+            }
             ShareLink(item: text) {
                 Image(systemName: "square.and.arrow.up")
             }
@@ -86,13 +117,18 @@ private struct MessageActions: View {
     }
 }
 
-/// Long-press menu on a user bubble.
+/// Long-press menu on a user bubble: the web's copy, edit and share
+/// buttons under it (message-actions.tsx).
 private struct MessageMenu: View {
     let text: String
+    let onEdit: (() -> Void)?
 
     var body: some View {
         Button("Copy", systemImage: "doc.on.doc") {
             UIPasteboard.general.string = text
+        }
+        if let onEdit {
+            Button("Edit", systemImage: "pencil", action: onEdit)
         }
         ShareLink(item: text) {
             Label("Share", systemImage: "square.and.arrow.up")
@@ -118,5 +154,48 @@ private struct ReasoningView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+/// A user message being edited in place of its bubble. Sending replaces the
+/// message and everything after it with a new answer (web: message-edit.tsx).
+private struct MessageEditView: View {
+    let hasFiles: Bool
+    let onSave: (String) -> Void
+    let onCancel: () -> Void
+    @State private var value: String
+    @FocusState private var focused: Bool
+
+    init(text: String, hasFiles: Bool, onSave: @escaping (String) -> Void, onCancel: @escaping () -> Void) {
+        self.hasFiles = hasFiles
+        self.onSave = onSave
+        self.onCancel = onCancel
+        _value = State(initialValue: text)
+    }
+
+    private var canSave: Bool {
+        !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasFiles
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            TextField("Edit message", text: $value, axis: .vertical)
+                .lineLimit(2 ... 8)
+                .focused($focused)
+            HStack(spacing: 12) {
+                Button("Cancel", action: onCancel)
+                Button("Send") { onSave(value) }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSave)
+            }
+            .font(.subheadline)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            Color(.secondarySystemBackground),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .onAppear { focused = true }
     }
 }

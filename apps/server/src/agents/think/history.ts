@@ -1,10 +1,18 @@
 import type { Agent } from "agents";
 import type { UIMessage } from "ai";
 
-import type { ChatSummary } from "@cot/shared";
+import {
+  CHAT_PAGE_SIZE,
+  chatCursor,
+  checkChatTitle,
+  INLINE_FILE,
+  parseChatCursor,
+  type ChatPage,
+  type ChatSummary
+} from "@cot/shared";
 
 import { log } from "../../log/logger";
-import { ChatIndex, INLINE_FILE } from "./chat-index";
+import { ChatIndex } from "./chat-index";
 import { chatMatch, checkQuery } from "./chat-search";
 import { generateTitle } from "./title";
 
@@ -17,6 +25,13 @@ const SEARCH_RESULTS = 50;
  * reporting back (e.g. deleted mid-turn); stop showing it as running.
  */
 const RUNNING_TIMEOUT_MS = 15 * 60 * 1000;
+
+type ChatRow = {
+  id: string;
+  title: string;
+  updated_at: string;
+  running_since: number | null;
+};
 
 /** The first user text (or attached file name), for the history list. */
 function chatTitle(messages: UIMessage[]) {
@@ -165,23 +180,63 @@ export class ChatHistory {
       // Cosmetic: the list keeps the first-message title.
       log.warn("chat", "Title failed", { chatId: id, error: String(error) });
     }
-    // The chat may have been deleted while the model was thinking.
-    if (!title || !this.ids().has(id)) return;
+    // The chat may have been deleted, or renamed by the user, while the
+    // model was thinking.
+    if (!title || !this.ids().has(id) || this.namedTitle(id)) return;
     this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
       VALUES (${`title:${id}`}, ${title})`;
     this.host.sql`UPDATE chats SET title = ${title} WHERE id = ${id}`;
   }
 
+  /**
+   * The user's own title. Stored like a model-written one, so the model
+   * never renames the chat again.
+   */
+  rename(id: string, title: unknown) {
+    const clean = checkChatTitle(title);
+    if (!this.ids().has(id)) throw new Error("That chat no longer exists.");
+    this.host.sql`INSERT OR REPLACE INTO chat_state (key, value)
+      VALUES (${`title:${id}`}, ${clean})`;
+    this.host.sql`UPDATE chats SET title = ${clean} WHERE id = ${id}`;
+  }
+
+  /** Every chat, newest first (search filters it). */
   list(): ChatSummary[] {
+    return this.summaries(this.host.sql<ChatRow>`
+      SELECT id, title, updated_at, running_since FROM chats
+      ORDER BY updated_at DESC, id DESC`);
+  }
+
+  /**
+   * One page of the history list after `cursor` (the `listChatPage`
+   * callable). Keyset paging: a chat updated meanwhile moves to the top
+   * rather than shifting every later page.
+   */
+  page(cursor: unknown): ChatPage {
+    const after = parseChatCursor(cursor);
+    // One extra row says whether another page follows.
+    const limit = CHAT_PAGE_SIZE + 1;
+    const rows = after
+      ? this.host.sql<ChatRow>`
+          SELECT id, title, updated_at, running_since FROM chats
+          WHERE updated_at < ${after.updatedAt}
+            OR (updated_at = ${after.updatedAt} AND id < ${after.id})
+          ORDER BY updated_at DESC, id DESC LIMIT ${limit}`
+      : this.host.sql<ChatRow>`
+          SELECT id, title, updated_at, running_since FROM chats
+          ORDER BY updated_at DESC, id DESC LIMIT ${limit}`;
+    const chats = this.summaries(rows.slice(0, CHAT_PAGE_SIZE));
+    const last = chats.at(-1);
+    return {
+      chats,
+      next: rows.length > CHAT_PAGE_SIZE && last ? chatCursor(last) : null
+    };
+  }
+
+  private summaries(rows: ChatRow[]): ChatSummary[] {
     const active = this.activeId();
     const now = Date.now();
-    return this.host.sql<{
-      id: string;
-      title: string;
-      updated_at: string;
-      running_since: number | null;
-    }>`SELECT id, title, updated_at, running_since FROM chats
-       ORDER BY updated_at DESC`.map((row) => ({
+    return rows.map((row) => ({
       id: row.id,
       title: row.title,
       updatedAt: row.updated_at,

@@ -43,12 +43,7 @@ struct ChatView: View {
                             {
                                 TimeDivider(date: sent)
                             }
-                            MessageRow(
-                                message: row.message,
-                                toolLabels: store.mcp?.toolLabels ?? [:],
-                                streaming: store.busy && row.message.id == store.messages.last?.id,
-                                onApproval: store.respond(toApproval:approved:)
-                            )
+                            messageRow(row.message)
                         }
                         if waiting {
                             TypingDots()
@@ -219,6 +214,25 @@ struct ChatView: View {
         Task { @MainActor in
             openInbox(at: id)
         }
+    }
+
+    /// One message with its actions; on its own so `body` type-checks in time.
+    private func messageRow(_ message: ChatMessage) -> MessageRow {
+        let isLast = message.id == store.messages.last?.id
+        // Not mid-reply: an edit or a regenerate would race the turn still running.
+        let onEdit: ((String) -> Void)? = store.busy ? nil : { text in
+            Task { await store.edit(message.id, text: text) }
+        }
+        let onRegenerate: (() -> Void)? =
+            isLast && !store.busy ? { store.regenerate() } : nil
+        return MessageRow(
+            message: message,
+            toolLabels: store.mcp?.toolLabels ?? [:],
+            streaming: store.busy && isLast,
+            onApproval: store.respond(toApproval:approved:),
+            onEdit: onEdit,
+            onRegenerate: onRegenerate
+        )
     }
 
     private func send(_ text: String) {

@@ -1,7 +1,7 @@
 import { useAgentChat } from "@cloudflare/think/react";
 import { useAgent } from "agents/react";
 import type { UIMessage } from "ai";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ASSISTANT,
@@ -11,6 +11,7 @@ import {
 } from "@cot/shared";
 
 import { ArrowDown } from "../../components/icons";
+import { chatApi } from "../../lib/assistant-rpc";
 import {
   checkTotalSize,
   readAttachment,
@@ -60,6 +61,9 @@ export function ChatPane({
 }) {
   const [input, setInput] = useState(draft);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // The transcript before a regenerate, to put the old reply back if the
+  // request fails before a new one arrives.
+  const beforeRegenerate = useRef<UIMessage[] | null>(null);
 
   const agent = useAgent({
     agent: ASSISTANT.agent,
@@ -78,23 +82,49 @@ export function ChatPane({
     onMissing();
   }, [missing, onMissing, chatId]);
 
-  const { messages, sendMessage, stop, status, addToolApprovalResponse } =
-    useAgentChat({
-      agent,
-      experimental_throttle: 50,
-      // Show the cached chat at once; the socket sends the real list on
-      // connect. Without a cache, fetch it like the SDK does.
-      getInitialMessages: async ({ url }) => {
-        const cached = loadChatCache(user.id);
-        if (cached?.chatId === chatId) return cached.messages;
-        if (!url) return [];
-        const res = await fetch(`${url}/get-messages`).catch(() => null);
-        // Trust boundary: the server's UIMessage list.
-        return res?.ok ? ((await res.json()) as UIMessage[]) : [];
+  const {
+    messages,
+    sendMessage,
+    setMessages,
+    regenerate,
+    stop,
+    status,
+    addToolApprovalResponse
+  } = useAgentChat({
+    agent,
+    experimental_throttle: 50,
+    onFinish: () => {
+      beforeRegenerate.current = null;
+    },
+    onError: () => {
+      const saved = beforeRegenerate.current;
+      beforeRegenerate.current = null;
+      if (saved) {
+        setMessages((shown) =>
+          shown[shown.length - 1]?.role === "user" ? saved : shown
+        );
       }
-    });
+    },
+    // Show the cached chat at once; the socket sends the real list on
+    // connect. Without a cache, fetch it like the SDK does.
+    getInitialMessages: async ({ url }) => {
+      const cached = loadChatCache(user.id);
+      if (cached?.chatId === chatId) return cached.messages;
+      if (!url) return [];
+      const res = await fetch(`${url}/get-messages`).catch(() => null);
+      // Trust boundary: the server's UIMessage list.
+      return res?.ok ? ((await res.json()) as UIMessage[]) : [];
+    }
+  });
+  const shown = useRef(messages);
+  useEffect(() => {
+    shown.current = messages;
+  }, [messages]);
 
-  const busy = status === "streaming" || status === "submitted";
+  // An edit counts as busy from its first request, so a message sent
+  // meanwhile queues behind the edit's reply instead of racing it.
+  const [editing, setEditing] = useState(false);
+  const busy = editing || status === "streaming" || status === "submitted";
 
   // Not mid-stream: that would write the whole chat on every chunk.
   useEffect(() => {
@@ -131,6 +161,39 @@ export function ChatPane({
     }
   };
 
+  // Think keeps the old reply as a hidden branch; the chat shows the new one.
+  const regenerateReply = () => {
+    beforeRegenerate.current = messages;
+    follow();
+    regenerate().catch((e: unknown) =>
+      onNotice({ icon: "⚠️", title: "Can't regenerate", text: errorText(e) })
+    );
+  };
+
+  // The server swaps in the edited message (dropping what followed it),
+  // then a regenerate request answers it like a normal send.
+  const editMessage = async (id: string, text: string) => {
+    if (busy) return;
+    setEditing(true);
+    try {
+      // Trust boundary: the server's UIMessage.
+      const edited = (await chatApi(agent).editMessage(id, text)) as UIMessage;
+      // What's shown now, not when the edit began: the server's broadcast
+      // (or another device's) may have replaced it while the call ran.
+      const now = shown.current;
+      const at = now.findIndex((m) => m.id === id || m.id === edited.id);
+      // Like iOS: if it's gone from what's shown, leave the transcript alone.
+      if (at < 0) return;
+      setMessages([...now.slice(0, at), edited]);
+      follow();
+      await regenerate();
+    } catch (e) {
+      onNotice({ icon: "⚠️", title: "Can't edit", text: errorText(e) });
+    } finally {
+      setEditing(false);
+    }
+  };
+
   const send = (text = input) => {
     const t = text.trim();
     if (!t && attachments.length === 0) return;
@@ -159,6 +222,8 @@ export function ChatPane({
               onApproval={(id, approved) =>
                 void addToolApprovalResponse({ id, approved })
               }
+              onEdit={(id, text) => void editMessage(id, text)}
+              onRegenerate={regenerateReply}
             />
           )}
           <div className="h-4" />

@@ -56,7 +56,10 @@ export class ChatDirectory {
     return this.host.dynamicAgents.has(Chat, id);
   }
 
-  /** A 404 unless the sub-agent asked for is one of these chats. */
+  /**
+   * `onBeforeSubAgent`: a 404 for anything but a chat this assistant
+   * created, undefined to let the request through.
+   */
   async gate(className: string, name: string) {
     await this.ready();
     if (className !== Chat.name || !this.exists(name)) {
@@ -65,6 +68,12 @@ export class ChatDirectory {
     return undefined;
   }
 
+  async page(cursor: unknown) {
+    await this.ready();
+    return this.history().page(cursor);
+  }
+
+  /** Every chat in one list, for iOS builds from before paging. */
   async list() {
     await this.ready();
     return this.history().list();
@@ -100,6 +109,12 @@ export class ChatDirectory {
     await this.host.dynamicAgents.delete(Chat, id);
     this.history().remove(id);
     return this.history().list();
+  }
+
+  async rename(id: unknown, title: unknown) {
+    checkChatId(id);
+    await this.ready();
+    this.history().rename(id, title);
   }
 
   async find(query: unknown) {
