@@ -20,6 +20,7 @@ import { webTools, type WebAccess } from "./web";
  * approval buttons, so these are withheld from Telegram turns.
  */
 export const NEEDS_APPROVAL = new Set([
+  "sendEmail",
   "runCommand",
   "writeSandboxFile",
   "codeTask"
