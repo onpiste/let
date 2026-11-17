@@ -243,7 +243,7 @@ export function ChatPane({
               onClick={follow}
               aria-label="Scroll to latest"
             >
-              <ArrowDown />
+              <ArrowDown size={18} />
             </button>
           </div>
         )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { CHAT_QUERY_LENGTH, CHAT_TITLE_LENGTH } from "@cot/shared";
 
-import { Pencil } from "../../components/icons";
+import { Pencil, Search, X } from "../../components/icons";
 import { api, type AgentHandle } from "../../lib/assistant-rpc";
 import { errorText } from "../../lib/errors";
 import { HistoryMore } from "./history-more";
@@ -113,11 +113,11 @@ export function HistoryPanel({
               onClick={() => setSearchOpen(true)}
               aria-label="Search chats"
             >
-              ⌕
+              <Search />
             </button>
           )}
           <button className="icon-btn" onClick={onClose} aria-label="Close">
-            ×
+            <X />
           </button>
         </div>
         {searchOpen && (
@@ -141,7 +141,7 @@ export function HistoryPanel({
                 setSearchOpen(false);
               }}
             >
-              ×
+              <X />
             </button>
           </div>
         )}
@@ -179,7 +179,7 @@ export function HistoryPanel({
                   }
                 }}
               >
-                ×
+                <X />
               </button>
             </li>
           ))}

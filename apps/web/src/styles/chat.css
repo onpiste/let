@@ -465,6 +465,8 @@
   white-space: nowrap;
 }
 .chip-file button {
+  display: grid;
+  place-items: center;
   color: var(--muted);
 }
 

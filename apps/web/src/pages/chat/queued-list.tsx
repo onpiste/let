@@ -1,3 +1,4 @@
+import { X } from "../../components/icons";
 import type { QueuedMessage } from "./use-send-queue";
 
 function label(message: QueuedMessage) {
@@ -26,7 +27,7 @@ export function QueuedList({
             aria-label="Remove queued message"
             onClick={() => onRemove(m.id)}
           >
-            ×
+            <X size={12} />
           </button>
         </span>
       ))}

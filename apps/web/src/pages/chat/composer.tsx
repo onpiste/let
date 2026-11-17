@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 
 import type { ReplyQuote } from "@cot/shared";
 
-import { ArrowUp, Mic, Square } from "../../components/icons";
+import { ArrowUp, Mic, Square, X } from "../../components/icons";
 import type { Attachment } from "../../lib/attachments";
 import { AttachMenu } from "./attach-menu";
 import { ReplyPreview } from "./reply-quote";
@@ -104,7 +104,7 @@ export function Composer({
                 aria-label={`Remove ${a.name}`}
                 onClick={() => onRemoveAttachment(i)}
               >
-                ×
+                <X size={12} />
               </button>
             </span>
           ))}
@@ -153,7 +153,7 @@ export function Composer({
             />
             {canSend ? (
               <button type="submit" className="send-btn" aria-label="Send">
-                <ArrowUp />
+                <ArrowUp size={18} />
               </button>
             ) : busy ? (
               <button
@@ -173,7 +173,7 @@ export function Composer({
                   aria-label="Voice input"
                   title="Voice input"
                 >
-                  <Mic />
+                  <Mic size={18} />
                 </button>
               )
             )}
